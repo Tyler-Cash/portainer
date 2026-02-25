@@ -1,0 +1,18 @@
+version: '3'
+
+services:
+  github-runner:
+    container_name: github-runner
+    build: .
+    restart: unless-stopped
+    environment:
+      - RUNNER_SCOPE=repo
+      - REPO_URL=${REPO_URL}
+      - RUNNER_TOKEN=${RUNNER_TOKEN}
+      - RUNNER_NAME=homelab
+      - RUNNER_WORKDIR=/tmp/runner/work
+      - LABELS=self-hosted,linux
+      - SOPS_AGE_KEY=${SOPS_AGE_KEY}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/runner:/tmp/runner

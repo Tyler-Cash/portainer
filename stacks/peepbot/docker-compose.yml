@@ -1,0 +1,95 @@
+services:
+  peepbot-postgres:
+    image: postgres:17
+    container_name: peepbot-postgres
+    restart: always
+    shm_size: 128mb
+    networks:
+      - homelab_default
+    volumes:
+      - /ssd/fast_storage/docker/peepbot-postgres:/var/lib/postgresql
+    environment:
+      POSTGRES_PASSWORD: &postgresPassword ${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  peepbot-backend:
+    image: ghcr.io/tyler-cash/peep-bot-backend:latest
+    container_name: peepbot-backend
+    restart: always
+    networks:
+      - homelab_default
+    depends_on:
+      peepbot-postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://peepbot-postgres:5432/peepbot
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: *postgresPassword
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_DISCORD_CLIENT_ID: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_DISCORD_CLIENT_ID}
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_DISCORD_CLIENT_SECRET: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_DISCORD_CLIENT_SECRET}
+      DEV_TYLERCASH_DISCORD_GUILD_ID: ${DEV_TYLERCASH_DISCORD_GUILD_ID}
+      DEV_TYLERCASH_DISCORD_TOKEN: ${DEV_TYLERCASH_DISCORD_TOKEN}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      traefik.enable: true
+      traefik.http.routers.peepbot-backend.entrypoints: websecure
+      traefik.http.routers.peepbot-backend.rule: Host(`api.event.tylercash.dev`)
+      traefik.http.routers.peepbot-backend.service: peepbot-backend
+      traefik.http.routers.peepbot-backend.tls.certresolver: leresolver
+      traefik.http.services.peepbot-backend.loadbalancer.server.port: 8080
+      com.centurylinklabs.watchtower.enable: true
+
+  peepbot-frontend:
+    image: ghcr.io/tyler-cash/peep-bot-frontend:latest
+    container_name: peepbot-frontend
+    restart: always
+    networks:
+      - homelab_default
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      traefik.enable: true
+      traefik.http.routers.peepbot-frontend.entrypoints: websecure
+      traefik.http.routers.peepbot-frontend.rule: Host(`event.tylercash.dev`)
+      traefik.http.routers.peepbot-frontend.service: peepbot-frontend
+      traefik.http.routers.peepbot-frontend.tls.certresolver: leresolver
+      traefik.http.services.peepbot-frontend.loadbalancer.server.port: 80
+      com.centurylinklabs.watchtower.enable: true
+
+  adminer:
+    image: adminer:5.4.2
+    restart: always
+    networks:
+      - homelab_default
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      traefik.enable: true
+      traefik.http.routers.peepbot-adminer.entrypoints: websecure
+      traefik.http.routers.peepbot-adminer.rule: Host(`adminer.events.tylercash.dev`) && ClientIP(`10.0.0.0/8`)
+      traefik.http.routers.peepbot-adminer.service: peepbot-adminer
+      traefik.http.routers.peepbot-adminer.tls.certresolver: leresolver
+      traefik.http.services.peepbot-adminer.loadbalancer.server.port: 8080
+
+networks:
+  homelab_default:
+    external: true

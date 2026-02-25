@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  n8n-db:
+    image: postgres:16-alpine
+    container_name: n8n-db
+    restart: unless-stopped
+    networks:
+      - homelab_default
+    environment:
+      - POSTGRES_USER=n8n
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=n8n
+    volumes:
+      - /ssd/fast_storage/docker/n8n-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U n8n -d n8n"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:2.9.2
+    container_name: n8n
+    restart: unless-stopped
+    networks:
+      - homelab_default
+    depends_on:
+      n8n-db:
+        condition: service_healthy
+    environment:
+      # Postgres Database Connection
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=n8n-db
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=n8n
+      - DB_POSTGRESDB_USER=n8n
+      - DB_POSTGRESDB_PASSWORD=${DB_POSTGRESDB_PASSWORD} # Must match DB above
+
+      # Core n8n Settings
+      - WEBHOOK_URL=https://n8n.tylercash.dev
+      - GENERIC_TIMEZONE=Australia/Sydney
+      - TZ=Australia/Sydney
+    volumes:
+      # Persistent storage for n8n configs and encryption keys
+      - /ssd/fast_storage/docker/n8n:/home/node/.n8n
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:5678/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      # Traefik configuration mapped to your domain
+      - traefik.enable=true
+      - traefik.http.routers.n8n.service=n8n
+      - traefik.http.routers.n8n.rule=Host(`n8n.tylercash.dev`) && (ClientIP(`10.0.0.0/8`) || ClientIP(`172.19.0.0/24`))
+      - traefik.http.routers.n8n.entrypoints=websecure
+      - traefik.http.services.n8n.loadbalancer.server.scheme=http
+      - traefik.http.services.n8n.loadbalancer.server.port=5678
+      - traefik.http.routers.n8n.tls.certresolver=leresolver
+      # Watchtower config
+      - com.centurylinklabs.watchtower.enable=true
+
+networks:
+  homelab_default:
+    external: true

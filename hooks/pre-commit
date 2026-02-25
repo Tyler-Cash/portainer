@@ -1,0 +1,20 @@
+#!/bin/bash
+# Pre-commit hook: ensure all .env.secret files are encrypted before committing
+
+FAILED=0
+
+for f in $(git diff --cached --name-only | grep '\.env\.secret$'); do
+  # Check the staged version, not the working copy
+  if git show ":$f" | head -c 20 | grep -qv "ENC\[AES"; then
+    echo "❌ UNENCRYPTED secret staged: $f"
+    FAILED=1
+  fi
+done
+
+if [ "$FAILED" -eq 1 ]; then
+  echo ""
+  echo "Run 'make encrypt' then re-stage the files."
+  exit 1
+fi
+
+echo "✅ All secrets encrypted."

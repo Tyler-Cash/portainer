@@ -1,0 +1,73 @@
+---
+services:
+  unifi-db:
+    image: mongo:7.0
+    container_name: unifi-db
+    restart: unless-stopped
+    networks:
+      - homelab_default
+    volumes:
+      - /ssd/fast_storage/docker/unifi-db/:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=unifi
+      - MONGO_PASS=${MONGO_PASS}
+    command: >
+      bash -c "echo 'db.getSiblingDB(\"unifi\").createUser({user: \"unifi\", pwd: \"${MONGO_PASS}\", roles: [{ role: \"dbOwner\", db: \"unifi\" }, { role: \"dbOwner\", db: \"unifi_stat\" }]});' > /docker-entrypoint-initdb.d/init-mongo.js && docker-entrypoint.sh mongod"
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  unifi-network-application:
+    image: lscr.io/linuxserver/unifi-network-application:10.1.85-ls118
+    container_name: unifi-network-application
+    restart: unless-stopped
+    networks:
+      - homelab_default
+    depends_on:
+      unifi-db:
+        condition: service_healthy
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - MEM_LIMIT=1024
+      - MEM_STARTUP=1024
+      # Connect using the user we created in the command above
+      - MONGO_HOST=unifi-db
+      - MONGO_PORT=27017
+      - MONGO_DBNAME=unifi
+      - MONGO_USER=unifi
+      - MONGO_PASS=${MONGO_PASS}
+      - MONGO_AUTHSOURCE=${MONGO_AUTHSOURCE}
+    volumes:
+      - /ssd/fast_storage/docker/unifi/:/config
+    ports:
+      - 8443:8443
+      - 3478:3478/udp
+      - 10001:10001/udp
+      - 8080:8080
+      - 1900:1900/udp
+      - 8843:8843
+      - 8880:8880
+      - 6789:6789
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf -k https://localhost:8443/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.unifi.service=unifi
+      - traefik.http.routers.unifi.rule=Host(`unifi.tylercash.dev`) && (ClientIP(`10.0.0.0/8`) || ClientIP(`172.19.0.0/24`))
+      - traefik.http.routers.unifi.entrypoints=websecure
+      - traefik.http.routers.unifi.tls.certresolver=leresolver
+      - traefik.http.services.unifi.loadbalancer.server.port=8443
+      - traefik.http.services.unifi.loadbalancer.server.scheme=https
+
+networks:
+  homelab_default:
+    external: true

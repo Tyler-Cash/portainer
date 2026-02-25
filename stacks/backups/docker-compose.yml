@@ -1,0 +1,190 @@
+version: '3.8'
+
+services:
+  watchtower:
+    image: containrrr/watchtower:1.7.1
+    container_name: watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - TZ=Australia/Sydney
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_LABEL_ENABLE=true
+      - WATCHTOWER_SCHEDULE=30 4 */7 * *
+
+  restic-gcs-backup:
+    image: restic/restic:0.18.1
+    container_name: restic_zfs_gcs
+    restart: unless-stopped
+    environment:
+      - RESTIC_REPOSITORY=gs:homelab-backups-k8s:/docker-backups
+      - RESTIC_PASSWORD=${RESTIC_PASSWORD}
+      - RESTIC_BACKUP_ARGS=--ignore-inode
+      - GOOGLE_APPLICATION_CREDENTIALS=${GOOGLE_APPLICATION_CREDENTIALS}
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
+      - GCS_CREDS=${GCS_CREDS}
+      - GCS_BASE_URL=${GCS_BASE_URL}
+    volumes:
+      - type: bind
+        source: /hdd/backups/ssd/fast_storage/.zfs/snapshot
+        target: /data/snapshots
+        read_only: true
+        bind:
+          propagation: rslave
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        # --- Configuration & Globals ---
+        CREDS_PATH="$$GOOGLE_APPLICATION_CREDENTIALS"
+        BACKUP_ROOT="/data/snapshots"
+        SLEEP_INTERVAL=86400
+        # Base GCS path
+
+        # --- Functions ---
+
+        log() {
+            echo "[$$(date +%Y-%m-%d\ %H:%M:%S)] $$1"
+        }
+
+        send_error() {
+            if command -v curl >/dev/null 2>&1 && [ -n "$$DISCORD_WEBHOOK_URL" ]; then
+                curl -s -H "Content-Type: application/json" \
+                    -d "{\"content\": \"❌ **Backup Error:** $$1\"}" \
+                    "$$DISCORD_WEBHOOK_URL" > /dev/null
+            fi
+        }
+
+        setup_gcs_creds() {
+            [ -z "$$GCS_CREDS" ] && { log "CRITICAL: GCS_CREDS unset"; exit 1; }
+            # Only write if file is missing/empty to reduce disk churn
+            if [ ! -s "$$CREDS_PATH" ]; then
+                echo "$$GCS_CREDS" | base64 -d > "$$CREDS_PATH"
+                log "GCS Credentials initialized."
+            fi
+        }
+
+        init_or_check_repo() {
+            REPO_PATH="$$1"
+
+            # 1. Check if accessible (piping input from /dev/null)
+            if RESTIC_REPOSITORY="$$REPO_PATH" restic snapshots -n 1 < /dev/null > /dev/null 2>&1; then
+                return 0
+            fi
+
+            # 2. Diagnose failure
+            OUTPUT=$$(RESTIC_REPOSITORY="$$REPO_PATH" restic cat config < /dev/null 2>&1)
+            EXIT_CODE=$$?
+
+            if [ $$EXIT_CODE -ne 0 ]; then
+                if echo "$$OUTPUT" | grep -iqE "Is a directory|does not exist|bucket not found|repository master key and config were not found"; then
+                    log "Repo $$REPO_PATH missing. Initializing..."
+                    if ! RESTIC_REPOSITORY="$$REPO_PATH" restic init < /dev/null > /dev/null 2>&1; then
+                        log "CRITICAL: Failed to init $$REPO_PATH. Error: $$OUTPUT"
+                        return 1
+                    fi
+                else
+                    log "CRITICAL: Repo exists but is unreachable. Error: $$OUTPUT"
+                    return 1
+                fi
+            fi
+            return 0
+        }
+
+        perform_multi_repo_backup() {
+            # Fix: Use $$ escaping for variables so they survive template parsing
+            LATEST_SNAP=$$(ls -1rt "$$BACKUP_ROOT" | tail -n 1)
+            [ -z "$$LATEST_SNAP" ] && { log "ERROR: No snapshots found"; return 1; }
+
+            DOCKER_BASE="$$BACKUP_ROOT/$$LATEST_SNAP/docker"
+
+            # Process Substitution with find
+            while read -r app_path; do
+                app_name=$$(basename "$$app_path")
+
+                CURRENT_REPO="$$GCS_BASE_URL:/docker-backups/$$app_name"
+                log "[ACTION] Target Repo: $$CURRENT_REPO"
+
+                if init_or_check_repo "$$CURRENT_REPO"; then
+
+                    # --- Parent Snapshot Logic ---
+                    # Uses $$ for variables and $$( ) for command substitution
+                    PARENT_ID=$$(RESTIC_REPOSITORY="$$CURRENT_REPO" restic snapshots --tag "$$app_name" --latest 1 --json < /dev/null 2>/dev/null | sed -n 's/.*"short_id":"\([^"]*\)".*/\1/p')
+
+                    PARENT_ARGS=""
+                    [ -n "$$PARENT_ID" ] && PARENT_ARGS="--parent $$PARENT_ID"
+
+                    if [ -n "$$PARENT_ID" ]; then
+                         log "Found parent snapshot: $$PARENT_ID"
+                    fi
+                    BASE_EXCLUDES="--exclude .Trash --exclude .cache --exclude __pycache__ --exclude *.log --exclude tmp"
+
+                    # 2. App-Specific Rules (Using a Case Statement)
+                    case "$$app_name" in
+                        plex)
+                            # Plex specific: Metadata is huge/useless, Cache is temporary
+                            APP_EXCLUDES="--exclude '**/Metadata' --exclude '**/Cache' --exclude '**/Transcode'"
+                            ;;
+                        sonarr|radarr|prowlarr)
+                            # The *arr apps often have a 'MediaCover' folder that eats space
+                            APP_EXCLUDES="--exclude '**/MediaCover'"
+                            ;;
+                        unifi)
+                            # Unifi keeps massive amounts of backup archives internally
+                            APP_EXCLUDES="--exclude '**/autobackup'"
+                            ;;
+                        *)
+                            # Default: No specific extra excludes
+                            APP_EXCLUDES=""
+                            ;;
+                    esac
+
+                    # Combine them
+                    FINAL_EXCLUDES="$$BASE_EXCLUDES $$APP_EXCLUDES"
+                    # -----------------------
+
+                    # 3. Run Backup (Use $$FINAL_EXCLUDES)
+                    if RESTIC_REPOSITORY="$$CURRENT_REPO" restic backup \
+                        $$PARENT_ARGS \
+                        $$FINAL_EXCLUDES \
+                        --host peep-bot "$$app_path" \
+                        --tag "$$app_name" \
+                        $$RESTIC_BACKUP_ARGS < /dev/null; then
+
+                        log "SUCCESS: $$app_name"
+
+                        # 2. Run Cleanup (Forget & Prune)
+                        log "[CLEANUP] Pruning $$app_name (Daily: 30, Weekly: 156)..."
+                        if RESTIC_REPOSITORY="$$CURRENT_REPO" restic forget \
+                            --keep-daily 30 \
+                            --keep-weekly 156 \
+                            --prune \
+                            < /dev/null; then
+                            log "CLEANUP SUCCESS: $$app_name"
+                        else
+                            send_error "CLEANUP WARNING: Failed to prune $$app_name"
+                        fi
+
+                    else
+                        log "FAILURE: $$app_name"
+                        send_error "Backup failed for $$app_name"
+                    fi
+                else
+                     send_error "Repo access failed for $$app_name"
+                fi
+
+                sleep 2
+
+            done < <(find "$$DOCKER_BASE" -maxdepth 1 -mindepth 1 -type d -not -name ".zfs")
+        }
+
+        # --- Main Execution ---
+
+        while true; do
+            setup_gcs_creds
+            log "--- Starting Multi-Repo Backup Cycle ---"
+            perform_multi_repo_backup
+            log "--- Cycle Finished. Sleeping 24h ---"
+            sleep "$$SLEEP_INTERVAL"
+        done

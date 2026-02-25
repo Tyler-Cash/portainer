@@ -1,0 +1,31 @@
+# Decrypted secrets (if you ever decrypt locally)
+*.dec
+*.decrypted
+*.plaintext
+
+# Age private keys (should NEVER be committed)
+keys.txt
+*.age-key
+
+# Editor/OS junk
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Env overrides (local-only tweaks)
+.env.local
+.env.*.local
+
+.sops.yaml
+.claude/
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/*.tfvars
+terraform/.terraform.lock.hcl

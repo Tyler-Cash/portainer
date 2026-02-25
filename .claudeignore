@@ -1,0 +1,6 @@
+.env
+*.sops.yaml
+secrets/
+**/*credential*
+**/.env.secret.dec
+.sops.yaml

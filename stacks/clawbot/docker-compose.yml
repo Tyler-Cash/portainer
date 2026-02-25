@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  openclaw-gateway:
+    image: ghcr.io/openclaw/openclaw:2026.2.22
+    container_name: openclaw-gateway
+    restart: unless-stopped
+    command: ["node", "openclaw.mjs", "gateway", "--allow-unconfigured", "--bind", "lan"]
+    ports:
+      - "127.0.0.1:18789:18789"
+    environment:
+      - OPENCLAW_DEFAULT_MODEL=anthropic/claude-sonnet-4-0
+      - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    volumes:
+      - /ssd/fast_storage/docker/openclaw/config:/home/node/.openclaw
+      - /ssd/fast_storage/docker/openclaw/workspace:/home/node/openclaw/workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.openclaw.rule=Host(`claw.tylercash.dev`) && (ClientIP(`10.0.0.0/8`) || ClientIP(`172.19.0.0/24`))"
+      - "traefik.http.routers.openclaw.entrypoints=websecure"
+      - "traefik.http.routers.openclaw.tls.certresolver=leresolver"
+      - "traefik.http.services.openclaw.loadbalancer.server.port=18789"
+    networks:
+      - homelab_default
+
+networks:
+  homelab_default:
+    external: true

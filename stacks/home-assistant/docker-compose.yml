@@ -1,0 +1,68 @@
+version: '3'
+
+services:
+  home-assistant:
+    container_name: home-assistant
+    image: ghcr.io/home-assistant/home-assistant:2026.2.3
+    restart: unless-stopped
+    networks:
+      - homelab_default  # Keep this for Traefik access
+      - iot_network
+    volumes:
+      - /ssd/fast_storage/docker/homeassistant:/config
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - PUID=568
+      - PGID=568
+      - UMASK=0002
+      - TZ=Australia/Sydney
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8123/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=homelab_default
+      - traefik.http.routers.home-assistant.service=home-assistant
+      - traefik.http.routers.home-assistant.rule=Host(`hassio.tylercash.dev`)
+      - traefik.http.routers.home-assistant.entrypoints=websecure
+      - traefik.http.services.home-assistant.loadbalancer.server.scheme=http
+      - traefik.http.services.home-assistant.loadbalancer.server.port=8123
+      - traefik.http.routers.home-assistant.tls.certresolver=leresolver
+      - com.centurylinklabs.watchtower.enable=true
+
+  mdns-repeater:
+    container_name: mdns-repeater
+    image: monstrenyatko/mdns-repeater:20230701
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - MDNS_REPEATER_INTERFACES=enp3s0 br_iot
+
+  udp-proxy-govee:
+    container_name: udp-proxy-govee
+    image: synfinatic/udp-proxy-2020:v0.1.2
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - "udp-proxy-2020"
+      - "--port"
+      - "4001,4002,4003"
+      - "--interface"
+      - "enp3s0,br_iot"
+      - "--cache-ttl"
+      - "180"
+      - "--level"
+      - "debug"
+
+networks:
+  homelab_default:
+    external: true
+
+  # New dedicated network for discovery
+  iot_network:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: br_iot

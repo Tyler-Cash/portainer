@@ -1,0 +1,131 @@
+version: '3'
+
+tasks:
+  encrypt:
+    desc: Encrypt all .env.secret.dec files back to .env.secret
+    cmds:
+      - |
+        find stacks -name '.env.secret.dec' | while read f; do
+          target="${f%.dec}"
+          sops --encrypt "$f" > "$target"
+          echo "Encrypted: $f → $target"
+        done
+
+  decrypt:
+    desc: Decrypt all .env.secret files to .env.secret.dec
+    cmds:
+      - |
+        find stacks -name '.env.secret' | while read f; do
+          sops --decrypt "$f" > "${f}.dec"
+          echo "Decrypted: $f → ${f}.dec"
+        done
+
+  clean:
+    desc: Remove all decrypted .dec files
+    cmds:
+      - find stacks -name '*.dec' -delete
+      - echo "Cleaned up decrypted files."
+
+  edit:
+    desc: "Edit a stack's secrets (usage: task edit STACK=clawbot)"
+    requires:
+      vars: [STACK]
+    cmds:
+      - sops stacks/{{.STACK}}/.env.secret
+
+  status:
+    desc: Show encryption status of all secret files
+    cmds:
+      - |
+        find stacks -name '.env.secret' | while read f; do
+          if head -c 20 "$f" | grep -q "ENC\[AES"; then
+            echo "🔒 $f"
+          else
+            echo "🔓 $f (DECRYPTED - DO NOT COMMIT)"
+          fi
+        done
+
+  hook:
+    desc: Install pre-commit hook
+    cmds:
+      - cp hooks/pre-commit .git/hooks/pre-commit
+      - chmod +x .git/hooks/pre-commit
+      - echo "Pre-commit hook installed."
+
+  terraform-init:
+    desc: Interactively create terraform/terraform.tfvars (skips if already exists)
+    cmds:
+      - |
+        TFVARS="terraform/terraform.tfvars"
+        if [ -f "$TFVARS" ]; then
+          echo "⚠️  $TFVARS already exists — delete it first if you want to regenerate."
+          exit 0
+        fi
+        read -rp "GitHub token (e.g. github_pat_abc123...): " github_token
+        read -rp "GitHub owner (e.g. tylercash): " github_owner
+        read -rp "GitHub repo name [portainer]: " github_repo
+        github_repo="${github_repo:-portainer}"
+        read -rp "Portainer URL (e.g. https://portainer.tylercash.dev): " portainer_url
+        read -rsp "Portainer API token (e.g. ptr_abc123...): " portainer_token; echo
+        read -rp "Portainer endpoint ID (e.g. 1): " portainer_endpoint_id
+        read -rsp "SOPS age private key (e.g. AGE-SECRET-KEY-1ABC...): " sops_age_key; echo
+        printf 'github_token          = "%s"\n' "$github_token"  > "$TFVARS"
+        printf 'github_owner          = "%s"\n' "$github_owner"  >> "$TFVARS"
+        printf 'github_repo           = "%s"\n' "$github_repo"   >> "$TFVARS"
+        printf 'portainer_url         = "%s"\n' "$portainer_url" >> "$TFVARS"
+        printf 'portainer_token       = "%s"\n' "$portainer_token" >> "$TFVARS"
+        printf 'portainer_endpoint_id = "%s"\n' "$portainer_endpoint_id" >> "$TFVARS"
+        printf 'sops_age_key          = "%s"\n' "$sops_age_key"  >> "$TFVARS"
+        echo "✅ Written to $TFVARS (gitignored)"
+
+  runner-env:
+    desc: "Fetch a GitHub Actions runner token and write stacks/github-runner/.env.secret.dec (reads from terraform/terraform.tfvars)"
+    cmds:
+      - |
+        TFVARS="terraform/terraform.tfvars"
+        if [ ! -f "$TFVARS" ]; then
+          echo "❌ $TFVARS not found — run 'task terraform-init' first"
+          exit 1
+        fi
+        parse() { grep "^$1" "$TFVARS" | sed 's/.*= *"\(.*\)"/\1/'; }
+        github_token=$(parse github_token)
+        github_owner=$(parse github_owner)
+        github_repo=$(parse github_repo)
+        sops_age_key=$(parse sops_age_key)
+
+        token=$(curl -sf \
+          -X POST \
+          -H "Authorization: Bearer $github_token" \
+          -H "Accept: application/vnd.github+json" \
+          "https://api.github.com/repos/$github_owner/$github_repo/actions/runners/registration-token" \
+          | jq -r '.token')
+        printf 'REPO_URL=https://github.com/%s/%s\n' "$github_owner" "$github_repo" > stacks/github-runner/.env.secret.dec
+        printf 'RUNNER_TOKEN=%s\n' "$token"        >> stacks/github-runner/.env.secret.dec
+        printf 'SOPS_AGE_KEY=%s\n' "$sops_age_key" >> stacks/github-runner/.env.secret.dec
+        chmod 600 stacks/github-runner/.env.secret.dec
+        echo "✅ Written stacks/github-runner/.env.secret.dec (token expires in 1 hour)"
+
+  terraform-apply:
+    desc: Init and apply Terraform config
+    cmds:
+      - |
+        if ! gcloud auth application-default print-access-token &>/dev/null; then
+          echo "❌ No GCP credentials found. Run: gcloud auth application-default login"
+          exit 1
+        fi
+      - terraform -chdir=terraform init
+      - terraform -chdir=terraform apply
+
+  test:
+    desc: Run bats tests
+    cmds:
+      - bats tests/
+
+  setup:
+    desc: First-time setup
+    deps: [hook]
+    cmds:
+      - command -v sops >/dev/null || (echo "❌ sops not found" && exit 1)
+      - command -v age >/dev/null || (echo "❌ age not found" && exit 1)
+      - test -f .sops.yaml || (echo "❌ .sops.yaml not found" && exit 1)
+      - echo "✅ All good. Run 'task status' to check secret files."

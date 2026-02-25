@@ -1,0 +1,61 @@
+name: Deploy stacks to Portainer
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "stacks/**/docker-compose.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install bats
+        run: |
+          git clone --depth 1 https://github.com/bats-core/bats-core.git /tmp/bats-core
+          sudo /tmp/bats-core/install.sh /usr/local
+
+      - name: Run tests
+        run: bats tests/
+
+  deploy:
+    needs: test
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect changed stacks
+        id: changes
+        run: |
+          if git rev-parse HEAD~1 &>/dev/null; then
+            changed=$(git diff --name-only HEAD~1 HEAD -- stacks/ \
+              | grep 'docker-compose\.yml' \
+              | sed 's|stacks/||' \
+              | sed 's|/docker-compose\.yml||')
+          else
+            echo "Initial commit — deploying all stacks"
+            changed=$(find stacks -name 'docker-compose.yml' \
+              | sed 's|stacks/||' \
+              | sed 's|/docker-compose\.yml||')
+          fi
+          echo "Changed stacks: $changed"
+          echo "stacks<<EOF" >> $GITHUB_OUTPUT
+          echo "$changed" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Deploy changed stacks
+        env:
+          PORTAINER_URL: ${{ vars.PORTAINER_URL }}
+          PORTAINER_TOKEN: ${{ secrets.PORTAINER_TOKEN }}
+          PORTAINER_ENDPOINT_ID: ${{ vars.PORTAINER_ENDPOINT_ID }}
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+        run: |
+          while IFS= read -r stack; do
+            [ -z "$stack" ] && continue
+            echo "Deploying stack: $stack"
+            bash scripts/deploy-stack.sh "$stack"
+          done <<< "${{ steps.changes.outputs.stacks }}"
