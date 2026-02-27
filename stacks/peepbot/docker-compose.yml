@@ -1,6 +1,6 @@
 services:
   peepbot-postgres:
-    image: postgres:17
+    image: postgres:18.3
     container_name: peepbot-postgres
     restart: always
     shm_size: 128mb
@@ -36,11 +36,7 @@ services:
       DEV_TYLERCASH_DISCORD_GUILD_ID: ${DEV_TYLERCASH_DISCORD_GUILD_ID}
       DEV_TYLERCASH_DISCORD_TOKEN: ${DEV_TYLERCASH_DISCORD_TOKEN}
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      disable: true
     labels:
       traefik.enable: true
       traefik.http.routers.peepbot-backend.entrypoints: websecure
@@ -57,7 +53,7 @@ services:
     networks:
       - homelab_default
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:80/ || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:80/ || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -76,6 +72,9 @@ services:
     restart: always
     networks:
       - homelab_default
+    depends_on:
+      peepbot-postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/ || exit 1"]
       interval: 30s
@@ -85,7 +84,7 @@ services:
     labels:
       traefik.enable: true
       traefik.http.routers.peepbot-adminer.entrypoints: websecure
-      traefik.http.routers.peepbot-adminer.rule: Host(`adminer.events.tylercash.dev`) && ClientIP(`10.0.0.0/8`)
+      traefik.http.routers.peepbot-adminer.rule: Host(`adminer.tylercash.dev`) && ClientIP(`10.0.0.0/8`)
       traefik.http.routers.peepbot-adminer.service: peepbot-adminer
       traefik.http.routers.peepbot-adminer.tls.certresolver: leresolver
       traefik.http.services.peepbot-adminer.loadbalancer.server.port: 8080
