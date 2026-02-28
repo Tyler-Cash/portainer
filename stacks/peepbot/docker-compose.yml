@@ -18,7 +18,7 @@ services:
       start_period: 30s
 
   peepbot-backend:
-    image: ghcr.io/tyler-cash/peep-bot-backend:latest@sha256:d0a60f3da4f97e64428795746ce848930f3f9188665c55b6c0eacb926b915628
+    image: ghcr.io/tyler-cash/peep-bot-backend:latest@sha256:4256dcf2efedd5bd614f8e3d7b3c5ce37ad767dee30359739705fcc181cac4b0
     container_name: peepbot-backend
     restart: always
     networks:
