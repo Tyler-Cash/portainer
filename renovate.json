@@ -1,0 +1,17 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "docker:enableMajor"
+  ],
+  "schedule": ["after 3am and before 5am on Monday"],
+  "timezone": "Australia/Sydney",
+  "enabledManagers": ["docker-compose"],
+  "packageRules": [
+    {
+      "matchDatasources": ["docker"],
+      "matchUpdateTypes": ["major", "minor", "patch", "digest"],
+      "enabled": true
+    }
+  ]
+}
