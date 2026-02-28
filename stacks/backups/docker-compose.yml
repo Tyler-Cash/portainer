@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   watchtower:
-    image: containrrr/watchtower:1.7.1
+    image: containrrr/watchtower:1.7.1@sha256:6dd50763bbd632a83cb154d5451700530d1e44200b268a4e9488fefdfcf2b038
     container_name: watchtower
     restart: unless-stopped
     volumes:
@@ -14,7 +14,7 @@ services:
       - WATCHTOWER_SCHEDULE=30 4 */7 * *
 
   restic-gcs-backup:
-    image: restic/restic:0.18.1
+    image: restic/restic:0.18.1@sha256:39d9072fb5651c80d75c7a811612eb60b4c06b32ffe87c2e9f3c7222e1797e76
     container_name: restic_zfs_gcs
     restart: unless-stopped
     environment:

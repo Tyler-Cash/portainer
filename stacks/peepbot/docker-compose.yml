@@ -1,6 +1,6 @@
 services:
   peepbot-postgres:
-    image: postgres:18.3
+    image: postgres:18.3@sha256:69e8582b781cb44fa4557b98ed586fe68361e320d9b12f9707494335634f4f3d
     container_name: peepbot-postgres
     restart: always
     shm_size: 128mb
@@ -18,7 +18,7 @@ services:
       start_period: 30s
 
   peepbot-backend:
-    image: ghcr.io/tyler-cash/peep-bot-backend:latest
+    image: ghcr.io/tyler-cash/peep-bot-backend:latest@sha256:d0a60f3da4f97e64428795746ce848930f3f9188665c55b6c0eacb926b915628
     container_name: peepbot-backend
     restart: always
     networks:
@@ -47,7 +47,7 @@ services:
       com.centurylinklabs.watchtower.enable: true
 
   peepbot-frontend:
-    image: ghcr.io/tyler-cash/peep-bot-frontend:latest
+    image: ghcr.io/tyler-cash/peep-bot-frontend:latest@sha256:4fab6abfb7e6c391ef57df217f164a370d3f4afcf5212a2001e9beae3c397206
     container_name: peepbot-frontend
     restart: always
     networks:
@@ -68,7 +68,7 @@ services:
       com.centurylinklabs.watchtower.enable: true
 
   adminer:
-    image: adminer:5.4.2
+    image: adminer:5.4.2@sha256:2fb88b98da9f0ae0157d8fcb73f447a0747b09ee8d2ff8a8e0695b30afed2116
     restart: always
     networks:
       - homelab_default
