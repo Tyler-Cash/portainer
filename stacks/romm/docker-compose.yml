@@ -7,7 +7,7 @@ volumes:
 
 services:
   romm:
-    image: rommapp/romm:4.6.0
+    image: rommapp/romm:4.6.1@sha256:7f8b04e2e7652ae3121f19e712373bc021530b3c500e0c077c69a9cfe431395c
     container_name: romm
     restart: unless-stopped
     environment:
