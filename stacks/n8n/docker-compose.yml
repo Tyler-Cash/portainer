@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   n8n-db:
-    image: postgres:16-alpine
+    image: postgres:18-alpine@sha256:b0ba6f2b6290ae40c9aacf6cc72849a2954778fef88774e122131d4b3c3b5e5b
     container_name: n8n-db
     restart: unless-stopped
     networks:
