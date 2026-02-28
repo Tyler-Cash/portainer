@@ -2,16 +2,37 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended",
-    "docker:enableMajor"
+    "docker:enableMajor",
+    "docker:pinDigests",
+    "helpers:pinGitHubActionDigests",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    ":automergeDigest",
+    ":automergePatch",
+    "group:monorepos",
+    "group:recommended"
   ],
   "schedule": ["after 3am and before 5am on Monday"],
   "timezone": "Australia/Sydney",
   "enabledManagers": ["docker-compose"],
+  "labels": ["renovate", "dependencies"],
+  "prConcurrentLimit": 0,
+  "prHourlyLimit": 0,
   "packageRules": [
     {
+      "description": "Automerge non-major updates",
       "matchDatasources": ["docker"],
-      "matchUpdateTypes": ["major", "minor", "patch", "digest"],
-      "enabled": true
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": true
+    },
+    {
+      "description": "Major updates require manual review",
+      "matchDatasources": ["docker"],
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "labels": ["renovate", "dependencies", "major"]
     }
   ]
 }
