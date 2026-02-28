@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   openclaw-gateway:
-    image: ghcr.io/openclaw/openclaw:2026.2.22
+    image: ghcr.io/openclaw/openclaw:2026.2.26@sha256:ce9347548afa0b6bdd1d262060535ba04baf0b19cde0fc211c8039492647d1b1
     container_name: openclaw-gateway
     restart: unless-stopped
     command: ["node", "openclaw.mjs", "gateway", "--allow-unconfigured", "--bind", "lan"]
