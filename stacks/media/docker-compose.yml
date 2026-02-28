@@ -1,6 +1,6 @@
 services:
   byparr:
-    image: ghcr.io/thephaseless/byparr:2.1.0
+    image: ghcr.io/thephaseless/byparr:2.1.0@sha256:01a46a2865d9a6db5eb8ead04ec0dd33b8fbe233e8565ae70b50d4cc0af4cfb0
     container_name: byparr
     restart: unless-stopped
     networks:
@@ -24,7 +24,7 @@ services:
       - com.centurylinklabs.watchtower.enable=true
 
   jellyfin:
-    image: lscr.io/linuxserver/jellyfin:10.11.6ubu2404-ls22
+    image: lscr.io/linuxserver/jellyfin:10.11.6ubu2404-ls22@sha256:ba3773e77f0bf571e44cb2aad028f240cfac6b1bb261634c5762992995b50b89
     container_name: jellyfin
     restart: unless-stopped
     networks:
@@ -56,7 +56,7 @@ services:
       - com.centurylinklabs.watchtower.enable=true
 
   plex:
-    image: lscr.io/linuxserver/plex:1.43.0.10492-121068a07-ls294
+    image: lscr.io/linuxserver/plex:1.43.0.10492-121068a07-ls294@sha256:55c2def2eb662c2ce1a13e569278aeb87b2509ac7c57711d0da0a5d6d1607ad8
     container_name: plex
     hostname: plex
     restart: unless-stopped
@@ -91,7 +91,7 @@ services:
       - com.centurylinklabs.watchtower.enable=true
 
   prowlarr:
-    image: lscr.io/linuxserver/prowlarr:2.3.0.5236-ls137
+    image: lscr.io/linuxserver/prowlarr:2.3.0.5236-ls137@sha256:e74a1e093dcc223d671d4b7061e2b4946f1989a4d3059654ff4e623b731c9134
     container_name: prowlarr
     restart: unless-stopped
     networks:
@@ -121,7 +121,7 @@ services:
       - com.centurylinklabs.watchtower.enable=true
 
   qbittorrent:
-    image: lscr.io/linuxserver/qbittorrent:5.1.4-r2-ls442
+    image: lscr.io/linuxserver/qbittorrent:5.1.4-r2-ls442@sha256:065792d2b11f0facff340210fc1cf13623b029a94ecdf08b02d06d922205f618
     container_name: qbittorrent
     restart: unless-stopped
     networks:
@@ -155,7 +155,7 @@ services:
       - com.centurylinklabs.watchtower.enable=true
 
   radarr:
-    image: lscr.io/linuxserver/radarr:6.0.4.10291-ls293
+    image: lscr.io/linuxserver/radarr:6.0.4.10291-ls293@sha256:6d3e68474ea146f995af98d3fb2cb1a14e2e4457ddaf035aa5426889e2f9249c
     container_name: radarr
     restart: unless-stopped
     networks:
@@ -186,7 +186,7 @@ services:
       - com.centurylinklabs.watchtower.enable=true
 
   sonarr:
-    image: lscr.io/linuxserver/sonarr:4.0.16.2944-ls303
+    image: lscr.io/linuxserver/sonarr:4.0.16.2944-ls303@sha256:37be832b78548e3f55f69c45b50e3b14d18df1b6def2a4994258217e67efb1a1
     container_name: sonarr
     restart: unless-stopped
     networks:
@@ -215,7 +215,7 @@ services:
       - com.centurylinklabs.watchtower.enable=true
 
   profilarr:
-    image: santiagosayshey/profilarr:v1.1.4
+    image: santiagosayshey/profilarr:v1.1.4@sha256:8a514f8429cd33885166facc9eb6504fa9ded056c737609e5e8ef32ae0afb350
     container_name: profilarr
     networks:
       - homelab_default

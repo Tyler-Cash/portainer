@@ -3,7 +3,7 @@ version: '3'
 services:
   home-assistant:
     container_name: home-assistant
-    image: ghcr.io/home-assistant/home-assistant:2026.2.3
+    image: ghcr.io/home-assistant/home-assistant:2026.2.3@sha256:96fa92d83fa8dae987fbbbcf58b1fea1140985ff6a8517b37f7b65c76ef20133
     restart: unless-stopped
     networks:
       - homelab_default  # Keep this for Traefik access
@@ -35,7 +35,7 @@ services:
 
   mdns-repeater:
     container_name: mdns-repeater
-    image: monstrenyatko/mdns-repeater:20230701
+    image: monstrenyatko/mdns-repeater:20230701@sha256:69179cba8a1c1d8cb71bdcfdd58a7f29aba9e19583a716532300d5231ae1335d
     restart: unless-stopped
     network_mode: host
     environment:
@@ -43,7 +43,7 @@ services:
 
   udp-proxy-govee:
     container_name: udp-proxy-govee
-    image: synfinatic/udp-proxy-2020:v0.1.2
+    image: synfinatic/udp-proxy-2020:v0.1.2@sha256:8d523777919386bf90b17a10ab29f537bd1689ef70a2a81fbb1180350d5fcf51
     restart: unless-stopped
     network_mode: host
     command:
