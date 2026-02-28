@@ -7,7 +7,7 @@ volumes:
 
 services:
   romm:
-    image: rommapp/romm:4.6.0
+    image: rommapp/romm:4.6.1
     container_name: romm
     restart: unless-stopped
     environment:
