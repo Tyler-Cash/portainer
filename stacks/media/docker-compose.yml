@@ -5,6 +5,9 @@ services:
     restart: unless-stopped
     networks:
       - homelab_default
+      - byparr
+    expose:
+      - "8191"
     environment:
       - TZ=Australia/Sydney
     healthcheck:
@@ -96,6 +99,7 @@ services:
     restart: unless-stopped
     networks:
       - homelab_default
+      - byparr
     volumes:
       - /ssd/fast_storage/docker/prowlarr:/config
     environment:
@@ -245,3 +249,6 @@ services:
 networks:
   homelab_default:
     external: true
+  byparr:
+    name: byparr
+    internal: true
