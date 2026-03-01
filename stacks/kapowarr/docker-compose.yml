@@ -1,0 +1,34 @@
+services:
+  kapowarr:
+    image: mrcas/kapowarr:v1.2.0@sha256:484f7decc7cc7af77542aba5516f48a62b17f72116ac7309d1709b72bb7d0ba2
+    container_name: kapowarr
+    restart: unless-stopped
+    networks:
+      - homelab_default
+    volumes:
+      - /ssd/fast_storage/docker/kapowarr:/app/db
+      - /hdd/docker/media/comics:/comics
+      - /hdd/docker/media/download/complete:/app/temp_downloads
+    environment:
+      - PUID=568
+      - PGID=568
+      - TZ=Australia/Sydney
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:5656/')\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.kapowarr.service=kapowarr
+      - traefik.http.routers.kapowarr.rule=Host(`comics.tylercash.dev`)
+      - traefik.http.routers.kapowarr.entrypoints=websecure
+      - traefik.http.services.kapowarr.loadbalancer.server.scheme=http
+      - traefik.http.services.kapowarr.loadbalancer.server.port=5656
+      - traefik.http.routers.kapowarr.tls.certresolver=leresolver
+      - com.centurylinklabs.watchtower.enable=true
+
+networks:
+  homelab_default:
+    external: true
