@@ -1,0 +1,85 @@
+services:
+  immich-server:
+    image: ghcr.io/immich-app/immich-server:v2.5.6@sha256:aa163d2e1cc2b16a9515dd1fef901e6f5231befad7024f093d7be1f2da14341a
+    container_name: immich-server
+    restart: unless-stopped
+    networks:
+      - homelab_default
+    volumes:
+      - /hdd/docker/immich/upload:/data
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - TZ=Australia/Sydney
+      - DB_HOSTNAME=immich-postgres
+      - DB_USERNAME=immich
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_DATABASE_NAME=immich
+      - REDIS_HOSTNAME=immich-redis
+    depends_on:
+      immich-redis:
+        condition: service_healthy
+      immich-postgres:
+        condition: service_healthy
+    healthcheck:
+      disable: false
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.immich.service=immich
+      - traefik.http.routers.immich.rule=Host(`photos.tylercash.dev`) && (ClientIP(`10.0.0.0/8`) || ClientIP(`172.19.0.0/24`))
+      - traefik.http.routers.immich.entrypoints=websecure
+      - traefik.http.services.immich.loadbalancer.server.scheme=http
+      - traefik.http.services.immich.loadbalancer.server.port=2283
+      - traefik.http.routers.immich.tls.certresolver=leresolver
+      - com.centurylinklabs.watchtower.enable=true
+
+  immich-machine-learning:
+    image: ghcr.io/immich-app/immich-machine-learning:v2.5.6@sha256:b213fa3c82d27a21a299c46ffbb38a091f18384db1ad67d409a3b34fe0fce556
+    container_name: immich-machine-learning
+    restart: unless-stopped
+    networks:
+      - homelab_default
+    volumes:
+      - immich-model-cache:/cache
+    environment:
+      - TZ=Australia/Sydney
+    healthcheck:
+      disable: false
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+  immich-redis:
+    image: docker.io/valkey/valkey:9@sha256:546304417feac0874c3dd576e0952c6bb8f06bb4093ea0c9ca303c73cf458f63
+    container_name: immich-redis
+    restart: unless-stopped
+    networks:
+      - homelab_default
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  immich-postgres:
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:bcf63357191b76a916ae5eb93464d65c07511da41e3bf7a8416db519b40b1c23
+    container_name: immich-postgres
+    restart: unless-stopped
+    networks:
+      - homelab_default
+    environment:
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_USER=immich
+      - POSTGRES_DB=immich
+      - POSTGRES_INITDB_ARGS=--data-checksums
+    volumes:
+      - /ssd/fast_storage/docker/immich/postgres:/var/lib/postgresql/data
+    shm_size: 128mb
+    healthcheck:
+      disable: false
+
+volumes:
+  immich-model-cache:
+
+networks:
+  homelab_default:
+    external: true
