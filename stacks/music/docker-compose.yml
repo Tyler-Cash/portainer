@@ -14,6 +14,7 @@ services:
       - TZ=Australia/Sydney
       - DOCKER_MODS=ghcr.io/themepark-dev/theme.park:lidarr
       - TP_THEME=plex
+      - LIDARR__AUTH__APIKEY=${LIDARR_API_KEY}
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8686/ping || exit 1"]
       interval: 30s
@@ -55,6 +56,105 @@ services:
       - traefik.http.services.navidrome.loadbalancer.server.scheme=http
       - traefik.http.services.navidrome.loadbalancer.server.port=4533
       - traefik.http.routers.navidrome.tls.certresolver=leresolver
+      - com.centurylinklabs.watchtower.enable=true
+
+  slskd:
+    image: slskd/slskd:0.24.5@sha256:17ef977563be206f3b5932080b1e23883b2cb39dc9010640f6f39b4eaec887e3
+    container_name: slskd
+    restart: unless-stopped
+    networks:
+      - homelab_default
+    volumes:
+      - /ssd/fast_storage/docker/slskd:/app
+      - /hdd/docker/media/music:/music:ro
+      - /hdd/docker/media/download/complete/slskd:/downloads
+    user: "568:568"
+    environment:
+      - TZ=Australia/Sydney
+      - SLSKD_REMOTE_CONFIGURATION=true
+      - SLSKD_SHARED_DIR=/music
+      - SLSKD_SLSK_USERNAME=${SLSKD_SLSK_USERNAME}
+      - SLSKD_SLSK_PASSWORD=${SLSKD_SLSK_PASSWORD}
+      - SLSKD_API_KEY=${SLSKD_API_KEY}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://localhost:5030/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.slskd.service=slskd
+      - traefik.http.routers.slskd.rule=Host(`slskd.tylercash.dev`) && (ClientIP(`10.0.0.0/8`) || ClientIP(`172.19.0.0/24`))
+      - traefik.http.routers.slskd.entrypoints=websecure
+      - traefik.http.services.slskd.loadbalancer.server.scheme=http
+      - traefik.http.services.slskd.loadbalancer.server.port=5030
+      - traefik.http.routers.slskd.tls.certresolver=leresolver
+      - com.centurylinklabs.watchtower.enable=true
+
+  soularr:
+    image: mrusse08/soularr:latest@sha256:2148f2c7f405a31ce64082ce085c88bf6e486fbb705bec20ead6a170fd8def72
+    container_name: soularr
+    restart: unless-stopped
+    networks:
+      - homelab_default
+    user: "568:568"
+    volumes:
+      - /hdd/docker/media/download/complete/slskd:/downloads
+      - /ssd/fast_storage/docker/soularr:/data
+    environment:
+      - TZ=Australia/Sydney
+      - SCRIPT_INTERVAL=300
+      - LIDARR_API_KEY=${LIDARR_API_KEY}
+      - SLSKD_API_KEY=${SLSKD_API_KEY}
+    command:
+      - /bin/sh
+      - -c
+      - |
+        cat > /data/config.ini <<EOF
+        [Lidarr]
+        api_key = $${LIDARR_API_KEY}
+        host_url = https://lidarr.tylercash.dev
+        download_dir = /downloads
+        disable_sync = False
+
+        [Slskd]
+        api_key = $${SLSKD_API_KEY}
+        host_url = https://slskd.tylercash.dev
+        url_base = /
+        download_dir = /downloads
+        delete_searches = False
+        stalled_timeout = 3600
+
+        [Release Settings]
+        use_most_common_tracknum = True
+        allow_multi_disc = True
+        accepted_countries = Europe,Japan,United Kingdom,United States,[Worldwide],Australia,Canada
+        accepted_formats = CD,Digital Media,Vinyl
+
+        [Search Settings]
+        search_timeout = 5000
+        maximum_peer_queue = 50
+        minimum_peer_upload_speed = 0
+        minimum_filename_match_ratio = 0.8
+        allowed_filetypes = flac 24/192,flac 16/44.1,flac,mp3 320,mp3
+        search_type = incrementing_page
+        number_of_albums_to_grab = 10
+        remove_wanted_on_failure = False
+
+        [Download Settings]
+        download_filtering = True
+
+        [Logging]
+        level = INFO
+        EOF
+        exec /app/run.sh
+    depends_on:
+      lidarr:
+        condition: service_healthy
+      slskd:
+        condition: service_healthy
+    labels:
       - com.centurylinklabs.watchtower.enable=true
 
 networks:

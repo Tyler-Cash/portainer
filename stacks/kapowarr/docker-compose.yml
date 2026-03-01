@@ -5,7 +5,6 @@ services:
     restart: unless-stopped
     networks:
       - homelab_default
-      - byparr
     volumes:
       - /ssd/fast_storage/docker/kapowarr:/app/db
       - /hdd/docker/media/comics:/comics
@@ -33,6 +32,3 @@ services:
 networks:
   homelab_default:
     external: true
-  byparr:
-    name: byparr
-    internal: true
