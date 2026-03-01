@@ -1,0 +1,62 @@
+services:
+  lidarr:
+    image: lscr.io/linuxserver/lidarr:3.1.0.4875-ls20@sha256:37a3df74f4c2a6f10eead66f4d8034362ebf2866f935026b4a71dd888b9e7f08
+    container_name: lidarr
+    restart: unless-stopped
+    networks:
+      - homelab_default
+    volumes:
+      - /hdd/docker/media:/data
+      - /ssd/fast_storage/docker/lidarr:/config
+    environment:
+      - PUID=568
+      - PGID=568
+      - TZ=Australia/Sydney
+      - DOCKER_MODS=ghcr.io/themepark-dev/theme.park:lidarr
+      - TP_THEME=plex
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8686/ping || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.lidarr.service=lidarr
+      - traefik.http.routers.lidarr.rule=Host(`lidarr.tylercash.dev`) && (ClientIP(`10.0.0.0/8`) || ClientIP(`172.19.0.0/24`))
+      - traefik.http.routers.lidarr.entrypoints=websecure
+      - traefik.http.services.lidarr.loadbalancer.server.scheme=http
+      - traefik.http.services.lidarr.loadbalancer.server.port=8686
+      - traefik.http.routers.lidarr.tls.certresolver=leresolver
+      - com.centurylinklabs.watchtower.enable=true
+
+  navidrome:
+    image: deluan/navidrome:0.60.3@sha256:a5dce8f33304714dd138e870cca0dcab3d937ca236be1a9f2b97da009d1a0048
+    container_name: navidrome
+    restart: unless-stopped
+    networks:
+      - homelab_default
+    volumes:
+      - /ssd/fast_storage/docker/navidrome:/data
+      - /hdd/docker/media/music:/music:ro
+    environment:
+      - TZ=Australia/Sydney
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:4533/ping || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.navidrome.service=navidrome
+      - traefik.http.routers.navidrome.rule=Host(`music.tylercash.dev`)
+      - traefik.http.routers.navidrome.entrypoints=websecure
+      - traefik.http.services.navidrome.loadbalancer.server.scheme=http
+      - traefik.http.services.navidrome.loadbalancer.server.port=4533
+      - traefik.http.routers.navidrome.tls.certresolver=leresolver
+      - com.centurylinklabs.watchtower.enable=true
+
+networks:
+  homelab_default:
+    external: true
