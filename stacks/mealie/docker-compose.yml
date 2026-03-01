@@ -1,0 +1,38 @@
+services:
+  mealie:
+    image: ghcr.io/mealie-recipes/mealie:v3.11.0@sha256:d99fc2844c04288526d6cbecc9ac1b6c32d8ea6054236d56857107bbaf70ea5c
+    container_name: mealie
+    restart: unless-stopped
+    networks:
+      - homelab_default
+    deploy:
+      resources:
+        limits:
+          memory: 1000M
+    volumes:
+      - /ssd/fast_storage/docker/mealie:/app/data
+    environment:
+      - PUID=568
+      - PGID=568
+      - TZ=Australia/Sydney
+      - ALLOW_SIGNUP=false
+      - BASE_URL=https://mealie.tylercash.dev
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.mealie.service=mealie
+      - traefik.http.routers.mealie.rule=Host(`mealie.tylercash.dev`) && (ClientIP(`10.0.0.0/8`) || ClientIP(`172.19.0.0/24`))
+      - traefik.http.routers.mealie.entrypoints=websecure
+      - traefik.http.services.mealie.loadbalancer.server.scheme=http
+      - traefik.http.services.mealie.loadbalancer.server.port=9000
+      - traefik.http.routers.mealie.tls.certresolver=leresolver
+      - com.centurylinklabs.watchtower.enable=true
+
+networks:
+  homelab_default:
+    external: true
