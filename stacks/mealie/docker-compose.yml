@@ -18,7 +18,7 @@ services:
       - ALLOW_SIGNUP=false
       - BASE_URL=https://mealie.tylercash.dev
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:9000/ || exit 1"]
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:9000/')\" || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
