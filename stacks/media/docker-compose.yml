@@ -227,7 +227,7 @@ services:
       - TZ=Australia/Sydney
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:6868/ || exit 1"]
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:6868/ || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
