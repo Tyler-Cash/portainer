@@ -76,6 +76,8 @@ services:
       - SLSKD_SLSK_USERNAME=${SLSKD_SLSK_USERNAME}
       - SLSKD_SLSK_PASSWORD=${SLSKD_SLSK_PASSWORD}
       - SLSKD_API_KEY=${SLSKD_API_KEY}
+      - SLSKD_DIRECTORIES__INCOMPLETE=/downloads/incomplete
+      - SLSKD_DIRECTORIES__DOWNLOADS=/downloads
       - SLSKD_GLOBAL__UPLOAD__SPEED_LIMIT=1024
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O- http://localhost:5030/health || exit 1"]
@@ -116,7 +118,7 @@ services:
         [Lidarr]
         api_key = $${LIDARR_API_KEY}
         host_url = https://lidarr.tylercash.dev
-        download_dir = /downloads
+        download_dir = /data/download/complete/slskd
         disable_sync = False
 
         [Slskd]
