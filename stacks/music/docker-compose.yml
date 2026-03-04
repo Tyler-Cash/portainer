@@ -76,6 +76,7 @@ services:
       - SLSKD_SLSK_USERNAME=${SLSKD_SLSK_USERNAME}
       - SLSKD_SLSK_PASSWORD=${SLSKD_SLSK_PASSWORD}
       - SLSKD_API_KEY=${SLSKD_API_KEY}
+      - SLSKD_GLOBAL__UPLOAD__SPEED_LIMIT=1024
     healthcheck:
       test: ["CMD-SHELL", "wget -q -O- http://localhost:5030/health || exit 1"]
       interval: 30s
