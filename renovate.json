@@ -22,7 +22,7 @@
     {
       "description": "Automerge non-major updates",
       "matchDatasources": ["docker"],
-      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "matchUpdateTypes": ["minor", "patch", "digest", "pinDigest"],
       "automerge": true,
       "automergeType": "pr",
       "platformAutomerge": true
