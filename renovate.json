@@ -33,6 +33,16 @@
       "matchUpdateTypes": ["major"],
       "automerge": false,
       "labels": ["renovate", "dependencies", "major"]
+    },
+    {
+      "description": "Auto-update peepbot staging images immediately",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["ghcr.io/tyler-cash/peep-bot-backend", "ghcr.io/tyler-cash/peep-bot-frontend"],
+      "matchFileNames": ["stacks/peepbot-staging/**"],
+      "schedule": ["at any time"],
+      "automerge": true,
+      "automergeType": "pr",
+      "platformAutomerge": true
     }
   ]
 }
