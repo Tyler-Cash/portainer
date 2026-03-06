@@ -39,7 +39,7 @@ services:
       com.centurylinklabs.watchtower.enable: true
 
   peepbot-staging-frontend:
-    image: ghcr.io/tyler-cash/peep-bot-frontend:latest@sha256:4fab6abfb7e6c391ef57df217f164a370d3f4afcf5212a2001e9beae3c397206
+    image: ghcr.io/tyler-cash/peep-bot-frontend:latest@sha256:ab7e482ffbc7352b5155ed105092dfec43c7f8e8c71e3c28b1e4b6f718c42588
     container_name: peepbot-staging-frontend
     restart: always
     networks:
