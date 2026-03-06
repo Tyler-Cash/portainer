@@ -1,3 +1,45 @@
+x-traefik:
+  entrypoint: &entrypoint websecure
+  certresolver: &certresolver leresolver
+  backend-port: &backend-port 8080
+  frontend-port: &frontend-port 80
+
+x-postgres:
+  password: &postgresPassword ${POSTGRES_PASSWORD}
+  username: &postgresUser postgres
+
+x-spring-datasource: &spring-datasource
+  SPRING_DATASOURCE_URL: &datasourceUrl jdbc:postgresql://peepbot-postgres:5432/peepbot
+  SPRING_DATASOURCE_USERNAME: *postgresUser
+  SPRING_DATASOURCE_PASSWORD: *postgresPassword
+
+x-backend-defaults: &backend-defaults
+  restart: always
+  networks:
+    - homelab_default
+  depends_on:
+    peepbot-postgres:
+      condition: service_healthy
+  healthcheck:
+    disable: true
+  labels: &backend-labels
+    traefik.enable: true
+    com.centurylinklabs.watchtower.enable: true
+
+x-frontend-defaults: &frontend-defaults
+  restart: always
+  networks:
+    - homelab_default
+  healthcheck:
+    test: ["CMD-SHELL", "curl -sf http://localhost:80/ || exit 1"]
+    interval: 30s
+    timeout: 10s
+    retries: 3
+    start_period: 30s
+  labels: &frontend-labels
+    traefik.enable: true
+    com.centurylinklabs.watchtower.enable: true
+
 services:
   peepbot-postgres:
     image: postgres:18.3@sha256:69e8582b781cb44fa4557b98ed586fe68361e320d9b12f9707494335634f4f3d
@@ -9,7 +51,7 @@ services:
     volumes:
       - /ssd/fast_storage/docker/peepbot-postgres:/var/lib/postgresql
     environment:
-      POSTGRES_PASSWORD: &postgresPassword ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: *postgresPassword
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -18,54 +60,35 @@ services:
       start_period: 30s
 
   peepbot-backend:
+    <<: *backend-defaults
     image: ghcr.io/tyler-cash/peep-bot-backend:latest@sha256:027ca2f1d8c6ef6b4b1b270d398993d5600712fc3eff184fc5f3f24bf3f3ae41
     container_name: peepbot-backend
-    restart: always
-    networks:
-      - homelab_default
-    depends_on:
-      peepbot-postgres:
-        condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://peepbot-postgres:5432/peepbot
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: *postgresPassword
+      <<: *spring-datasource
       SPRING_PROFILES_ACTIVE: prod
       SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_DISCORD_CLIENT_ID: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_DISCORD_CLIENT_ID}
       SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_DISCORD_CLIENT_SECRET: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_DISCORD_CLIENT_SECRET}
       DEV_TYLERCASH_DISCORD_GUILD_ID: ${DEV_TYLERCASH_DISCORD_GUILD_ID}
       DEV_TYLERCASH_DISCORD_TOKEN: ${DEV_TYLERCASH_DISCORD_TOKEN}
-    healthcheck:
-      disable: true
     labels:
-      traefik.enable: true
-      traefik.http.routers.peepbot-backend.entrypoints: websecure
+      <<: *backend-labels
+      traefik.http.routers.peepbot-backend.entrypoints: *entrypoint
       traefik.http.routers.peepbot-backend.rule: Host(`api.event.tylercash.dev`)
       traefik.http.routers.peepbot-backend.service: peepbot-backend
-      traefik.http.routers.peepbot-backend.tls.certresolver: leresolver
-      traefik.http.services.peepbot-backend.loadbalancer.server.port: 8080
-      com.centurylinklabs.watchtower.enable: true
+      traefik.http.routers.peepbot-backend.tls.certresolver: *certresolver
+      traefik.http.services.peepbot-backend.loadbalancer.server.port: *backend-port
 
   peepbot-frontend:
+    <<: *frontend-defaults
     image: ghcr.io/tyler-cash/peep-bot-frontend:latest@sha256:4fab6abfb7e6c391ef57df217f164a370d3f4afcf5212a2001e9beae3c397206
     container_name: peepbot-frontend
-    restart: always
-    networks:
-      - homelab_default
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:80/ || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
     labels:
-      traefik.enable: true
-      traefik.http.routers.peepbot-frontend.entrypoints: websecure
+      <<: *frontend-labels
+      traefik.http.routers.peepbot-frontend.entrypoints: *entrypoint
       traefik.http.routers.peepbot-frontend.rule: Host(`event.tylercash.dev`)
       traefik.http.routers.peepbot-frontend.service: peepbot-frontend
-      traefik.http.routers.peepbot-frontend.tls.certresolver: leresolver
-      traefik.http.services.peepbot-frontend.loadbalancer.server.port: 80
-      com.centurylinklabs.watchtower.enable: true
+      traefik.http.routers.peepbot-frontend.tls.certresolver: *certresolver
+      traefik.http.services.peepbot-frontend.loadbalancer.server.port: *frontend-port
 
   adminer:
     image: adminer:5.4.2@sha256:2fb88b98da9f0ae0157d8fcb73f447a0747b09ee8d2ff8a8e0695b30afed2116
@@ -83,11 +106,11 @@ services:
       start_period: 30s
     labels:
       traefik.enable: true
-      traefik.http.routers.peepbot-adminer.entrypoints: websecure
+      traefik.http.routers.peepbot-adminer.entrypoints: *entrypoint
       traefik.http.routers.peepbot-adminer.rule: Host(`adminer.tylercash.dev`) && ClientIP(`10.0.0.0/8`)
       traefik.http.routers.peepbot-adminer.service: peepbot-adminer
-      traefik.http.routers.peepbot-adminer.tls.certresolver: leresolver
-      traefik.http.services.peepbot-adminer.loadbalancer.server.port: 8080
+      traefik.http.routers.peepbot-adminer.tls.certresolver: *certresolver
+      traefik.http.services.peepbot-adminer.loadbalancer.server.port: *backend-port
 
 networks:
   homelab_default:

@@ -1,0 +1,64 @@
+x-traefik:
+  entrypoint: &entrypoint websecure
+  certresolver: &certresolver leresolver
+  backend-port: &backend-port 8080
+  frontend-port: &frontend-port 80
+
+x-postgres:
+  password: &postgresPassword ${POSTGRES_PASSWORD}
+  username: &postgresUser postgres
+
+x-spring-datasource: &spring-datasource
+  SPRING_DATASOURCE_URL: jdbc:postgresql://peepbot-postgres:5432/peepbot_staging
+  SPRING_DATASOURCE_USERNAME: *postgresUser
+  SPRING_DATASOURCE_PASSWORD: *postgresPassword
+
+services:
+  peepbot-staging-backend:
+    image: ghcr.io/tyler-cash/peep-bot-backend:latest@sha256:027ca2f1d8c6ef6b4b1b270d398993d5600712fc3eff184fc5f3f24bf3f3ae41
+    container_name: peepbot-staging-backend
+    restart: always
+    networks:
+      - homelab_default
+    healthcheck:
+      disable: true
+    environment:
+      <<: *spring-datasource
+      SPRING_PROFILES_ACTIVE: staging
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_DISCORD_CLIENT_ID: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_DISCORD_CLIENT_ID}
+      SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_DISCORD_CLIENT_SECRET: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_DISCORD_CLIENT_SECRET}
+      DEV_TYLERCASH_DISCORD_GUILD_ID: ${DEV_TYLERCASH_DISCORD_GUILD_ID}
+      DEV_TYLERCASH_DISCORD_TOKEN: ${DEV_TYLERCASH_DISCORD_TOKEN}
+    labels:
+      traefik.enable: true
+      traefik.http.routers.peepbot-staging-backend.entrypoints: *entrypoint
+      traefik.http.routers.peepbot-staging-backend.rule: Host(`api.event-staging.tylercash.dev`)
+      traefik.http.routers.peepbot-staging-backend.service: peepbot-staging-backend
+      traefik.http.routers.peepbot-staging-backend.tls.certresolver: *certresolver
+      traefik.http.services.peepbot-staging-backend.loadbalancer.server.port: *backend-port
+      com.centurylinklabs.watchtower.enable: true
+
+  peepbot-staging-frontend:
+    image: ghcr.io/tyler-cash/peep-bot-frontend:latest@sha256:4fab6abfb7e6c391ef57df217f164a370d3f4afcf5212a2001e9beae3c397206
+    container_name: peepbot-staging-frontend
+    restart: always
+    networks:
+      - homelab_default
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      traefik.enable: true
+      traefik.http.routers.peepbot-staging-frontend.entrypoints: *entrypoint
+      traefik.http.routers.peepbot-staging-frontend.rule: Host(`event-staging.tylercash.dev`)
+      traefik.http.routers.peepbot-staging-frontend.service: peepbot-staging-frontend
+      traefik.http.routers.peepbot-staging-frontend.tls.certresolver: *certresolver
+      traefik.http.services.peepbot-staging-frontend.loadbalancer.server.port: *frontend-port
+      com.centurylinklabs.watchtower.enable: true
+
+networks:
+  homelab_default:
+    external: true
