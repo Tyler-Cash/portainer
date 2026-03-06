@@ -34,9 +34,10 @@ jobs:
         run: |
           if git rev-parse HEAD~1 &>/dev/null; then
             changed=$(git diff --name-only HEAD~1 HEAD -- stacks/ \
-              | grep 'docker-compose\.yml' \
+              | grep -E '(docker-compose\.yml|\.env\.secret)' \
               | sed 's|stacks/||' \
-              | sed 's|/docker-compose\.yml||')
+              | sed 's|/[^/]*$||' \
+              | sort -u)
           else
             echo "Initial commit — deploying all stacks"
             changed=$(find stacks -name 'docker-compose.yml' \
