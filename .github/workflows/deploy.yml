@@ -5,6 +5,7 @@ on:
     branches: [master]
     paths:
       - "stacks/**/docker-compose.yml"
+      - "stacks/**/.env.secret"
 
 jobs:
   test:
