@@ -25,7 +25,7 @@ services:
     labels:
       - traefik.enable=true
       - traefik.http.routers.immich.service=immich
-      - traefik.http.routers.immich.rule=Host(`photos.tylercash.dev`) && (ClientIP(`10.0.0.0/8`) || ClientIP(`172.19.0.0/24`))
+      - traefik.http.routers.immich.rule=Host(`photos.tylercash.dev`)
       - traefik.http.routers.immich.entrypoints=websecure
       - traefik.http.services.immich.loadbalancer.server.scheme=http
       - traefik.http.services.immich.loadbalancer.server.port=2283
