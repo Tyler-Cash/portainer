@@ -128,6 +128,12 @@ services:
                 endpoint: 0.0.0.0:4317
               http:
                 endpoint: 0.0.0.0:4318
+                cors:
+                  allowed-origins:
+                    - "https://event.tylercash.dev"
+                    - "https://event-staging.tylercash.dev"
+                  allowed-headers:
+                    - "Content-Type"
           prometheus:
             config:
               global:
