@@ -41,7 +41,7 @@ services:
     volumes:
       - /ssd/fast_storage/docker/signoz-clickhouse:/var/lib/clickhouse
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8123/ping | grep -q Ok"]
+      test: ["CMD-SHELL", "clickhouse-client --query 'SELECT 1'"]
       interval: 10s
       timeout: 5s
       retries: 5
