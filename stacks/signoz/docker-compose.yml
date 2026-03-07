@@ -519,6 +519,7 @@ services:
     <<: *signoz-defaults
     image: signoz/signoz-otel-collector:v0.144.2
     container_name: signoz-otel-agent
+    user: root
     depends_on:
       signoz-otel-collector:
         condition: service_healthy
