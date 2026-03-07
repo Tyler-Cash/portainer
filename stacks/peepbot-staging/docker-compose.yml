@@ -28,7 +28,7 @@ services:
       psql -h peepbot-postgres -U postgres -c 'CREATE DATABASE peepbot_staging;'"
 
   peepbot-staging-backend:
-    image: ghcr.io/tyler-cash/peep-bot-backend:2.2.0
+    image: ghcr.io/tyler-cash/peep-bot-backend:2.2.0@sha256:6dd17dcd16c2cf64f6db32216874f4482c85e719b7fbca5d5d25f03f021b5a26
     container_name: peepbot-staging-backend
     restart: always
     networks:
@@ -58,7 +58,7 @@ services:
       com.centurylinklabs.watchtower.enable: true
 
   peepbot-staging-frontend:
-    image: ghcr.io/tyler-cash/peep-bot-frontend:2.2.0
+    image: ghcr.io/tyler-cash/peep-bot-frontend:2.2.0@sha256:f3e6d5eb8a3e22d93c660718d4324647745f10673e161e54d334c1d8c4952782
     container_name: peepbot-staging-frontend
     restart: always
     networks:
