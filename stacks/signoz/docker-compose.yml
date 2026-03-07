@@ -161,7 +161,7 @@ services:
     labels:
       - traefik.enable=true
       - traefik.http.routers.signoz-otel.service=signoz-otel
-      - traefik.http.routers.signoz-otel.rule=Host(`otel.tylercash.dev`) && (ClientIP(`10.0.0.0/8`) || ClientIP(`172.19.0.0/24`))
+      - traefik.http.routers.signoz-otel.rule=Host(`otel.tylercash.dev`)
       - traefik.http.routers.signoz-otel.entrypoints=websecure
       - traefik.http.services.signoz-otel.loadbalancer.server.scheme=http
       - traefik.http.services.signoz-otel.loadbalancer.server.port=4318
