@@ -28,6 +28,11 @@ services:
         cat > /clickhouse-config/cluster.xml << 'XMLEOF'
         <?xml version="1.0"?>
         <clickhouse>
+          <macros>
+            <replica>signoz-clickhouse</replica>
+            <shard>1</shard>
+            <cluster>cluster</cluster>
+          </macros>
           <zookeeper>
             <node index="1">
               <host>signoz-zookeeper</host>
@@ -231,9 +236,9 @@ services:
 
         echo "Init complete"
     volumes:
-      - /ssd/fast_storage/docker/signoz-clickhouse-config:/clickhouse-config
-      - /ssd/fast_storage/docker/signoz-clickhouse-user-scripts:/clickhouse-user-scripts
-      - /ssd/fast_storage/docker/signoz-otel-config:/otel-config
+      - /ssd/fast_storage/docker/signoz/clickhouse-config:/clickhouse-config
+      - /ssd/fast_storage/docker/signoz/clickhouse-user-scripts:/clickhouse-user-scripts
+      - /ssd/fast_storage/docker/signoz/otel-config:/otel-config
 
   signoz-zookeeper:
     <<: *signoz-defaults
@@ -245,7 +250,7 @@ services:
       ALLOW_ANONYMOUS_LOGIN: "yes"
       ZOO_AUTOPURGE_INTERVAL: "1"
     volumes:
-      - /ssd/fast_storage/docker/signoz-zookeeper:/bitnami/zookeeper
+      - /ssd/fast_storage/docker/signoz/zookeeper:/bitnami/zookeeper
     healthcheck:
       test: ["CMD-SHELL", "curl -s -m 2 http://localhost:8080/commands/ruok | grep error | grep null"]
       interval: 30s
@@ -271,11 +276,11 @@ services:
         soft: 262144
         hard: 262144
     volumes:
-      - /ssd/fast_storage/docker/signoz-clickhouse:/var/lib/clickhouse
-      - /ssd/fast_storage/docker/signoz-clickhouse-config/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml
-      - /ssd/fast_storage/docker/signoz-clickhouse-config/users.xml:/etc/clickhouse-server/users.xml
-      - /ssd/fast_storage/docker/signoz-clickhouse-config/custom-function.xml:/etc/clickhouse-server/custom-function.xml
-      - /ssd/fast_storage/docker/signoz-clickhouse-user-scripts:/var/lib/clickhouse/user_scripts
+      - /ssd/fast_storage/docker/signoz/clickhouse:/var/lib/clickhouse
+      - /ssd/fast_storage/docker/signoz/clickhouse-config/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml
+      - /ssd/fast_storage/docker/signoz/clickhouse-config/users.xml:/etc/clickhouse-server/users.xml
+      - /ssd/fast_storage/docker/signoz/clickhouse-config/custom-function.xml:/etc/clickhouse-server/custom-function.xml
+      - /ssd/fast_storage/docker/signoz/clickhouse-user-scripts:/var/lib/clickhouse/user_scripts
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "0.0.0.0:8123/ping"]
       interval: 30s
@@ -314,7 +319,7 @@ services:
       SIGNOZ_SQLSTORE_SQLITE_PATH: /var/lib/signoz/signoz.db
       SIGNOZ_TOKENIZER_JWT_SECRET: ${SIGNOZ_JWT_SECRET}
     volumes:
-      - /ssd/fast_storage/docker/signoz-data:/var/lib/signoz
+      - /ssd/fast_storage/docker/signoz/data:/var/lib/signoz
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "localhost:8080/api/v1/health"]
       interval: 30s
@@ -347,7 +352,11 @@ services:
     command:
       - -c
       - |
-        /signoz-otel-collector migrate sync check &&
+        echo "Waiting for migrations to complete..."
+        until /signoz-otel-collector migrate sync check; do
+          echo "Migrations not ready, retrying in 10s..."
+          sleep 10
+        done
         /signoz-otel-collector --config=/etc/otel-collector-config.yaml --manager-config=/etc/manager-config.yaml --copy-path=/var/tmp/collector-config.yaml
     environment:
       OTEL_RESOURCE_ATTRIBUTES: host.name=signoz-host,os.type=linux
@@ -357,8 +366,8 @@ services:
       SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_REPLICATION: "true"
       SIGNOZ_OTEL_COLLECTOR_TIMEOUT: 10m
     volumes:
-      - /ssd/fast_storage/docker/signoz-otel-config/otel-collector-config.yaml:/etc/otel-collector-config.yaml
-      - /ssd/fast_storage/docker/signoz-otel-config/manager-config.yaml:/etc/manager-config.yaml
+      - /ssd/fast_storage/docker/signoz/otel-config/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+      - /ssd/fast_storage/docker/signoz/otel-config/manager-config.yaml:/etc/manager-config.yaml
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:13133/health/status > /dev/null 2>&1 || exit 1"]
       interval: 30s
