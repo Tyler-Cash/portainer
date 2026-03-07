@@ -52,7 +52,7 @@ services:
 
   signoz-schema-migrator:
     <<: *signoz-defaults
-    image: signoz/signoz-schema-migrator:0.88.28
+    image: signoz/signoz-schema-migrator:v0.144.2
     container_name: signoz-schema-migrator
     restart: "no"
     depends_on:
@@ -68,7 +68,7 @@ services:
 
   signoz-alertmanager:
     <<: *signoz-defaults
-    image: signoz/alertmanager:0.23.7
+    image: signoz/alertmanager:0.23.9
     container_name: signoz-alertmanager
     volumes:
       - /ssd/fast_storage/docker/signoz-alertmanager:/data
@@ -78,7 +78,7 @@ services:
 
   signoz-query-service:
     <<: *signoz-defaults
-    image: signoz/query-service:0.88.28
+    image: signoz/query-service:0.76.2
     container_name: signoz-query-service
     depends_on:
       signoz-clickhouse:
@@ -109,7 +109,7 @@ services:
 
   signoz-frontend:
     <<: *signoz-defaults
-    image: signoz/frontend:0.88.28
+    image: signoz/frontend:0.76.0-a13d1c89
     container_name: signoz-frontend
     depends_on:
       signoz-query-service:
@@ -134,7 +134,7 @@ services:
 
   signoz-otel-collector:
     <<: *signoz-defaults
-    image: signoz/signoz-otel-collector:0.88.28
+    image: signoz/signoz-otel-collector:v0.144.2
     container_name: signoz-otel-collector
     depends_on:
       signoz-clickhouse:
