@@ -1,0 +1,173 @@
+x-clickhouse-defaults: &clickhouse-defaults
+  CLICKHOUSE_HOST: signoz-clickhouse
+  CLICKHOUSE_PORT: "9000"
+  CLICKHOUSE_HTTP_PORT: "8123"
+  CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+  CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+
+x-signoz-defaults: &signoz-defaults
+  restart: unless-stopped
+  networks:
+    - homelab_default
+
+services:
+  signoz-zookeeper:
+    <<: *signoz-defaults
+    image: bitnami/zookeeper:3.9.2
+    container_name: signoz-zookeeper
+    environment:
+      ALLOW_ANONYMOUS_LOGIN: "yes"
+      ZOO_AUTOPURGE_INTERVAL: "1"
+      ZOO_4LW_COMMANDS_WHITELIST: "ruok,mntr"
+    volumes:
+      - /ssd/fast_storage/docker/signoz-zookeeper:/bitnami/zookeeper
+    healthcheck:
+      test: ["CMD-SHELL", "echo ruok | nc localhost 2181 | grep -q imok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  signoz-clickhouse:
+    <<: *signoz-defaults
+    image: clickhouse/clickhouse-server:24.1.2-alpine
+    container_name: signoz-clickhouse
+    tty: true
+    depends_on:
+      signoz-zookeeper:
+        condition: service_healthy
+    environment:
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+    volumes:
+      - /ssd/fast_storage/docker/signoz-clickhouse:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8123/ping | grep -q Ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+  signoz-schema-migrator:
+    <<: *signoz-defaults
+    image: signoz/signoz-schema-migrator:0.88.28
+    container_name: signoz-schema-migrator
+    restart: "no"
+    depends_on:
+      signoz-clickhouse:
+        condition: service_healthy
+    environment:
+      <<: *clickhouse-defaults
+      CLICKHOUSE_CLUSTER: cluster
+      CLICKHOUSE_DATABASE: signoz_traces
+      CLICKHOUSE_TRACES_TABLE: signoz_index_v2
+      CLICKHOUSE_OPERATIONS_TABLE: distributed_signoz_operations
+    command: ["sync", "--dsn", "tcp://${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}@signoz-clickhouse:9000"]
+
+  signoz-alertmanager:
+    <<: *signoz-defaults
+    image: signoz/alertmanager:0.23.7
+    container_name: signoz-alertmanager
+    volumes:
+      - /ssd/fast_storage/docker/signoz-alertmanager:/data
+    command:
+      - --queryService.url=http://signoz-query-service:8085
+      - --storage.path=/data
+
+  signoz-query-service:
+    <<: *signoz-defaults
+    image: signoz/query-service:0.88.28
+    container_name: signoz-query-service
+    depends_on:
+      signoz-clickhouse:
+        condition: service_healthy
+      signoz-schema-migrator:
+        condition: service_completed_successfully
+    environment:
+      <<: *clickhouse-defaults
+      CLICKHOUSE_CLUSTER: cluster
+      CLICKHOUSE_DATABASE: signoz_traces
+      CLICKHOUSE_TRACES_TABLE: signoz_index_v2
+      CLICKHOUSE_OPERATIONS_TABLE: distributed_signoz_operations
+      SIGNOZ_LOCAL_DB_PATH: /var/lib/signoz/signoz.db
+      ALERTMANAGER_API_PREFIX: http://signoz-alertmanager:9093/api/
+      DASHBOARDS_PATH: /root/config/dashboards
+      STORAGE: clickhouse
+      GODEBUG: netdns=go
+    volumes:
+      - /ssd/fast_storage/docker/signoz-query-service:/var/lib/signoz
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8085/api/v1/health | grep -q '\"status\":\"ok\"' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+  signoz-frontend:
+    <<: *signoz-defaults
+    image: signoz/frontend:0.88.28
+    container_name: signoz-frontend
+    depends_on:
+      signoz-query-service:
+        condition: service_healthy
+    environment:
+      FRONTEND_API_ENDPOINT: http://signoz-query-service:8085
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3301/api/v1/health > /dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.signoz.service=signoz
+      - traefik.http.routers.signoz.rule=Host(`signoz.tylercash.dev`) && (ClientIP(`10.0.0.0/8`) || ClientIP(`172.19.0.0/24`))
+      - traefik.http.routers.signoz.entrypoints=websecure
+      - traefik.http.services.signoz.loadbalancer.server.scheme=http
+      - traefik.http.services.signoz.loadbalancer.server.port=3301
+      - traefik.http.routers.signoz.tls.certresolver=leresolver
+      - com.centurylinklabs.watchtower.enable=true
+
+  signoz-otel-collector:
+    <<: *signoz-defaults
+    image: signoz/signoz-otel-collector:0.88.28
+    container_name: signoz-otel-collector
+    depends_on:
+      signoz-clickhouse:
+        condition: service_healthy
+      signoz-schema-migrator:
+        condition: service_completed_successfully
+    command:
+      - --config=/etc/otel-collector-config.yaml
+      - --manager-config=/etc/manager-config.yaml
+      - --copy-path=/var/tmp/collector-config.yaml
+      - --feature-gates=-pkg.translator.prometheus.NormalizeName
+    environment:
+      <<: *clickhouse-defaults
+      OTEL_RESOURCE_ATTRIBUTES: host.name=signoz-otel-collector,os.type=linux
+      LOW_CARDINAL_EXCEPTION_GROUPING: "true"
+    volumes:
+      - /ssd/fast_storage/docker/signoz-otel-collector:/etc/otel-collector
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:13133/health/status | grep -q '\"status\":\"Server available\"' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.signoz-otel.service=signoz-otel
+      - traefik.http.routers.signoz-otel.rule=Host(`otel.tylercash.dev`) && (ClientIP(`10.0.0.0/8`) || ClientIP(`172.19.0.0/24`))
+      - traefik.http.routers.signoz-otel.entrypoints=websecure
+      - traefik.http.services.signoz-otel.loadbalancer.server.scheme=http
+      - traefik.http.services.signoz-otel.loadbalancer.server.port=4318
+      - traefik.http.routers.signoz-otel.tls.certresolver=leresolver
+      - com.centurylinklabs.watchtower.enable=true
+
+networks:
+  homelab_default:
+    external: true

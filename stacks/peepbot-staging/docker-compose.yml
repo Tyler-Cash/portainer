@@ -48,6 +48,9 @@ services:
       DEV_TYLERCASH_IMMICH_BASE_URL: ${DEV_TYLERCASH_IMMICH_BASE_URL}
       DEV_TYLERCASH_IMMICH_ENABLED: ${DEV_TYLERCASH_IMMICH_ENABLED}
       DEV_TYLERCASH_IMMICH_API_KEY: ${DEV_TYLERCASH_IMMICH_API_KEY}
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://signoz-otel-collector:4318/v1/traces
+      MANAGEMENT_OTLP_METRICS_EXPORT_URL: http://signoz-otel-collector:4318/v1/metrics
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
     labels:
       traefik.enable: true
       traefik.http.routers.peepbot-staging-backend.entrypoints: *entrypoint
