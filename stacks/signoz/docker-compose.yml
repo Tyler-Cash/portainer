@@ -63,7 +63,7 @@ services:
       CLICKHOUSE_DATABASE: signoz_traces
       CLICKHOUSE_TRACES_TABLE: signoz_index_v2
       CLICKHOUSE_OPERATIONS_TABLE: distributed_signoz_operations
-    command: ["sync", "--dsn", "tcp://${CLICKHOUSE_USER}:${CLICKHOUSE_PASSWORD}@signoz-clickhouse:9000"]
+    command: ["sync", "--dsn", "tcp://signoz-clickhouse:9000?username=${CLICKHOUSE_USER}&password=${CLICKHOUSE_PASSWORD}"]
 
   signoz-alertmanager:
     <<: *signoz-defaults
