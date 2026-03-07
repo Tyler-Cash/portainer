@@ -234,6 +234,121 @@ services:
         server_endpoint: ws://signoz:4320/v1/opamp
         YAMLEOF
 
+        cat > /clickhouse-config/prometheus.xml << 'XMLEOF'
+        <?xml version="1.0"?>
+        <clickhouse>
+          <prometheus>
+            <endpoint>/metrics</endpoint>
+            <port>9363</port>
+            <metrics>true</metrics>
+            <events>true</events>
+            <asynchronous_metrics>true</asynchronous_metrics>
+          </prometheus>
+        </clickhouse>
+        XMLEOF
+
+        cat > /otel-config/otel-agent-config.yaml << 'YAMLEOF'
+        receivers:
+          filelog/docker:
+            include:
+              - /var/lib/docker/containers/*/*.log
+            start_at: end
+            include_file_path: true
+            include_file_name: false
+            operators:
+              - type: json_parser
+                id: parser-docker
+                timestamp:
+                  parse_from: attributes.time
+                  layout: '%Y-%m-%dT%H:%M:%S.%LZ'
+              - type: regex_parser
+                id: extract_metadata_from_filepath
+                regex: '^.*containers/(?P<container_id>[^/]+)/.*$$'
+                parse_from: attributes["log.file.path"]
+              - type: move
+                from: attributes.log
+                to: body
+              - type: remove
+                field: attributes.time
+          docker_stats:
+            endpoint: unix:///var/run/docker.sock
+            collection_interval: 30s
+            timeout: 20s
+          hostmetrics:
+            root_path: /hostfs
+            collection_interval: 60s
+            scrapers:
+              cpu: {}
+              load: {}
+              memory: {}
+              disk: {}
+              filesystem: {}
+              network: {}
+              paging: {}
+          prometheus/infra:
+            config:
+              scrape_configs:
+                - job_name: clickhouse
+                  scrape_interval: 60s
+                  static_configs:
+                    - targets:
+                        - signoz-clickhouse:9363
+                - job_name: zookeeper
+                  scrape_interval: 60s
+                  static_configs:
+                    - targets:
+                        - signoz-zookeeper:7000
+                - job_name: navidrome
+                  scrape_interval: 60s
+                  static_configs:
+                    - targets:
+                        - navidrome:4533
+                - job_name: n8n
+                  scrape_interval: 60s
+                  static_configs:
+                    - targets:
+                        - n8n:5678
+        processors:
+          batch:
+            send_batch_size: 10000
+            send_batch_max_size: 11000
+            timeout: 10s
+          resourcedetection:
+            detectors: [env, system]
+            timeout: 2s
+        extensions:
+          health_check:
+            endpoint: 0.0.0.0:13133
+        exporters:
+          otlp:
+            endpoint: signoz-otel-collector:4317
+            tls:
+              insecure: true
+        service:
+          telemetry:
+            logs:
+              encoding: json
+          extensions:
+            - health_check
+          pipelines:
+            logs/docker:
+              receivers: [filelog/docker]
+              processors: [batch]
+              exporters: [otlp]
+            metrics/docker:
+              receivers: [docker_stats]
+              processors: [batch]
+              exporters: [otlp]
+            metrics/host:
+              receivers: [hostmetrics]
+              processors: [resourcedetection, batch]
+              exporters: [otlp]
+            metrics/infra:
+              receivers: [prometheus/infra]
+              processors: [batch]
+              exporters: [otlp]
+        YAMLEOF
+
         echo "Init complete"
     volumes:
       - /ssd/fast_storage/docker/signoz/clickhouse-config:/clickhouse-config
@@ -249,6 +364,8 @@ services:
       ZOO_SERVER_ID: "1"
       ALLOW_ANONYMOUS_LOGIN: "yes"
       ZOO_AUTOPURGE_INTERVAL: "1"
+      ZOO_ENABLE_PROMETHEUS_METRICS: "yes"
+      ZOO_PROMETHEUS_METRICS_PORT_NUMBER: "7000"
     volumes:
       - /ssd/fast_storage/docker/signoz/zookeeper:/bitnami/zookeeper
     healthcheck:
@@ -280,6 +397,7 @@ services:
       - /ssd/fast_storage/docker/signoz/clickhouse-config/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml
       - /ssd/fast_storage/docker/signoz/clickhouse-config/users.xml:/etc/clickhouse-server/users.xml
       - /ssd/fast_storage/docker/signoz/clickhouse-config/custom-function.xml:/etc/clickhouse-server/custom-function.xml
+      - /ssd/fast_storage/docker/signoz/clickhouse-config/prometheus.xml:/etc/clickhouse-server/config.d/prometheus.xml
       - /ssd/fast_storage/docker/signoz/clickhouse-user-scripts:/var/lib/clickhouse/user_scripts
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "0.0.0.0:8123/ping"]
@@ -376,7 +494,7 @@ services:
       - /ssd/fast_storage/docker/signoz/otel-config/otel-collector-config.yaml:/etc/otel-collector-config.yaml
       - /ssd/fast_storage/docker/signoz/otel-config/manager-config.yaml:/etc/manager-config.yaml
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:13133/health/status > /dev/null 2>&1 || exit 1"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:13133/"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -389,6 +507,33 @@ services:
       - traefik.http.services.signoz-otel.loadbalancer.server.scheme=http
       - traefik.http.services.signoz-otel.loadbalancer.server.port=4318
       - traefik.http.routers.signoz-otel.tls.certresolver=leresolver
+      - com.centurylinklabs.watchtower.enable=true
+
+  signoz-otel-agent:
+    <<: *signoz-defaults
+    image: signoz/signoz-otel-collector:v0.144.2
+    container_name: signoz-otel-agent
+    depends_on:
+      signoz-otel-collector:
+        condition: service_healthy
+      signoz-init:
+        condition: service_completed_successfully
+    command:
+      - --config=/etc/otel-agent-config.yaml
+    environment:
+      OTEL_RESOURCE_ATTRIBUTES: host.name=signoz-host,os.type=linux
+    volumes:
+      - /ssd/fast_storage/docker/signoz/otel-config/otel-agent-config.yaml:/etc/otel-agent-config.yaml
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /:/hostfs:ro
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:13133/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
       - com.centurylinklabs.watchtower.enable=true
 
 networks:

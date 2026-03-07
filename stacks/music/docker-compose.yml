@@ -42,6 +42,7 @@ services:
       - /hdd/docker/media/music:/music:ro
     environment:
       - TZ=Australia/Sydney
+      - ND_PROMETHEUS_ENABLED=true
     healthcheck:
       test: ["CMD-SHELL", "wget --spider -q http://localhost:4533/ping || exit 1"]
       interval: 30s

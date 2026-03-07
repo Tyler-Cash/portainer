@@ -44,6 +44,14 @@ services:
       - WEBHOOK_URL=https://n8n.tylercash.dev
       - GENERIC_TIMEZONE=Australia/Sydney
       - TZ=Australia/Sydney
+
+      # OpenTelemetry
+      - N8N_OTEL_ENABLED=true
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://signoz-otel-collector:4318
+      - OTEL_SERVICE_NAME=n8n
+
+      # Prometheus metrics at /metrics
+      - N8N_METRICS=true
     volumes:
       # Persistent storage for n8n configs and encryption keys
       - /ssd/fast_storage/docker/n8n:/home/node/.n8n
