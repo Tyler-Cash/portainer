@@ -13,14 +13,13 @@ x-signoz-defaults: &signoz-defaults
 services:
   signoz-zookeeper:
     <<: *signoz-defaults
-    image: bitnami/zookeeper:3.9.2
+    image: zookeeper:3.9.4
     container_name: signoz-zookeeper
     environment:
-      ALLOW_ANONYMOUS_LOGIN: "yes"
-      ZOO_AUTOPURGE_INTERVAL: "1"
+      ZOO_AUTOPURGE_PURGEINTERVAL: "1"
       ZOO_4LW_COMMANDS_WHITELIST: "ruok,mntr"
     volumes:
-      - /ssd/fast_storage/docker/signoz-zookeeper:/bitnami/zookeeper
+      - /ssd/fast_storage/docker/signoz-zookeeper:/data
     healthcheck:
       test: ["CMD-SHELL", "echo ruok | nc localhost 2181 | grep -q imok"]
       interval: 10s
