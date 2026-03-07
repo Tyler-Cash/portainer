@@ -312,6 +312,11 @@ services:
   signoz:
     <<: *db-depend
     image: signoz/signoz:v0.114.1
+    depends_on:
+      signoz-clickhouse:
+        condition: service_healthy
+      signoz-telemetrystore-migrator:
+        condition: service_completed_successfully
     container_name: signoz
     environment:
       SIGNOZ_ALERTMANAGER_PROVIDER: signoz
@@ -347,6 +352,8 @@ services:
         condition: service_completed_successfully
       signoz-init:
         condition: service_completed_successfully
+      signoz:
+        condition: service_healthy
     entrypoint:
       - /bin/sh
     command:
