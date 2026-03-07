@@ -29,7 +29,7 @@ services:
 
   signoz-clickhouse:
     <<: *signoz-defaults
-    image: clickhouse/clickhouse-server:24.1.2-alpine
+    image: clickhouse/clickhouse-server:24.1.2
     container_name: signoz-clickhouse
     tty: true
     depends_on:
@@ -41,7 +41,7 @@ services:
     volumes:
       - /ssd/fast_storage/docker/signoz-clickhouse:/var/lib/clickhouse
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8123/ping | grep -q Ok"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:8123/ping | grep -q Ok"]
       interval: 10s
       timeout: 5s
       retries: 5
