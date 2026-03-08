@@ -16,7 +16,7 @@ x-db-depend: &db-depend
 services:
   signoz-init:
     <<: *signoz-defaults
-    image: clickhouse/clickhouse-server:25.5.6
+    image: clickhouse/clickhouse-server:25.5.6@sha256:4536143e22dc9bddb217c7e610f6b7ed5e6efd8fefdbc61acdeadb5d8022213a
     container_name: signoz-init
     restart: "no"
     entrypoint:
@@ -363,7 +363,7 @@ services:
 
   signoz-zookeeper:
     <<: *signoz-defaults
-    image: signoz/zookeeper:3.7.1
+    image: signoz/zookeeper:3.7.1@sha256:fcc4a3288154ccaa3bdb5ae6dc10180c084d29a8a6a26b62ac8e30a8940dc2e6
     container_name: signoz-zookeeper
     user: root
     environment:
@@ -383,7 +383,7 @@ services:
 
   signoz-clickhouse:
     <<: *signoz-defaults
-    image: clickhouse/clickhouse-server:25.5.6
+    image: clickhouse/clickhouse-server:25.5.6@sha256:4536143e22dc9bddb217c7e610f6b7ed5e6efd8fefdbc61acdeadb5d8022213a
     container_name: signoz-clickhouse
     tty: true
     depends_on:
@@ -416,7 +416,7 @@ services:
 
   signoz-telemetrystore-migrator:
     <<: *db-depend
-    image: signoz/signoz-otel-collector:v0.144.2
+    image: signoz/signoz-otel-collector:v0.144.2@sha256:cc3e1559f0968f10a27977323c20323ca072ea3858af2233263e82532d551516
     container_name: signoz-telemetrystore-migrator
     restart: on-failure
     environment:
@@ -435,7 +435,7 @@ services:
 
   signoz:
     <<: *db-depend
-    image: signoz/signoz:v0.114.1
+    image: signoz/signoz:v0.114.1@sha256:ad7f46883b16e1f8df465b51256829a21768e93d2c143608f74f536e35b0800f
     depends_on:
       signoz-clickhouse:
         condition: service_healthy
@@ -467,7 +467,7 @@ services:
 
   signoz-otel-collector:
     <<: *db-depend
-    image: signoz/signoz-otel-collector:v0.144.2
+    image: signoz/signoz-otel-collector:v0.144.2@sha256:cc3e1559f0968f10a27977323c20323ca072ea3858af2233263e82532d551516
     container_name: signoz-otel-collector
     depends_on:
       signoz-clickhouse:
@@ -517,7 +517,7 @@ services:
 
   signoz-otel-agent:
     <<: *signoz-defaults
-    image: signoz/signoz-otel-collector:v0.144.2
+    image: signoz/signoz-otel-collector:v0.144.2@sha256:cc3e1559f0968f10a27977323c20323ca072ea3858af2233263e82532d551516
     container_name: signoz-otel-agent
     user: root
     depends_on:
