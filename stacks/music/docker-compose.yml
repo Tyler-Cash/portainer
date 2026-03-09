@@ -97,7 +97,7 @@ services:
       - com.centurylinklabs.watchtower.enable=true
 
   soularr:
-    image: mrusse08/soularr:latest@sha256:2148f2c7f405a31ce64082ce085c88bf6e486fbb705bec20ead6a170fd8def72
+    image: mrusse08/soularr:latest@sha256:1e5812f7a306a8aec4c442abafca6af782bd9944ab1e8597e78284a72f283b2a
     container_name: soularr
     restart: unless-stopped
     networks:
