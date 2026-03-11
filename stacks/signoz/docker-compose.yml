@@ -363,7 +363,7 @@ services:
 
   signoz-zookeeper:
     <<: *signoz-defaults
-    image: signoz/zookeeper:3.7.2@sha256:57a83f9f844902f62a17a31bfa5d2ae87fd6dfa04f5639de0bdba38c76e28794
+    image: signoz/zookeeper:3.9.3@sha256:2982759ec21211d52514154a5c87d2bbe6725d94cfa864cdfea2f7040b7bd365
     container_name: signoz-zookeeper
     user: root
     environment:
