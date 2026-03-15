@@ -61,7 +61,7 @@ services:
 
   peepbot-backend:
     <<: *backend-defaults
-    image: ghcr.io/tyler-cash/peep-bot-backend:3.0.1@sha256:529feb058fba809d6c7502ea986b0baa6fd69645ff8887262c9deff85d0828d2
+    image: ghcr.io/tyler-cash/peep-bot-backend:3.0.3@sha256:f92f02c1b3f2bf528ec3781cdcddf956ab19d268a6eb287cd8a80ed8adbaa42b
     container_name: peepbot-backend
     environment:
       <<: *spring-datasource
