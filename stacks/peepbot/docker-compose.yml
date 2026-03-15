@@ -86,7 +86,7 @@ services:
 
   peepbot-frontend:
     <<: *frontend-defaults
-    image: ghcr.io/tyler-cash/peep-bot-frontend:3.0.1@sha256:6b7a87694264ca663ed2332cd894390f41695e2d289031fa3fc9cc2301a1202f
+    image: ghcr.io/tyler-cash/peep-bot-frontend:3.0.3@sha256:41ecba26983b2f8b6eec8288fc8cb9968915c643baefc25b9f09017c77748e03
     container_name: peepbot-frontend
     labels:
       <<: *frontend-labels
