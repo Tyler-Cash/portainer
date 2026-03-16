@@ -50,6 +50,7 @@ services:
       DEV_TYLERCASH_IMMICH_API_KEY: ${DEV_TYLERCASH_IMMICH_API_KEY}
       MANAGEMENT_OTLP_TRACING_ENDPOINT: http://signoz-otel-collector:4318/v1/traces
       MANAGEMENT_OTLP_METRICS_EXPORT_URL: http://signoz-otel-collector:4318/v1/metrics
+      MANAGEMENT_OTLP_LOGGING_EXPORT_ENDPOINT: http://signoz-otel-collector:4318/v1/logs
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
     labels:
       traefik.enable: true
