@@ -435,7 +435,7 @@ services:
 
   signoz:
     <<: *db-depend
-    image: signoz/signoz:v0.114.1@sha256:ad7f46883b16e1f8df465b51256829a21768e93d2c143608f74f536e35b0800f
+    image: signoz/signoz:v0.115.0@sha256:edd85df3ffa72d91e3ba76a50eae23e725885818f99e70b165c338545ef0df6c
     depends_on:
       signoz-clickhouse:
         condition: service_healthy
