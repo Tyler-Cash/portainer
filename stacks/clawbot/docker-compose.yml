@@ -9,9 +9,8 @@ services:
     ports:
       - "127.0.0.1:18789:18789"
     environment:
-      - OPENCLAW_DEFAULT_MODEL=ollama/qwen2.5-coder:14b-instruct-q8_0
+      - OPENCLAW_DEFAULT_MODEL=ollama/mistral-nemo:12b-instruct-2407-q8_0
       - OPENCLAW_GATEWAY_TOKEN=${OPENCLAW_GATEWAY_TOKEN}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - OLLAMA_BASE_URL=http://ollama:11434
     volumes:
       - /ssd/fast_storage/docker/openclaw/config:/home/node/.openclaw
@@ -40,7 +39,8 @@ services:
       - OLLAMA_MAX_LOADED_MODELS=1
       - OLLAMA_FLASH_ATTENTION=1
       - OLLAMA_NUM_THREAD=10
-    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 5 && ollama pull qwen2.5-coder:14b-instruct-q8_0 && wait"]
+      - OLLAMA_CONTEXT_LENGTH=32768
+    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 5 && ollama pull mistral-nemo:12b-instruct-2407-q8_0 && wait"]
     deploy:
       resources:
         limits:
