@@ -7,7 +7,6 @@ services:
     restart: unless-stopped
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
-      - WEBUI_AUTH=false
       - DEFAULT_MODELS=mistral-nemo:12b-instruct-2407-q8_0
     volumes:
       - /ssd/fast_storage/docker/open-webui:/app/backend/data
