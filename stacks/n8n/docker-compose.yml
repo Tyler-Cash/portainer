@@ -23,7 +23,7 @@ services:
       - com.centurylinklabs.watchtower.enable=true
 
   n8n:
-    image: docker.n8n.io/n8nio/n8n:2.13.0@sha256:34fd08a7958bcb1e10f0756c58ce83a0df282cff5ddcb295139ac8d0955558e7
+    image: docker.n8n.io/n8nio/n8n:2.13.2@sha256:72e962537379dcefeb63a01397a099576e2e89a365f5a75efb8a5ad5bc5cff6a
     container_name: n8n
     restart: unless-stopped
     networks:
