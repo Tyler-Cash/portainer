@@ -43,7 +43,7 @@ services:
 
   udp-proxy-govee:
     container_name: udp-proxy-govee
-    image: synfinatic/udp-proxy-2020:v0.1.2@sha256:8d523777919386bf90b17a10ab29f537bd1689ef70a2a81fbb1180350d5fcf51
+    image: synfinatic/udp-proxy-2020:v0.1.4@sha256:71fb9b54f5a019d40e256490d50c5d25b120965f1332ec97d16a36ff30cda52c
     restart: unless-stopped
     network_mode: host
     command:
