@@ -5,6 +5,7 @@ on:
     branches: [master]
     paths:
       - "stacks/**/docker-compose.yml"
+  workflow_dispatch:
 
 jobs:
   test:
@@ -33,7 +34,12 @@ jobs:
       - name: Detect changed stacks
         id: changes
         run: |
-          if git rev-parse HEAD~1 &>/dev/null; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual trigger — deploying all stacks"
+            changed=$(find stacks -name 'docker-compose.yml' \
+              | sed 's|stacks/||' \
+              | sed 's|/docker-compose\.yml||')
+          elif git rev-parse HEAD~1 &>/dev/null; then
             changed=$(git diff --name-only HEAD~1 HEAD -- stacks/ \
               | grep 'docker-compose\.yml' \
               | sed 's|stacks/||' \
