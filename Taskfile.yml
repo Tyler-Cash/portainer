@@ -79,7 +79,7 @@ tasks:
         echo "✅ Written to $TFVARS (gitignored)"
 
   runner-env:
-    desc: "Fetch a GitHub Actions runner token and write stacks/github-runner/.env.secret.dec (reads from terraform/terraform.tfvars)"
+    desc: "Write stacks/github-runner/.env.secret.dec using credentials from terraform/terraform.tfvars"
     cmds:
       - |
         TFVARS="terraform/terraform.tfvars"
@@ -93,17 +93,11 @@ tasks:
         github_repo=$(parse github_repo)
         sops_age_key=$(parse sops_age_key)
 
-        token=$(curl -sf \
-          -X POST \
-          -H "Authorization: Bearer $github_token" \
-          -H "Accept: application/vnd.github+json" \
-          "https://api.github.com/repos/$github_owner/$github_repo/actions/runners/registration-token" \
-          | jq -r '.token')
         printf 'REPO_URL=https://github.com/%s/%s\n' "$github_owner" "$github_repo" > stacks/github-runner/.env.secret.dec
-        printf 'RUNNER_TOKEN=%s\n' "$token"        >> stacks/github-runner/.env.secret.dec
-        printf 'SOPS_AGE_KEY=%s\n' "$sops_age_key" >> stacks/github-runner/.env.secret.dec
+        printf 'GITHUB_PAT=%s\n' "$github_token"     >> stacks/github-runner/.env.secret.dec
+        printf 'SOPS_AGE_KEY=%s\n' "$sops_age_key"   >> stacks/github-runner/.env.secret.dec
         chmod 600 stacks/github-runner/.env.secret.dec
-        echo "✅ Written stacks/github-runner/.env.secret.dec (token expires in 1 hour)"
+        echo "✅ Written stacks/github-runner/.env.secret.dec"
 
   terraform-apply:
     desc: Init and apply Terraform config
