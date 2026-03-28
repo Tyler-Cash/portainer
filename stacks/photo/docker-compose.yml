@@ -6,7 +6,7 @@ services:
     networks:
       - homelab_default
     volumes:
-      - /hdd/docker/immich/upload:/data
+      - /hdd/photos:/data
       - /etc/localtime:/etc/localtime:ro
     environment:
       - TZ=Australia/Sydney
@@ -76,7 +76,7 @@ services:
       - POSTGRES_DB=immich
       - POSTGRES_INITDB_ARGS=--data-checksums
     volumes:
-      - /ssd/fast_storage/docker/immich/postgres:/var/lib/postgresql/data
+      - /ssd/databases/immich:/var/lib/postgresql/data
     shm_size: 128mb
     healthcheck:
       disable: false

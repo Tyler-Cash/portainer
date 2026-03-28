@@ -357,9 +357,9 @@ services:
 
         echo "Init complete"
     volumes:
-      - /ssd/fast_storage/docker/signoz/clickhouse-config:/clickhouse-config
-      - /ssd/fast_storage/docker/signoz/clickhouse-user-scripts:/clickhouse-user-scripts
-      - /ssd/fast_storage/docker/signoz/otel-config:/otel-config
+      - /ssd/databases/signoz/clickhouse-config:/clickhouse-config
+      - /ssd/databases/signoz/clickhouse-user-scripts:/clickhouse-user-scripts
+      - /ssd/databases/signoz/otel-config:/otel-config
 
   signoz-zookeeper:
     <<: *signoz-defaults
@@ -373,7 +373,7 @@ services:
       ZOO_ENABLE_PROMETHEUS_METRICS: "yes"
       ZOO_PROMETHEUS_METRICS_PORT_NUMBER: "7000"
     volumes:
-      - /ssd/fast_storage/docker/signoz/zookeeper:/bitnami/zookeeper
+      - /ssd/databases/signoz/zookeeper:/bitnami/zookeeper
     healthcheck:
       test: ["CMD-SHELL", "curl -s -m 2 http://localhost:8080/commands/ruok | grep error | grep null"]
       interval: 30s
@@ -399,12 +399,12 @@ services:
         soft: 262144
         hard: 262144
     volumes:
-      - /ssd/fast_storage/docker/signoz/clickhouse:/var/lib/clickhouse
-      - /ssd/fast_storage/docker/signoz/clickhouse-config/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml
-      - /ssd/fast_storage/docker/signoz/clickhouse-config/users.xml:/etc/clickhouse-server/users.xml
-      - /ssd/fast_storage/docker/signoz/clickhouse-config/custom-function.xml:/etc/clickhouse-server/custom-function.xml
-      - /ssd/fast_storage/docker/signoz/clickhouse-config/prometheus.xml:/etc/clickhouse-server/config.d/prometheus.xml
-      - /ssd/fast_storage/docker/signoz/clickhouse-user-scripts:/var/lib/clickhouse/user_scripts
+      - /ssd/databases/signoz/clickhouse:/var/lib/clickhouse
+      - /ssd/databases/signoz/clickhouse-config/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml
+      - /ssd/databases/signoz/clickhouse-config/users.xml:/etc/clickhouse-server/users.xml
+      - /ssd/databases/signoz/clickhouse-config/custom-function.xml:/etc/clickhouse-server/custom-function.xml
+      - /ssd/databases/signoz/clickhouse-config/prometheus.xml:/etc/clickhouse-server/config.d/prometheus.xml
+      - /ssd/databases/signoz/clickhouse-user-scripts:/var/lib/clickhouse/user_scripts
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "0.0.0.0:8123/ping"]
       interval: 30s
@@ -448,7 +448,7 @@ services:
       SIGNOZ_SQLSTORE_SQLITE_PATH: /var/lib/signoz/signoz.db
       SIGNOZ_TOKENIZER_JWT_SECRET: ${SIGNOZ_JWT_SECRET}
     volumes:
-      - /ssd/fast_storage/docker/signoz/data:/var/lib/signoz
+      - /ssd/databases/signoz/data:/var/lib/signoz
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "localhost:8080/api/v1/health"]
       interval: 30s
@@ -497,8 +497,8 @@ services:
       SIGNOZ_OTEL_COLLECTOR_CLICKHOUSE_REPLICATION: "true"
       SIGNOZ_OTEL_COLLECTOR_TIMEOUT: 10m
     volumes:
-      - /ssd/fast_storage/docker/signoz/otel-config/otel-collector-config.yaml:/etc/otel-collector-config.yaml
-      - /ssd/fast_storage/docker/signoz/otel-config/manager-config.yaml:/etc/manager-config.yaml
+      - /ssd/databases/signoz/otel-config/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+      - /ssd/databases/signoz/otel-config/manager-config.yaml:/etc/manager-config.yaml
     healthcheck:
       test: ["CMD", "bash", "-c", "echo > /dev/tcp/localhost/13133"]
       interval: 30s
@@ -530,7 +530,7 @@ services:
     environment:
       OTEL_RESOURCE_ATTRIBUTES: host.name=signoz-host,os.type=linux
     volumes:
-      - /ssd/fast_storage/docker/signoz/otel-config/otel-agent-config.yaml:/etc/otel-agent-config.yaml
+      - /ssd/databases/signoz/otel-config/otel-agent-config.yaml:/etc/otel-agent-config.yaml
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /:/hostfs:ro

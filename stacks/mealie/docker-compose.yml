@@ -10,7 +10,7 @@ services:
         limits:
           memory: 1000M
     volumes:
-      - /ssd/fast_storage/docker/mealie:/app/data
+      - /ssd/services/mealie:/app/data
     environment:
       - PUID=568
       - PGID=568

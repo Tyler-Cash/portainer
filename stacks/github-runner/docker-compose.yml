@@ -15,4 +15,4 @@ services:
       - SOPS_AGE_KEY=${SOPS_AGE_KEY}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /ssd/fast_storage/docker/github-runner:/tmp/runner
+      - /ssd/services/github-runner:/tmp/runner

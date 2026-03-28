@@ -12,7 +12,7 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=n8n
     volumes:
-      - /ssd/fast_storage/docker/n8n-db:/var/lib/postgresql/data
+      - /ssd/databases/n8n:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U n8n -d n8n"]
       interval: 10s
@@ -54,7 +54,7 @@ services:
       - N8N_METRICS=true
     volumes:
       # Persistent storage for n8n configs and encryption keys
-      - /ssd/fast_storage/docker/n8n:/home/node/.n8n
+      - /ssd/services/n8n:/home/node/.n8n
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:5678/healthz || exit 1"]
       interval: 30s

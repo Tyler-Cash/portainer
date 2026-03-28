@@ -6,7 +6,7 @@ services:
     networks:
       - homelab_default
     volumes:
-      - /ssd/fast_storage/docker/kapowarr:/app/db
+      - /ssd/services/kapowarr:/app/db
       - /hdd/docker/media/comics:/comics
       - /hdd/docker/media/download/complete:/app/temp_downloads
     environment:

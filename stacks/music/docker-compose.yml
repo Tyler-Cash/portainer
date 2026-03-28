@@ -6,8 +6,9 @@ services:
     networks:
       - homelab_default
     volumes:
-      - /hdd/docker/media:/data
-      - /ssd/fast_storage/docker/lidarr:/config
+      - /hdd/media/music:/data/music
+      - /hdd/media/downloads:/data/download
+      - /ssd/services/lidarr:/config
     environment:
       - PUID=568
       - PGID=568
@@ -38,8 +39,8 @@ services:
     networks:
       - homelab_default
     volumes:
-      - /ssd/fast_storage/docker/navidrome:/data
-      - /hdd/docker/media/music:/music:ro
+      - /ssd/services/navidrome:/data
+      - /hdd/media/music:/music:ro
     environment:
       - TZ=Australia/Sydney
       - ND_PROMETHEUS_ENABLED=true
@@ -66,9 +67,10 @@ services:
     networks:
       - homelab_default
     volumes:
-      - /ssd/fast_storage/docker/slskd:/app
-      - /hdd/docker/media/music:/music:ro
-      - /hdd/docker/media/download/complete/slskd:/downloads
+      - /ssd/services/slskd:/app
+      - /hdd/media/music:/music:ro
+      - /hdd/media/downloads/complete/slskd:/downloads
+      - /mnt/lvm_striped/download/slskd:/downloads/incomplete
     user: "568:568"
     environment:
       - TZ=Australia/Sydney
@@ -104,8 +106,8 @@ services:
       - homelab_default
     user: "568:568"
     volumes:
-      - /hdd/docker/media/download/complete/slskd:/downloads
-      - /ssd/fast_storage/docker/soularr:/data
+      - /hdd/media/downloads/complete/slskd:/downloads
+      - /ssd/services/soularr:/data
     environment:
       - TZ=Australia/Sydney
       - SCRIPT_INTERVAL=300

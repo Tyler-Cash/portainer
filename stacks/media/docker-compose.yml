@@ -34,8 +34,10 @@ services:
     devices:
      - /dev/dri/renderD128:/dev/dri/renderD128
     volumes:
-      - /hdd/docker/media:/data/media
-      - /ssd/fast_storage/docker/jellyfin:/config
+      - /hdd/media/movies:/data/media/movies
+      - /hdd/media/tv:/data/media/tv
+      - /hdd/media/music:/data/media/music
+      - /ssd/services/jellyfin:/config
     environment:
       - PUID=568
       - PGID=568
@@ -67,8 +69,10 @@ services:
     devices:
      - /dev/dri/renderD128:/dev/dri/renderD128
     volumes:
-      - /hdd/docker/media:/data/media
-      - /ssd/fast_storage/docker/plex:/config
+      - /hdd/media/movies:/data/media/movies
+      - /hdd/media/tv:/data/media/tv
+      - /hdd/media/music:/data/media/music
+      - /ssd/services/plex:/config
     environment:
       - PUID=568
       - PGID=568
@@ -99,7 +103,7 @@ services:
     networks:
       - homelab_default
     volumes:
-      - /ssd/fast_storage/docker/prowlarr:/config
+      - /ssd/services/prowlarr:/config
     environment:
       - PUID=568
       - PGID=568
@@ -129,9 +133,9 @@ services:
     networks:
       - homelab_default
     volumes:
-      - /ssd/fast_storage/docker/qbittorrent:/config
+      - /ssd/services/qbittorrent:/config
       - /mnt/lvm_striped/download/:/data/download/incomplete
-      - /hdd/docker/media/download/complete:/data/download/complete
+      - /hdd/media/downloads/complete:/data/download/complete
     environment:
       - PUID=568
       - PGID=568
@@ -163,8 +167,9 @@ services:
     networks:
       - homelab_default
     volumes:
-      - /hdd/docker/media:/data
-      - /ssd/fast_storage/docker/radarr:/config
+      - /hdd/media/movies:/data/movies
+      - /hdd/media/downloads:/data/download
+      - /ssd/services/radarr:/config
     environment:
       - PUID=568
       - PGID=568
@@ -194,8 +199,9 @@ services:
     networks:
       - homelab_default
     volumes:
-      - /hdd/docker/media:/data
-      - /ssd/fast_storage/docker/sonarr:/config
+      - /hdd/media/tv:/data/tv
+      - /hdd/media/downloads:/data/download
+      - /ssd/services/sonarr:/config
     environment:
       - PUID=568
       - PGID=568
@@ -222,7 +228,7 @@ services:
     networks:
       - homelab_default
     volumes:
-      - /ssd/fast_storage/docker/profilarr:/config
+      - /ssd/services/profilarr:/config
     environment:
       - PUID=568
       - PGID=568

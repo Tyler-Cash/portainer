@@ -9,7 +9,7 @@ services:
       - homelab_default  # Keep this for Traefik access
       - iot_network
     volumes:
-      - /ssd/fast_storage/docker/homeassistant:/config
+      - /ssd/services/homeassistant:/config
       - /etc/localtime:/etc/localtime:ro
     environment:
       - PUID=568

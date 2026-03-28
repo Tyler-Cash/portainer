@@ -7,7 +7,7 @@ services:
     networks:
       - homelab_default
     volumes:
-      - /ssd/fast_storage/docker/unifi-db/:/data/db
+      - /ssd/databases/unifi:/data/db
     environment:
       - MONGO_INITDB_DATABASE=unifi
       - MONGO_PASS=${MONGO_PASS}
@@ -43,7 +43,7 @@ services:
       - MONGO_PASS=${MONGO_PASS}
       - MONGO_AUTHSOURCE=${MONGO_AUTHSOURCE}
     volumes:
-      - /ssd/fast_storage/docker/unifi/:/config
+      - /ssd/services/unifi:/config
     ports:
       - 8443:8443
       - 3478:3478/udp

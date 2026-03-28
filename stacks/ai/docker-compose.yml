@@ -9,7 +9,7 @@ services:
       - OLLAMA_BASE_URL=http://ollama:11434
       - DEFAULT_MODELS=mistral-nemo:12b-instruct-2407-q8_0
     volumes:
-      - /ssd/fast_storage/docker/open-webui:/app/backend/data
+      - /ssd/services/open-webui:/app/backend/data
     depends_on:
       - ollama
     labels:
@@ -26,7 +26,7 @@ services:
     container_name: ollama
     restart: unless-stopped
     volumes:
-      - /ssd/fast_storage/docker/ollama:/root/.ollama
+      - /ssd/services/ollama:/root/.ollama
     environment:
       - OLLAMA_HOST=0.0.0.0
       - OLLAMA_NUM_PARALLEL=1
