@@ -109,10 +109,10 @@ The runner is a Portainer stack in `stacks/github-runner/`. It uses a custom ima
 **First-time bootstrap** (chicken-and-egg — deploy manually once):
 
 ```bash
-# Generate .env.secret.dec with a fresh runner registration token (expires in 1 hour):
-task runner-env   # reads credentials from terraform/terraform.tfvars
+# Write .env.secret.dec using the GitHub PAT from terraform/terraform.tfvars:
+task runner-env
 
-# Then immediately start the runner:
+# Then start the runner:
 cd stacks/github-runner
 docker compose --env-file .env.secret.dec up -d --build
 ```
@@ -140,7 +140,7 @@ done
 |---------|-------------|
 | `task terraform-init` | Interactively generate `terraform/terraform.tfvars` |
 | `task terraform-apply` | Run `terraform init` + `apply` |
-| `task runner-env` | Fetch runner registration token and write `stacks/github-runner/.env.secret.dec` |
+| `task runner-env` | Write `stacks/github-runner/.env.secret.dec` from `terraform/terraform.tfvars` |
 | `task setup` | First-time setup: installs pre-commit hook, checks for sops/age |
 | `task encrypt` | Encrypt all `.env.secret.dec` → `.env.secret` |
 | `task decrypt` | Decrypt all `.env.secret` → `.env.secret.dec` |
