@@ -8,7 +8,7 @@ services:
     environment:
       - RUNNER_SCOPE=repo
       - REPO_URL=${REPO_URL}
-      - RUNNER_TOKEN=${RUNNER_TOKEN}
+      - ACCESS_TOKEN=${GITHUB_PAT}
       - RUNNER_NAME=homelab
       - RUNNER_WORKDIR=/tmp/runner/work
       - LABELS=self-hosted,linux
