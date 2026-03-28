@@ -29,8 +29,6 @@ jobs:
   deploy:
     needs: test
     runs-on: self-hosted
-    retry:
-      max-attempts: 3
     steps:
       - uses: actions/checkout@v4
         with:
