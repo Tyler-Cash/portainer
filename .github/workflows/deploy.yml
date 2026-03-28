@@ -23,6 +23,8 @@ jobs:
   deploy:
     needs: test
     runs-on: self-hosted
+    retry:
+      max-attempts: 3
     steps:
       - uses: actions/checkout@v4
         with:
@@ -54,8 +56,16 @@ jobs:
           PORTAINER_ENDPOINT_ID: ${{ vars.PORTAINER_ENDPOINT_ID }}
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
         run: |
+          failed_stacks=()
           while IFS= read -r stack; do
             [ -z "$stack" ] && continue
             echo "Deploying stack: $stack"
-            bash scripts/deploy-stack.sh "$stack"
+            if ! bash scripts/deploy-stack.sh "$stack"; then
+              echo "ERROR: Stack '$stack' failed"
+              failed_stacks+=("$stack")
+            fi
           done <<< "${{ steps.changes.outputs.stacks }}"
+          if [ ${#failed_stacks[@]} -gt 0 ]; then
+            echo "Failed stacks: ${failed_stacks[*]}"
+            exit 1
+          fi
