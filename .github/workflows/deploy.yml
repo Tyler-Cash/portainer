@@ -6,6 +6,7 @@ on:
     paths:
       - "stacks/**/docker-compose.yml"
       - "stacks/**/.env.secret"
+      - "stacks/**/config/**"
   workflow_dispatch:
 
 concurrency:
@@ -44,9 +45,9 @@ jobs:
               | sed 's|/docker-compose\.yml||')
           elif git rev-parse HEAD~1 &>/dev/null; then
             changed=$(git diff --name-only HEAD~1 HEAD -- stacks/ \
-              | grep -E '(docker-compose\.yml|\.env\.secret)' \
+              | grep -E '(docker-compose\.yml|\.env\.secret|config/)' \
               | sed 's|stacks/||' \
-              | sed 's|/[^/]*$||' \
+              | sed 's|/.*||' \
               | sort -u)
           else
             echo "Initial commit — deploying all stacks"
@@ -58,6 +59,14 @@ jobs:
           echo "stacks<<EOF" >> $GITHUB_OUTPUT
           echo "$changed" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Sync homepage config
+        run: |
+          if echo "${{ steps.changes.outputs.stacks }}" | grep -q "^homepage$"; then
+            mkdir -p /ssd/services/homepage
+            cp -r stacks/homepage/config/. /ssd/services/homepage/
+            echo "Homepage config synced to /ssd/services/homepage/"
+          fi
 
       - name: Deploy changed stacks
         env:
