@@ -24,7 +24,8 @@ services:
     volumes:
       - romm_resources:/romm/resources # Resources fetched from IGDB (covers, screenshots, etc.)
       - romm_redis_data:/redis-data # Cached data for background tasks
-      - /hdd/romm:/romm/library # Your game library. Check https://docs.romm.app/latest/Getting-Started/Folder-Structure/ for more details.
+      - /hdd/docker/romm/romms:/romm/library_old # Old library (fallback during migration)
+      - /hdd/romm:/romm/library # New library (shadows old as rsync completes)
       - /ssd/services/romm/assets:/romm/assets # Uploaded saves, states, etc.
       - /ssd/services/romm/config:/romm/config # (Optional) Path where config.yml is stored
     depends_on:
