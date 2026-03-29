@@ -1,0 +1,24 @@
+title: Home
+favicon: https://home.tylercash.dev/favicon.ico
+theme: dark
+color: slate
+headerStyle: clean
+layout:
+  Media:
+    style: row
+    columns: 4
+  Music:
+    style: row
+    columns: 3
+  Content:
+    style: row
+    columns: 2
+  Home:
+    style: row
+    columns: 4
+  AI:
+    style: row
+    columns: 1
+  Infrastructure:
+    style: row
+    columns: 3
