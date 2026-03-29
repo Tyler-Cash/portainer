@@ -110,9 +110,8 @@ services:
         discover_datasets() {
             for root in "$$DATA_ROOT/services" "$$DATA_ROOT/databases"; do
                 [ -d "$$root/.zfs/snapshot" ] && echo "$$root"
-                find "$$root" -maxdepth 2 -name ".zfs" -type d 2>/dev/null | while read -r zfs_dir; do
-                    dataset_path=$$(dirname "$$zfs_dir")
-                    [ "$$dataset_path" != "$$root" ] && echo "$$dataset_path"
+                for child in "$$root"/*/; do
+                    [ -d "$${child%/}/.zfs/snapshot" ] && echo "$${child%/}"
                 done
             done | sort -u
         }
