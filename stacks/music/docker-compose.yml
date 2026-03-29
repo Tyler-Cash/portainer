@@ -6,8 +6,9 @@ services:
     networks:
       - homelab_default
     volumes:
-      - /hdd/media/music:/data/music
-      - /hdd/media/downloads:/data/download
+      - /hdd/docker/media:/data_old                      # Old (fallback during migration)
+      - /hdd/media/music:/data/music                     # New (shadows old as rsync completes)
+      - /hdd/media/downloads:/data/download              # New (shadows old as rsync completes)
       - /ssd/services/lidarr:/config
     environment:
       - PUID=568
@@ -40,7 +41,8 @@ services:
       - homelab_default
     volumes:
       - /ssd/services/navidrome:/data
-      - /hdd/media/music:/music:ro
+      - /hdd/docker/media/music:/music_old:ro            # Old (fallback)
+      - /hdd/media/music:/music:ro                       # New (shadows old as rsync completes)
     environment:
       - TZ=Australia/Sydney
       - ND_PROMETHEUS_ENABLED=true
@@ -68,7 +70,9 @@ services:
       - homelab_default
     volumes:
       - /ssd/services/slskd:/app
-      - /hdd/media/music:/music:ro
+      - /hdd/docker/media/music:/music_old:ro            # Old (fallback)
+      - /hdd/media/music:/music:ro                       # New (shadows old as rsync completes)
+      - /hdd/docker/media/download/complete/slskd:/downloads_old
       - /hdd/media/downloads/complete/slskd:/downloads
       - /mnt/lvm_striped/download/slskd:/downloads/incomplete
     user: "568:568"
@@ -106,6 +110,7 @@ services:
       - homelab_default
     user: "568:568"
     volumes:
+      - /hdd/docker/media/download/complete/slskd:/downloads_old
       - /hdd/media/downloads/complete/slskd:/downloads
       - /ssd/services/soularr:/data
     environment:

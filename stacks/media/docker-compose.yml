@@ -34,7 +34,10 @@ services:
     devices:
      - /dev/dri/renderD128:/dev/dri/renderD128
     volumes:
-      - /hdd/docker/media:/data/media
+      - /hdd/docker/media:/data/media                    # Old (everything - fallback during migration)
+      - /hdd/media/movies:/data/media/movies             # New (shadows old movies as rsync completes)
+      - /hdd/media/tv:/data/media/tv                     # New (shadows old tv as rsync completes)
+      - /hdd/media/music:/data/media/music               # New (shadows old music as rsync completes)
       - /ssd/services/jellyfin:/config
     environment:
       - PUID=568
@@ -67,7 +70,10 @@ services:
     devices:
      - /dev/dri/renderD128:/dev/dri/renderD128
     volumes:
-      - /hdd/docker/media:/data/media
+      - /hdd/docker/media:/data/media                    # Old (everything - fallback during migration)
+      - /hdd/media/movies:/data/media/movies             # New (shadows old movies as rsync completes)
+      - /hdd/media/tv:/data/media/tv                     # New (shadows old tv as rsync completes)
+      - /hdd/media/music:/data/media/music               # New (shadows old music as rsync completes)
       - /ssd/services/plex:/config
     environment:
       - PUID=568
@@ -131,7 +137,8 @@ services:
     volumes:
       - /ssd/services/qbittorrent:/config
       - /mnt/lvm_striped/download/:/data/download/incomplete
-      - /hdd/docker/media/download/complete:/data/download/complete
+      - /hdd/docker/media/download/complete:/data/download/complete_old  # Old (fallback)
+      - /hdd/media/downloads/complete:/data/download/complete            # New (shadows old as rsync completes)
     environment:
       - PUID=568
       - PGID=568
@@ -163,7 +170,9 @@ services:
     networks:
       - homelab_default
     volumes:
-      - /hdd/docker/media:/data
+      - /hdd/docker/media:/data                          # Old (everything - fallback during migration)
+      - /hdd/media/movies:/data/movies                   # New (shadows old movies as rsync completes)
+      - /hdd/media/downloads:/data/download              # New (shadows old download as rsync completes)
       - /ssd/services/radarr:/config
     environment:
       - PUID=568
@@ -194,7 +203,9 @@ services:
     networks:
       - homelab_default
     volumes:
-      - /hdd/docker/media:/data
+      - /hdd/docker/media:/data                          # Old (everything - fallback during migration)
+      - /hdd/media/tv:/data/tv                           # New (shadows old tv as rsync completes)
+      - /hdd/media/downloads:/data/download              # New (shadows old download as rsync completes)
       - /ssd/services/sonarr:/config
     environment:
       - PUID=568
