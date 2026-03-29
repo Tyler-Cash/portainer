@@ -6,6 +6,7 @@ on:
     paths:
       - "stacks/**/docker-compose.yml"
       - "stacks/**/.env.secret"
+  workflow_dispatch:
 
 concurrency:
   group: deploy-master
@@ -36,7 +37,12 @@ jobs:
       - name: Detect changed stacks
         id: changes
         run: |
-          if git rev-parse HEAD~1 &>/dev/null; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual trigger — deploying all stacks"
+            changed=$(find stacks -name 'docker-compose.yml' \
+              | sed 's|stacks/||' \
+              | sed 's|/docker-compose\.yml||')
+          elif git rev-parse HEAD~1 &>/dev/null; then
             changed=$(git diff --name-only HEAD~1 HEAD -- stacks/ \
               | grep -E '(docker-compose\.yml|\.env\.secret)' \
               | sed 's|stacks/||' \
@@ -60,8 +66,16 @@ jobs:
           PORTAINER_ENDPOINT_ID: ${{ vars.PORTAINER_ENDPOINT_ID }}
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
         run: |
+          failed_stacks=()
           while IFS= read -r stack; do
             [ -z "$stack" ] && continue
             echo "Deploying stack: $stack"
-            bash scripts/deploy-stack.sh "$stack"
+            if ! bash scripts/deploy-stack.sh "$stack"; then
+              echo "ERROR: Stack '$stack' failed"
+              failed_stacks+=("$stack")
+            fi
           done <<< "${{ steps.changes.outputs.stacks }}"
+          if [ ${#failed_stacks[@]} -gt 0 ]; then
+            echo "Failed stacks: ${failed_stacks[*]}"
+            exit 1
+          fi
