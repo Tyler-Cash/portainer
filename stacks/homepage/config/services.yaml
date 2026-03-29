@@ -1,0 +1,120 @@
+- Media:
+    - Jellyfin:
+        href: https://jellyfin.tylercash.dev
+        description: Media server
+        icon: jellyfin.png
+        widget:
+          type: jellyfin
+          url: http://jellyfin:8096
+          key: "{{HOMEPAGE_VAR_JELLYFIN_API_KEY}}"
+    - Plex:
+        href: https://plex.tylercash.dev
+        description: Media server
+        icon: plex.png
+    - Radarr:
+        href: https://radarr.tylercash.dev
+        description: Movie management
+        icon: radarr.png
+        widget:
+          type: radarr
+          url: http://radarr:7878
+          key: "{{HOMEPAGE_VAR_RADARR_API_KEY}}"
+    - Sonarr:
+        href: https://sonarr.tylercash.dev
+        description: TV management
+        icon: sonarr.png
+        widget:
+          type: sonarr
+          url: http://sonarr:8989
+          key: "{{HOMEPAGE_VAR_SONARR_API_KEY}}"
+    - Prowlarr:
+        href: https://prowlarr.tylercash.dev
+        description: Indexer aggregator
+        icon: prowlarr.png
+        widget:
+          type: prowlarr
+          url: http://prowlarr:9696
+          key: "{{HOMEPAGE_VAR_PROWLARR_API_KEY}}"
+    - qBittorrent:
+        href: https://qbittorrent.tylercash.dev
+        description: Torrent client
+        icon: qbittorrent.png
+        widget:
+          type: qbittorrent
+          url: http://qbittorrent:8200
+          username: "{{HOMEPAGE_VAR_QBITTORRENT_USERNAME}}"
+          password: "{{HOMEPAGE_VAR_QBITTORRENT_PASSWORD}}"
+    - Profilarr:
+        href: https://profilarr.tylercash.dev
+        description: Quality profiles editor
+        icon: mdi-tune
+    - Byparr:
+        href: https://byparr.tylercash.dev
+        description: Cloudflare bypass
+        icon: mdi-shield-check
+
+- Music:
+    - Navidrome:
+        href: https://music.tylercash.dev
+        description: Music streaming
+        icon: navidrome.png
+    - Lidarr:
+        href: https://lidarr.tylercash.dev
+        description: Music management
+        icon: lidarr.png
+        widget:
+          type: lidarr
+          url: http://lidarr:8686
+          key: "{{HOMEPAGE_VAR_LIDARR_API_KEY}}"
+    - Slskd:
+        href: https://slskd.tylercash.dev
+        description: Soulseek client
+        icon: mdi-account-music
+
+- Content:
+    - Kapowarr:
+        href: https://comics.tylercash.dev
+        description: Comic book management
+        icon: mdi-book-open-variant
+    - Romm:
+        href: https://roms.tylercash.dev
+        description: ROM collection manager
+        icon: mdi-controller
+
+- Home:
+    - Home Assistant:
+        href: https://hassio.tylercash.dev
+        description: Home automation
+        icon: home-assistant.png
+    - Mealie:
+        href: https://mealie.tylercash.dev
+        description: Recipe management
+        icon: mealie.png
+    - Immich:
+        href: https://photos.tylercash.dev
+        description: Photo library
+        icon: immich.png
+    - n8n:
+        href: https://n8n.tylercash.dev
+        description: Workflow automation
+        icon: n8n.png
+
+- AI:
+    - Open WebUI:
+        href: https://chat.tylercash.dev
+        description: AI chat interface
+        icon: mdi-robot
+
+- Infrastructure:
+    - Unifi:
+        href: https://unifi.tylercash.dev
+        description: Network management
+        icon: unifi.png
+    - Signoz:
+        href: https://signoz.tylercash.dev
+        description: Observability
+        icon: mdi-chart-timeline-variant
+    - Adminer:
+        href: https://adminer.tylercash.dev
+        description: Database admin
+        icon: mdi-database
