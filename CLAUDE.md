@@ -34,3 +34,9 @@ A pre-commit hook (`hooks/pre-commit`) blocks commits containing unencrypted `.e
 - `Taskfile.yml` — Task runner definitions
 - `script.sh` — Portainer stack exporter
 - `.sops.yaml` — SOPS encryption config (age key recipients)
+
+## Homepage Dashboard
+
+A Homepage dashboard runs at `home.tylercash.dev` (`stacks/homepage/`).
+
+**Rule: Whenever you add a new service with a Traefik hostname to any stack, you must also add it to `stacks/homepage/config/services.yaml`** under the appropriate group. Use the existing entries as a template. If the service has a native Homepage widget integration, wire it up with the relevant `HOMEPAGE_VAR_*` key in both `docker-compose.yml` (environment section) and `.env.secret`.
