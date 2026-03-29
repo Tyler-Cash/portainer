@@ -79,6 +79,10 @@ services:
                 return 0
             fi
             OUTPUT=$$(RESTIC_REPOSITORY="$$REPO_PATH" restic cat config < /dev/null 2>&1)
+            EXIT_CODE=$$?
+            if [ $$EXIT_CODE -eq 0 ]; then
+                return 0
+            fi
             if echo "$$OUTPUT" | grep -iqE "Is a directory|does not exist|bucket not found|repository master key and config were not found"; then
                 log "Repo $$REPO_PATH missing. Initializing..."
                 if ! RESTIC_REPOSITORY="$$REPO_PATH" restic init < /dev/null > /dev/null 2>&1; then
