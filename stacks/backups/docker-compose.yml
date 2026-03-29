@@ -102,6 +102,8 @@ services:
                     echo "$$BASE --exclude **/MediaCover" ;;
                 unifi)
                     echo "$$BASE --exclude **/autobackup" ;;
+                signoz)
+                    echo "$$BASE --exclude clickhouse --exclude zookeeper" ;;
                 *)
                     echo "$$BASE" ;;
             esac
