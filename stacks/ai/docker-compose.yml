@@ -22,7 +22,7 @@ services:
       - homelab_default
 
   ollama:
-    image: ollama/ollama:latest@sha256:5a5d014aa774f78ebe1340c0d4afc2e35afc12a2c3b34c84e71f78ea20af4ba3
+    image: ollama/ollama:latest@sha256:ff17815f73e64408bbd723bb8e570770dfb612238e59e4c9bc5832ec7928df82
     container_name: ollama
     restart: unless-stopped
     volumes:
