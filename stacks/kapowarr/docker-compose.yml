@@ -7,10 +7,8 @@ services:
       - homelab_default
     volumes:
       - /ssd/services/kapowarr:/app/db
-      - /hdd/docker/media/comics:/comics_old                # Old (fallback)
-      - /hdd/media/comics:/comics                           # New (shadows old as rsync completes)
-      - /hdd/docker/media/download/complete:/app/temp_downloads_old  # Old (fallback)
-      - /hdd/media/downloads/complete:/app/temp_downloads            # New (shadows old as rsync completes)
+      - /hdd/media/comics:/comics
+      - /hdd/media/downloads/complete:/app/temp_downloads
     environment:
       - PUID=568
       - PGID=568
