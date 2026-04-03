@@ -24,18 +24,18 @@ services:
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}
       - GCS_CREDS=${GCS_CREDS}
       - GCS_BASE_URL=${GCS_BASE_URL}
-      - SKIP_DATASETS=ollama
+      - SKIP_DATASETS=ollama,fast_storage,backups,downloads
       - SLEEP_INTERVAL=86400
     volumes:
       - type: bind
-        source: /ssd/services
-        target: /data/ssd/services
+        source: /ssd
+        target: /data/ssd
         read_only: true
         bind:
           propagation: rslave
       - type: bind
-        source: /ssd/databases
-        target: /data/ssd/databases
+        source: /hdd
+        target: /data/hdd
         read_only: true
         bind:
           propagation: rslave
@@ -45,7 +45,9 @@ services:
       - |
         # --- Configuration ---
         CREDS_PATH="$$GOOGLE_APPLICATION_CREDENTIALS"
-        DATA_ROOT="/data/ssd"
+
+        # Roots to discover datasets under (space-separated)
+        BACKUP_ROOTS="/data/ssd /data/hdd"
 
         # --- Functions ---
 
@@ -113,18 +115,29 @@ services:
             esac
         }
 
+        # Derive a flat GCS repo name from a dataset path.
+        # /data/ssd/services       -> ssd-services
+        # /data/ssd/services/plex  -> ssd-plex
+        # /data/hdd/photos         -> hdd-photos
+        get_repo_name() {
+            path="$$1"
+            pool=$$(echo "$$path" | sed 's|/data/||' | cut -d/ -f1)
+            leaf=$$(basename "$$path")
+            echo "$${pool}-$${leaf}"
+        }
+
         discover_datasets() {
-            for root in "$$DATA_ROOT/services" "$$DATA_ROOT/databases"; do
-                [ -d "$$root/.zfs/snapshot" ] && echo "$$root"
-                for child in "$$root"/*/; do
-                    [ -d "$${child%/}/.zfs/snapshot" ] && echo "$${child%/}"
+            for root in $$BACKUP_ROOTS; do
+                for path in "$$root" "$$root"/*/ "$$root"/*/*/ "$$root"/*/*/*/ "$$root"/*/*/*/*/; do
+                    path="$${path%/}"
+                    [ -d "$$path/.zfs/snapshot" ] && echo "$$path"
                 done
             done | sort -u
         }
 
         backup_dataset() {
             dataset_path="$$1"
-            repo_name=$$(echo "$$dataset_path" | sed "s|$$DATA_ROOT/||")
+            repo_name=$$(get_repo_name "$$dataset_path")
             app_name=$$(basename "$$dataset_path")
 
             if is_skipped "$$app_name"; then
@@ -192,7 +205,7 @@ services:
             DATASETS=$$(discover_datasets)
             log "Found datasets:"
             for d in $$DATASETS; do
-                log "  - $$(echo $$d | sed "s|$$DATA_ROOT/||")"
+                log "  - $$(get_repo_name $$d)"
             done
             for dataset in $$DATASETS; do
                 [ -n "$$dataset" ] && backup_dataset "$$dataset"
