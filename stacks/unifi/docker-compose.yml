@@ -1,7 +1,7 @@
 ---
 services:
   unifi-db:
-    image: mongo:7.0@sha256:f2b40853c0f796b105e672e04045d2b3e127bd54782dfe7e9b08aebbd9f602ce
+    image: mongo:7.0@sha256:45d9c9b48aa1b56b5e3a9f906763fe432f376abb3bc2832438022b6d2534e4fe
     container_name: unifi-db
     restart: unless-stopped
     networks:
