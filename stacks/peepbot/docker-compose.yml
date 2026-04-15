@@ -61,7 +61,7 @@ services:
 
   peepbot-backend:
     <<: *backend-defaults
-    image: ghcr.io/tyler-cash/peep-bot-backend:3.3.3@sha256:2d88431925ef47aef5eb8321536bfd7f97b46752ef8a0c996f499a59209dce0d
+    image: ghcr.io/tyler-cash/peep-bot-backend:3.4.0
     container_name: peepbot-backend
     environment:
       <<: *spring-datasource
@@ -86,7 +86,7 @@ services:
 
   peepbot-frontend:
     <<: *frontend-defaults
-    image: ghcr.io/tyler-cash/peep-bot-frontend:3.3.3@sha256:e0c6c8967f1f0e5ff349877b59e5d5c553ce7ada1cdde45b2764ccd3e7e10138
+    image: ghcr.io/tyler-cash/peep-bot-frontend:3.4.0
     container_name: peepbot-frontend
     labels:
       <<: *frontend-labels
