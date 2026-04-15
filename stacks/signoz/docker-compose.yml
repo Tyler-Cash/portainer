@@ -262,20 +262,50 @@ services:
             include_file_path: true
             include_file_name: false
             operators:
-              - type: json_parser
-                id: parser-docker
+             - type: json_parser
+               id: parser-docker
                 timestamp:
-                  parse_from: attributes.time
-                  layout: '%Y-%m-%dT%H:%M:%S.%LZ'
-              - type: regex_parser
+                 parse_from: attributes.time
+                 layout: '%Y-%m-%dT%H:%M:%S.%LZ'
+             - type: regex_parser
                 id: extract_metadata_from_filepath
-                regex: '^.*containers/(?P<container_id>[^/]+)/.*$$'
-                parse_from: attributes["log.file.path"]
+               regex: '^.*containers/(?P<container_id>[^/]+)/.*$$'
+               parse_from: attributes["log.file.path"]
+             - type: move
+               from: attributes.log
+               to: body
+             - type: remove
+               field: attributes.time
+              # --- ADD FROM HERE ---
+              - type: json_parser
+               id: parse_logstash_json
+                parse_from: body
+               parse_to: body
+               if: 'body matches "^\\s*\\{"'
+               on_error: send
               - type: move
-                from: attributes.log
+               from: body.traceId
+               to: trace_id
+                if: 'body.traceId != nil'
+              - type: move
+               from: body.spanId
+                to: span_id
+               if: 'body.spanId != nil'
+             - type: move
+                from: body.service
+                to: attributes["service.name"]
+               if: 'body.service != nil'
+              - type: severity_parser
+               parse_from: body.level
+               if: 'body.level != nil'
+                mapping:
+                  error: error
+                 warn: warn
+                  info: info
+                 debug: debug
+             - type: move
+                from: body.message
                 to: body
-              - type: remove
-                field: attributes.time
           docker_stats:
             endpoint: unix:///var/run/docker.sock
             collection_interval: 30s
