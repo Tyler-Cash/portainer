@@ -254,28 +254,65 @@ services:
         XMLEOF
 
         cat > /otel-config/otel-agent-config.yaml << 'YAMLEOF'
+        extensions:
+          health_check:
+            endpoint: 0.0.0.0:13133
+          docker_observer:
+            endpoint: unix:///var/run/docker.sock
+            cache_sync_interval: 10s
         receivers:
-          filelog/docker:
-            include:
-              - /var/lib/docker/containers/*/*.log
-            start_at: end
-            include_file_path: true
-            include_file_name: false
-            operators:
-              - type: json_parser
-                id: parser-docker
-                timestamp:
-                  parse_from: attributes.time
-                  layout: '%Y-%m-%dT%H:%M:%S.%LZ'
-              - type: regex_parser
-                id: extract_metadata_from_filepath
-                regex: '^.*containers/(?P<container_id>[^/]+)/.*$$'
-                parse_from: attributes["log.file.path"]
-              - type: move
-                from: attributes.log
-                to: body
-              - type: remove
-                field: attributes.time
+          receiver_creator:
+            watch_observers: [docker_observer]
+            receivers:
+              filelog:
+                rule: type == "container"
+                config:
+                  include:
+                    - '/var/lib/docker/containers/`id`/*.log'
+                  include_file_path: true
+                  include_file_name: false
+                  start_at: end
+                  resource:
+                    container.id: '`id`'
+                    container.name: '`name`'
+                    service.name: '`labels["com.docker.compose.service"]`'
+                    service.namespace: '`labels["com.docker.compose.project"]`'
+                  operators:
+                    # Parse Docker JSON log wrapper {"log":"...","stream":"...","time":"..."}
+                    - type: json_parser
+                      id: parse-docker-json
+                      timestamp:
+                        parse_from: attributes.time
+                        layout: '%Y-%m-%dT%H:%M:%S.%LZ'
+                    - type: move
+                      from: attributes.log
+                      to: body
+                    - type: remove
+                      field: attributes.time
+                    # Try to parse structured JSON body (logstash/logback format)
+                    - type: json_parser
+                      id: try-parse-json-body
+                      parse_from: body
+                      on_error: send
+                    # Extract log level as severity if present
+                    - type: severity_parser
+                      id: parse-severity
+                      if: 'attributes.level != nil'
+                      parse_from: attributes.level
+                      on_error: send
+                      mapping:
+                        debug: DEBUG
+                        info: INFO
+                        warn: WARN
+                        warning: WARN
+                        error: ERROR
+                        fatal: FATAL
+                    # Replace body with the message field (logstash/logback format)
+                    - type: move
+                      id: move-message-to-body
+                      if: 'attributes.message != nil'
+                      from: attributes.message
+                      to: body
           docker_stats:
             endpoint: unix:///var/run/docker.sock
             collection_interval: 30s
@@ -322,9 +359,11 @@ services:
           resourcedetection:
             detectors: [env, system]
             timeout: 2s
-        extensions:
-          health_check:
-            endpoint: 0.0.0.0:13133
+          transform/set-service-name:
+            log_statements:
+              - context: resource
+                statements:
+                  - set(attributes["service.name"], attributes["container.name"]) where attributes["service.name"] == ""
         exporters:
           otlp:
             endpoint: signoz-otel-collector:4317
@@ -336,10 +375,11 @@ services:
               encoding: json
           extensions:
             - health_check
+            - docker_observer
           pipelines:
             logs/docker:
-              receivers: [filelog/docker]
-              processors: [transform/parse_logstash, batch]
+              receivers: [receiver_creator]
+              processors: [transform/set-service-name, batch]
               exporters: [otlp]
             metrics/docker:
               receivers: [docker_stats]
