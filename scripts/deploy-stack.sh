@@ -103,6 +103,30 @@ if [ -n "$EXISTING" ]; then
     echo "ERROR: Failed to update '$STACK_NAME' (HTTP $HTTP_CODE): $(sanitize "$BODY")"
     exit 1
   fi
+
+  # Force recreate if marker file exists (needed for stacks with init containers)
+  if [ -f "$STACK_DIR/.force-recreate" ]; then
+    echo "Force-recreating stack '$STACK_NAME' (stop + start)..."
+    HTTP_CODE=$(curl -s -o "$RESPONSE_FILE" -w "%{http_code}" -X POST \
+      -H "x-api-key: $PORTAINER_TOKEN" \
+      "$PORTAINER_URL/api/stacks/$STACK_ID/stop?endpointId=$PORTAINER_ENDPOINT_ID")
+    if [ "$HTTP_CODE" != "200" ]; then
+      BODY=$(cat "$RESPONSE_FILE")
+      echo "ERROR: Failed to stop '$STACK_NAME' (HTTP $HTTP_CODE): $(sanitize "$BODY")"
+      exit 1
+    fi
+    echo "Stack '$STACK_NAME' stopped."
+
+    HTTP_CODE=$(curl -s -o "$RESPONSE_FILE" -w "%{http_code}" -X POST \
+      -H "x-api-key: $PORTAINER_TOKEN" \
+      "$PORTAINER_URL/api/stacks/$STACK_ID/start?endpointId=$PORTAINER_ENDPOINT_ID")
+    if [ "$HTTP_CODE" != "200" ]; then
+      BODY=$(cat "$RESPONSE_FILE")
+      echo "ERROR: Failed to start '$STACK_NAME' (HTTP $HTTP_CODE): $(sanitize "$BODY")"
+      exit 1
+    fi
+    echo "Stack '$STACK_NAME' started."
+  fi
 else
   echo "Creating new stack '$STACK_NAME'..."
   HTTP_CODE=$(curl -s -o "$RESPONSE_FILE" -w "%{http_code}" -X POST \
