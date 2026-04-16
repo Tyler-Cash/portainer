@@ -257,68 +257,60 @@ services:
         extensions:
           health_check:
             endpoint: 0.0.0.0:13133
-          docker_observer:
-            endpoint: unix:///var/run/docker.sock
-            cache_sync_interval: 10s
         receivers:
-          receiver_creator:
-            watch_observers: [docker_observer]
-            receivers:
-              filelog:
-                rule: type == "container"
-                config:
-                  include:
-                    - '/var/lib/docker/containers/`container_id`/*.log'
-                  include_file_path: true
-                  include_file_name: false
-                  start_at: end
-                  resource:
-                    container.id: '`container_id`'
-                    container.name: '`name`'
-                    service.name: '`labels["com.docker.compose.service"]`'
-                    service.namespace: '`labels["com.docker.compose.project"]`'
-                  operators:
-                    # Parse Docker JSON log wrapper {"log":"...","stream":"...","time":"..."}
-                    - type: json_parser
-                      id: parse-docker-json
-                      timestamp:
-                        parse_from: attributes.time
-                        layout: '%Y-%m-%dT%H:%M:%S.%LZ'
-                    - type: move
-                      from: attributes.log
-                      to: body
-                    - type: remove
-                      field: attributes.time
-                    # Only attempt JSON body parsing if body starts with '{'
-                    - type: router
-                      id: route-json-body
-                      routes:
-                        - output: try-parse-json-body
-                          expr: 'body matches "^\\s*\\{"'
-                      default: parse-severity
-                    - type: json_parser
-                      id: try-parse-json-body
-                      parse_from: body
-                      on_error: send
-                    # Extract log level as severity if present
-                    - type: severity_parser
-                      id: parse-severity
-                      if: 'attributes.level != nil'
-                      parse_from: attributes.level
-                      on_error: send
-                      mapping:
-                        debug: DEBUG
-                        info: INFO
-                        warn: WARN
-                        warning: WARN
-                        error: ERROR
-                        fatal: FATAL
-                    # Replace body with the message field (logstash/logback format)
-                    - type: move
-                      id: move-message-to-body
-                      if: 'attributes.message != nil'
-                      from: attributes.message
-                      to: body
+          filelog/docker:
+            include:
+              - /var/lib/docker/containers/*/*.log
+            start_at: end
+            include_file_path: true
+            include_file_name: false
+            operators:
+              # Parse Docker JSON log wrapper {"log":"...","stream":"...","time":"..."}
+              - type: json_parser
+                id: parse-docker-json
+                timestamp:
+                  parse_from: attributes.time
+                  layout: '%Y-%m-%dT%H:%M:%S.%LZ'
+              # Extract container ID from file path
+              - type: regex_parser
+                id: extract-container-id
+                regex: '^.*/containers/(?P<container_id>[a-f0-9]+)/.*$$'
+                parse_from: attributes["log.file.path"]
+              - type: move
+                from: attributes.log
+                to: body
+              - type: remove
+                field: attributes.time
+              # Only attempt JSON body parsing if body starts with '{'
+              - type: router
+                id: route-json-body
+                routes:
+                  - output: try-parse-json-body
+                    expr: 'body matches "^\\s*\\{"'
+                default: parse-severity
+              - type: json_parser
+                id: try-parse-json-body
+                parse_from: body
+                on_error: send
+              # Extract log level as severity if present
+              - type: severity_parser
+                id: parse-severity
+                if: 'attributes.level != nil'
+                parse_from: attributes.level
+                on_error: send
+                mapping:
+                  debug: DEBUG
+                  info: INFO
+                  warn: WARN
+                  warning: WARN
+                  error: ERROR
+                  fatal: FATAL
+              # Replace body with the message field (logstash/logback format)
+              - type: move
+                id: move-message-to-body
+                if: 'attributes.message != nil'
+                from: attributes.message
+                to: body
           docker_stats:
             endpoint: unix:///var/run/docker.sock
             collection_interval: 30s
@@ -367,9 +359,12 @@ services:
             timeout: 2s
           transform/set-service-name:
             log_statements:
-              - context: resource
+              - context: log
                 statements:
-                  - set(attributes["service.name"], attributes["container.name"]) where attributes["service.name"] == ""
+                  # Use service field from structured JSON body (e.g. logback/logstash)
+                  - set(resource.attributes["service.name"], attributes["service"]) where attributes["service"] != nil
+                  # Fall back to container_id for unstructured logs
+                  - set(resource.attributes["service.name"], attributes["container_id"]) where resource.attributes["service.name"] == nil or resource.attributes["service.name"] == ""
         exporters:
           otlp:
             endpoint: signoz-otel-collector:4317
@@ -381,10 +376,9 @@ services:
               encoding: json
           extensions:
             - health_check
-            - docker_observer
           pipelines:
             logs/docker:
-              receivers: [receiver_creator]
+              receivers: [filelog/docker]
               processors: [transform/set-service-name, batch]
               exporters: [otlp]
             metrics/docker:
