@@ -268,12 +268,12 @@ services:
                 rule: type == "container"
                 config:
                   include:
-                    - '/var/lib/docker/containers/`id`/*.log'
+                    - '/var/lib/docker/containers/`container_id`/*.log'
                   include_file_path: true
                   include_file_name: false
                   start_at: end
                   resource:
-                    container.id: '`id`'
+                    container.id: '`container_id`'
                     container.name: '`name`'
                     service.name: '`labels["com.docker.compose.service"]`'
                     service.namespace: '`labels["com.docker.compose.project"]`'
