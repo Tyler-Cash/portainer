@@ -7,6 +7,7 @@ on:
       - "stacks/**/docker-compose.yml"
       - "stacks/**/.env.secret"
       - "stacks/**/config/**"
+      - "scripts/**"
   workflow_dispatch:
 
 concurrency:
@@ -38,8 +39,14 @@ jobs:
       - name: Detect changed stacks
         id: changes
         run: |
+          scripts_changed=$(git diff --name-only HEAD~1 HEAD -- scripts/ 2>/dev/null || true)
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "Manual trigger — deploying all stacks"
+            changed=$(find stacks -name 'docker-compose.yml' \
+              | sed 's|stacks/||' \
+              | sed 's|/docker-compose\.yml||')
+          elif [ -n "$scripts_changed" ]; then
+            echo "Deploy scripts changed — deploying all stacks"
             changed=$(find stacks -name 'docker-compose.yml' \
               | sed 's|stacks/||' \
               | sed 's|/docker-compose\.yml||')
