@@ -289,7 +289,13 @@ services:
                       to: body
                     - type: remove
                       field: attributes.time
-                    # Try to parse structured JSON body (logstash/logback format)
+                    # Only attempt JSON body parsing if body starts with '{'
+                    - type: router
+                      id: route-json-body
+                      routes:
+                        - output: try-parse-json-body
+                          expr: 'body matches "^\\s*\\{"'
+                      default: parse-severity
                     - type: json_parser
                       id: try-parse-json-body
                       parse_from: body
