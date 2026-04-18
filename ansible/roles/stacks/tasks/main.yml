@@ -1,41 +1,38 @@
 - name: Ensure stack directories exist
   ansible.builtin.file:
-    path: "/opt/stacks/{{ item.key }}"
+    path: "/opt/stacks/{{ item }}"
     state: directory
     mode: "0755"
-  loop: "{{ stacks | dict2items }}"
-  when: item.key not in stacks_skip
-  no_log: true
+  loop: "{{ stacks | list }}"
+  when: item not in stacks_skip
 
 - name: Sync docker-compose.yml
   ansible.builtin.copy:
-    src: "{{ stacks_src_dir }}/{{ item.key }}/docker-compose.yml"
-    dest: "/opt/stacks/{{ item.key }}/docker-compose.yml"
+    src: "{{ stacks_src_dir }}/{{ item }}/docker-compose.yml"
+    dest: "/opt/stacks/{{ item }}/docker-compose.yml"
     mode: "0644"
-  loop: "{{ stacks | dict2items }}"
-  when: item.key not in stacks_skip
-  no_log: true
-
-- name: Write .env file
-  ansible.builtin.copy:
-    content: "{% for key, value in item.value.items() %}{{ key }}={{ value }}\n{% endfor %}"
-    dest: "/opt/stacks/{{ item.key }}/.env"
-    mode: "0600"
-  loop: "{{ stacks | dict2items }}"
-  when: item.key not in stacks_skip and item.value | length > 0
-  no_log: true
+  loop: "{{ stacks | list }}"
+  when: item not in stacks_skip
 
 - name: Sync homepage config
   ansible.builtin.copy:
     src: "{{ stacks_src_dir }}/homepage/config/"
     dest: /ssd/services/homepage/
     mode: "0644"
-  when: "'homepage' not in stacks_skip"
+  when: "'homepage' not in stacks_skip and 'homepage' in stacks"
+
+- name: Write .env file
+  ansible.builtin.copy:
+    content: "{% for key, value in stacks[item].items() %}{{ key }}={{ value }}\n{% endfor %}"
+    dest: "/opt/stacks/{{ item }}/.env"
+    mode: "0600"
+  loop: "{{ stacks | list }}"
+  when: item not in stacks_skip and stacks[item] | length > 0
+  no_log: true
 
 - name: Run docker compose up
   ansible.builtin.command:
     cmd: docker compose up -d --remove-orphans --pull always
-    chdir: "/opt/stacks/{{ item.key }}"
-  loop: "{{ stacks | dict2items }}"
-  when: item.key not in stacks_skip
-  no_log: true
+    chdir: "/opt/stacks/{{ item }}"
+  loop: "{{ stacks | list }}"
+  when: item not in stacks_skip

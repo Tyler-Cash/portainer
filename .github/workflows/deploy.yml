@@ -32,6 +32,26 @@ jobs:
         env:
           ANSIBLE_SSH_KEY: ${{ secrets.ANSIBLE_SSH_KEY }}
 
+      - name: Test - verify Ansible does not leak secrets
+        run: |
+          CANARY="CANARY_$(openssl rand -hex 8)"
+          mkdir -p "$RUNNER_TEMP/test-stacks/canary-stack"
+          echo -e "services:\n  test:\n    image: nginx" > "$RUNNER_TEMP/test-stacks/canary-stack/docker-compose.yml"
+          echo "{\"stacks\": {\"canary-stack\": {\"SECRET\": \"$CANARY\"}}}" > "$RUNNER_TEMP/canary_vars.json"
+
+          OUTPUT=$(cd ansible && ANSIBLE_ROLES_PATH=roles ansible-playbook \
+            -i tests/no-secrets-leak-inventory.yml \
+            tests/no-secrets-leak.yml \
+            --check \
+            --extra-vars "@$RUNNER_TEMP/canary_vars.json" 2>&1 || true)
+
+          if echo "$OUTPUT" | grep -qF "$CANARY"; then
+            echo "FAIL: Secret leaked in Ansible output"
+            echo "$OUTPUT" | grep -nF "$CANARY"
+            exit 1
+          fi
+          echo "PASS: No secrets leaked in Ansible output"
+
       - name: Build stacks vars
         env:
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
