@@ -55,7 +55,7 @@ jobs:
         env:
           ANSIBLE_HOST: ${{ vars.PORTAINER_HOST }}
           ANSIBLE_SSH_KEY_FILE: ${{ runner.temp }}/ansible_key
-        run: cd ansible && ansible-playbook -i inventory.yml playbooks/host.yml
+        run: cd ansible && ANSIBLE_ROLES_PATH=roles ansible-playbook -i inventory.yml playbooks/host.yml
 
       - name: Remove SSH key
         if: always()
