@@ -1,0 +1,3 @@
+creation_rules:
+  - path_regex: stacks/.*\.env\.secret(\.dec)?$
+    age: age14v39n3y77fyxjp8ug2gsx5s70hs8tpl0dnstwz3xna3tpv5ed48qc70ykz
