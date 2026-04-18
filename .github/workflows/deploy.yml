@@ -3,11 +3,6 @@ name: Deploy stacks
 on:
   push:
     branches: [master]
-    paths:
-      - "stacks/**/docker-compose.yml"
-      - "stacks/**/.env.secret"
-      - "stacks/**/config/**"
-      - "ansible/**"
   workflow_dispatch:
 
 permissions:
