@@ -54,7 +54,6 @@ jobs:
       - name: Run Ansible playbook
         env:
           ANSIBLE_HOST: ${{ vars.PORTAINER_HOST }}
-          ANSIBLE_USER: ${{ vars.ANSIBLE_USER }}
           ANSIBLE_SSH_KEY_FILE: ${{ runner.temp }}/ansible_key
         run: cd ansible && ansible-playbook -i inventory.yml playbooks/host.yml
 
