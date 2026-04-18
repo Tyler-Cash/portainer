@@ -34,7 +34,7 @@ jobs:
 
       - name: Test - verify Ansible does not leak secrets
         run: |
-          CANARY="CANARY_$(openssl rand -hex 8)"
+          CANARY="CANARY_$(openssl rand -hex 8)\$DOLLAR_SUFFIX"
           mkdir -p "$RUNNER_TEMP/test-stacks/canary-stack"
           echo -e "services:\n  test:\n    image: nginx" > "$RUNNER_TEMP/test-stacks/canary-stack/docker-compose.yml"
           echo "{\"stacks\": {\"canary-stack\": {\"SECRET\": \"$CANARY\"}}}" > "$RUNNER_TEMP/canary_vars.json"
