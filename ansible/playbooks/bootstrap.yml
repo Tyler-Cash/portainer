@@ -1,5 +1,0 @@
-- name: Bootstrap host (run once manually as a sudoer)
-  hosts: homelab
-  become: true
-  roles:
-    - ansible-user
