@@ -48,11 +48,7 @@ jobs:
             if [ -f "$stack_dir/.env.secret" ] && [ -n "${SOPS_AGE_KEY:-}" ]; then
               env_json=$(SOPS_AGE_KEY="$SOPS_AGE_KEY" sops --decrypt "$stack_dir/.env.secret" \
                 | grep -v '^#' | grep '=' \
-                | while IFS='=' read -r key val; do
-                    val="${val%\"}"
-                    val="${val#\"}"
-                    printf '"%s":"%s"\n' "$key" "$val"
-                  done | jq -s 'add // {}')
+                | jq -Rn '[inputs | split("=") | {(.[0]): (.[1:] | join("="))}] | add // {}')
             fi
             stacks_json=$(echo "$stacks_json" | jq --arg k "$stack" --argjson v "$env_json" '. + {($k): $v}')
           done
