@@ -1,0 +1,5 @@
+# Managed by Ansible — do not edit manually
+ansible ALL=(ALL) NOPASSWD: \
+    /usr/bin/systemctl restart docker, \
+    /usr/bin/tee /etc/docker/daemon.json, \
+    /usr/bin/mkdir -p /etc/docker

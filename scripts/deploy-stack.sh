@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Usage: deploy-stack.sh <stack-name>
-# Env: PORTAINER_URL, PORTAINER_TOKEN, PORTAINER_ENDPOINT_ID, SOPS_AGE_KEY
+# Env: PORTAINER_HOST, PORTAINER_TOKEN, PORTAINER_ENDPOINT_ID, SOPS_AGE_KEY
 set -euo pipefail
 
 STACK_NAME="$1"
@@ -29,7 +29,9 @@ sanitize() {
 }
 
 # Validate required env vars (names only, never values)
-for var in PORTAINER_URL PORTAINER_TOKEN PORTAINER_ENDPOINT_ID; do
+PORTAINER_URL="https://${PORTAINER_HOST}"
+
+for var in PORTAINER_HOST PORTAINER_TOKEN PORTAINER_ENDPOINT_ID; do
   if [ -z "${!var:-}" ]; then
     echo "ERROR: Required environment variable $var is not set"
     exit 1

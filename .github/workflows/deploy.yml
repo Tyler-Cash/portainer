@@ -8,6 +8,7 @@ on:
       - "stacks/**/.env.secret"
       - "stacks/**/config/**"
       - "scripts/**"
+      - "ansible/**"
   workflow_dispatch:
 
 permissions:
@@ -31,8 +32,38 @@ jobs:
       - name: Run tests
         run: bats tests/
 
+  configure-host:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ansible
+        run: |
+          if ! command -v ansible-playbook &>/dev/null; then
+            pip3 install --quiet ansible
+          fi
+
+      - name: Write SSH key
+        run: |
+          echo "$ANSIBLE_SSH_KEY" > "$RUNNER_TEMP/ansible_key"
+          chmod 600 "$RUNNER_TEMP/ansible_key"
+          ssh-keygen -y -f "$RUNNER_TEMP/ansible_key" > "$RUNNER_TEMP/ansible_key.pub"
+        env:
+          ANSIBLE_SSH_KEY: ${{ secrets.ANSIBLE_SSH_KEY }}
+
+      - name: Run Ansible playbook
+        env:
+          ANSIBLE_HOST: ${{ vars.PORTAINER_HOST }}
+          ANSIBLE_USER: ${{ vars.ANSIBLE_USER }}
+          ANSIBLE_SSH_KEY_FILE: ${{ runner.temp }}/ansible_key
+        run: ansible-playbook -i ansible/inventory.yml ansible/playbooks/host.yml
+
+      - name: Remove SSH key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/ansible_key" "$RUNNER_TEMP/ansible_key.pub"
+
   deploy:
-    needs: test
+    needs: [test, configure-host]
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
@@ -80,7 +111,7 @@ jobs:
 
       - name: Deploy changed stacks
         env:
-          PORTAINER_URL: ${{ vars.PORTAINER_URL }}
+          PORTAINER_HOST: ${{ vars.PORTAINER_HOST }}
           PORTAINER_TOKEN: ${{ secrets.PORTAINER_TOKEN }}
           PORTAINER_ENDPOINT_ID: ${{ vars.PORTAINER_ENDPOINT_ID }}
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}

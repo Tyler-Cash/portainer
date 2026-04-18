@@ -1,0 +1,6 @@
+- name: Configure homelab host
+  hosts: homelab
+  become: true
+  roles:
+    - ansible-user
+    - docker

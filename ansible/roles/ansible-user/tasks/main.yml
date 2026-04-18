@@ -1,0 +1,30 @@
+- name: Create ansible user
+  ansible.builtin.user:
+    name: ansible
+    system: true
+    shell: /bin/bash
+    create_home: true
+
+- name: Set up .ssh directory
+  ansible.builtin.file:
+    path: /home/ansible/.ssh
+    state: directory
+    owner: ansible
+    group: ansible
+    mode: "0700"
+
+- name: Authorise runner SSH key
+  ansible.builtin.authorized_key:
+    user: ansible
+    key: "{{ lookup('file', lookup('env', 'RUNNER_TEMP') + '/ansible_key.pub') }}"
+    state: present
+    exclusive: true
+
+- name: Configure sudoers
+  ansible.builtin.template:
+    src: sudoers.j2
+    dest: /etc/sudoers.d/ansible
+    owner: root
+    group: root
+    mode: "0440"
+    validate: visudo -cf %s
