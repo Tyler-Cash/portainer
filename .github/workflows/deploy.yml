@@ -23,7 +23,7 @@ jobs:
           if ! command -v ansible-playbook &>/dev/null; then
             pip3 install --quiet ansible
           fi
-          ansible-galaxy collection install community.general --quiet
+          ansible-galaxy collection install community.general
 
       - name: Write SSH key
         run: |
