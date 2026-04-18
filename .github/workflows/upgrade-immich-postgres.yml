@@ -1,0 +1,106 @@
+name: Upgrade Immich PostgreSQL
+
+on:
+  workflow_dispatch:
+    inputs:
+      pg_version:
+        description: 'Target PostgreSQL major version'
+        required: true
+        default: '17'
+        type: choice
+        options: ['17', '18']
+
+jobs:
+  upgrade:
+    runs-on: self-hosted
+    permissions:
+      contents: write
+    env:
+      PORTAINER_URL: ${{ vars.PORTAINER_URL }}
+      PORTAINER_TOKEN: ${{ secrets.PORTAINER_TOKEN }}
+      PORTAINER_ENDPOINT_ID: ${{ vars.PORTAINER_ENDPOINT_ID }}
+      PG_VERSION: ${{ inputs.pg_version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve new image and data dir
+        id: vars
+        run: |
+          IMAGE_BASE="ghcr.io/immich-app/postgres:${PG_VERSION}-vectorchord0.5.3-pgvector0.8.1"
+          docker pull "$IMAGE_BASE"
+          DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' "$IMAGE_BASE" | cut -d@ -f2)
+          echo "image=${IMAGE_BASE}@${DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "data_dir=/ssd/databases/immich-pg${PG_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Dump current database
+        run: |
+          BACKUP_FILE="/tmp/immich-backup-$(date +%Y%m%d-%H%M%S).sql"
+          echo "Dumping to $BACKUP_FILE..."
+          docker exec immich-postgres pg_dump -U immich immich > "$BACKUP_FILE"
+          echo "Backup size: $(du -sh "$BACKUP_FILE" | cut -f1)"
+          echo "BACKUP_FILE=$BACKUP_FILE" >> "$GITHUB_ENV"
+
+      - name: Stop photo stack
+        run: |
+          STACK_ID=$(curl -sf -H "x-api-key: $PORTAINER_TOKEN" \
+            "$PORTAINER_URL/api/stacks" | \
+            jq -r '.[] | select(.Name == "photo") | .Id')
+          curl -sf -X POST -H "x-api-key: $PORTAINER_TOKEN" \
+            "$PORTAINER_URL/api/stacks/${STACK_ID}/stop?endpointId=${PORTAINER_ENDPOINT_ID}"
+          echo "STACK_ID=$STACK_ID" >> "$GITHUB_ENV"
+
+      - name: Restore into new postgres version
+        run: |
+          DATA_DIR="${{ steps.vars.outputs.data_dir }}"
+          IMAGE="${{ steps.vars.outputs.image }}"
+          docker run -d --name immich-postgres-migrate \
+            -e POSTGRES_PASSWORD="$(openssl rand -hex 32)" \
+            -e POSTGRES_USER=immich \
+            -e POSTGRES_DB=immich \
+            -e POSTGRES_INITDB_ARGS=--data-checksums \
+            -v "${DATA_DIR}:/var/lib/postgresql/data" \
+            --shm-size=128m \
+            "$IMAGE"
+
+          echo "Waiting for new postgres to be ready..."
+          for i in $(seq 1 30); do
+            if docker exec immich-postgres-migrate pg_isready -U immich -q 2>/dev/null; then
+              echo "Ready after $((i * 3))s"
+              break
+            fi
+            if [ "$i" = "30" ]; then
+              echo "ERROR: timed out waiting for new postgres"
+              docker logs immich-postgres-migrate
+              docker rm -f immich-postgres-migrate
+              exit 1
+            fi
+            sleep 3
+          done
+
+          echo "Restoring backup..."
+          docker exec -i immich-postgres-migrate psql -U immich -d immich < "$BACKUP_FILE"
+          echo "Restore complete."
+
+          docker stop immich-postgres-migrate
+          docker rm immich-postgres-migrate
+
+      - name: Update compose file
+        run: |
+          DATA_DIR="${{ steps.vars.outputs.data_dir }}"
+          IMAGE="${{ steps.vars.outputs.image }}"
+          sed -i \
+            -e "s|image: ghcr.io/immich-app/postgres:.*|image: ${IMAGE}|" \
+            -e "s|/ssd/databases/immich:/var/lib/postgresql/data|${DATA_DIR}:/var/lib/postgresql/data|" \
+            stacks/photo/docker-compose.yml
+
+      - name: Deploy updated stack
+        run: bash scripts/deploy-stack.sh photo
+
+      - name: Commit updated compose
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add stacks/photo/docker-compose.yml
+          git commit -m "chore(photo): upgrade immich postgres to pg${PG_VERSION}"
+          git push
