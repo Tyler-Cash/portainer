@@ -11,7 +11,7 @@ setup() {
   mkdir -p "$MOCK_BIN"
 
   export PATH="$MOCK_BIN:$PATH"
-  export PORTAINER_URL="http://portainer.local:9000"
+  export PORTAINER_HOST="portainer.local:9000"
   export PORTAINER_TOKEN="test-token"
   export PORTAINER_ENDPOINT_ID="1"
   unset SOPS_AGE_KEY
