@@ -88,7 +88,7 @@ services:
       - POSTGRES_DB=immich
       - POSTGRES_INITDB_ARGS=--data-checksums
     volumes:
-      - /ssd/databases/immich:/var/lib/postgresql/data
+      - /ssd/databases/immich-pg16:/var/lib/postgresql/data
     shm_size: 128mb
     healthcheck:
       disable: false
