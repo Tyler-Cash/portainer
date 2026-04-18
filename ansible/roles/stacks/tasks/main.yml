@@ -23,7 +23,7 @@
 
 - name: Write .env file
   ansible.builtin.copy:
-    content: "{% for key, value in stacks[item].items() %}{{ key }}={{ value }}\n{% endfor %}"
+    content: "{% for key, value in stacks[item].items() %}{{ key }}={{ value | replace('$', '$$') }}\n{% endfor %}"
     dest: "/opt/stacks/{{ item }}/.env"
     mode: "0600"
   loop: "{{ stacks | list }}"
@@ -36,3 +36,4 @@
     chdir: "/opt/stacks/{{ item }}"
   loop: "{{ stacks | list }}"
   when: item not in stacks_skip
+  no_log: true
