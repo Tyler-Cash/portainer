@@ -35,5 +35,17 @@
     cmd: docker compose up -d --remove-orphans --pull always
     chdir: "/opt/stacks/{{ item }}"
   loop: "{{ stacks | list }}"
+  loop_control:
+    label: "{{ item }}"
   when: item not in stacks_skip
+  register: compose_result
+  no_log: true
+
+- name: Report docker compose failures
+  ansible.builtin.fail:
+    msg: "docker compose up failed for stack '{{ item.item }}' with rc={{ item.rc }}"
+  loop: "{{ compose_result.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.rc is defined and item.rc != 0
   no_log: true

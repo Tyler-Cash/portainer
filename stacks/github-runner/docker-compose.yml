@@ -1,7 +1,16 @@
 version: '3'
 
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "50m"
+      max-file: "3"
+      labels: "com.docker.compose.service,com.docker.compose.project"
+
 services:
   github-runner:
+    <<: *logging
     container_name: github-runner
     build: .
     restart: unless-stopped
@@ -13,5 +22,11 @@ services:
       - RUNNER_WORKDIR=/tmp/runner/work
       - LABELS=self-hosted,linux
       - SOPS_AGE_KEY=${SOPS_AGE_KEY}
+    networks:
+      - homelab_default
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+
+networks:
+  homelab_default:
+    external: true
