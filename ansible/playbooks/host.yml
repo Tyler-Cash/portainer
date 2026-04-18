@@ -1,6 +1,12 @@
 - name: Configure homelab host
   hosts: homelab
   become: true
+  vars:
+    stacks_src_dir: "{{ playbook_dir }}/../../stacks"
+    stacks_skip:
+      - github-runner
+    stacks: {}
   roles:
     - ansible-user
     - docker
+    - stacks

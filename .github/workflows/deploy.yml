@@ -1,4 +1,4 @@
-name: Deploy stacks to Portainer
+name: Deploy stacks
 
 on:
   push:
@@ -7,7 +7,6 @@ on:
       - "stacks/**/docker-compose.yml"
       - "stacks/**/.env.secret"
       - "stacks/**/config/**"
-      - "scripts/**"
       - "ansible/**"
   workflow_dispatch:
 
@@ -19,19 +18,6 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install bats
-        run: |
-          git clone --depth 1 https://github.com/bats-core/bats-core.git /tmp/bats-core
-          sudo /tmp/bats-core/install.sh /usr/local
-
-      - name: Run tests
-        run: bats tests/
-
   configure-host:
     runs-on: self-hosted
     steps:
@@ -51,80 +37,36 @@ jobs:
         env:
           ANSIBLE_SSH_KEY: ${{ secrets.ANSIBLE_SSH_KEY }}
 
+      - name: Build stacks vars
+        env:
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+        run: |
+          stacks_json="{}"
+          for stack_dir in stacks/*/; do
+            stack=$(basename "$stack_dir")
+            env_json="{}"
+            if [ -f "$stack_dir/.env.secret" ] && [ -n "${SOPS_AGE_KEY:-}" ]; then
+              env_json=$(SOPS_AGE_KEY="$SOPS_AGE_KEY" sops --decrypt "$stack_dir/.env.secret" \
+                | grep -v '^#' | grep '=' \
+                | while IFS='=' read -r key val; do
+                    val="${val%\"}"
+                    val="${val#\"}"
+                    printf '"%s":"%s"\n' "$key" "$val"
+                  done | jq -s 'add // {}')
+            fi
+            stacks_json=$(echo "$stacks_json" | jq --arg k "$stack" --argjson v "$env_json" '. + {($k): $v}')
+          done
+          echo "{\"stacks\": $stacks_json}" > "$RUNNER_TEMP/stacks_vars.json"
+
       - name: Run Ansible playbook
         env:
           ANSIBLE_HOST: ${{ vars.PORTAINER_HOST }}
           ANSIBLE_SSH_KEY_FILE: ${{ runner.temp }}/ansible_key
-        run: cd ansible && ANSIBLE_ROLES_PATH=roles ansible-playbook -i inventory.yml playbooks/host.yml
+        run: |
+          cd ansible && ANSIBLE_ROLES_PATH=roles ansible-playbook \
+            -i inventory.yml playbooks/host.yml \
+            --extra-vars "@$RUNNER_TEMP/stacks_vars.json"
 
-      - name: Remove SSH key
+      - name: Remove secrets
         if: always()
-        run: rm -f "$RUNNER_TEMP/ansible_key" "$RUNNER_TEMP/ansible_key.pub"
-
-  deploy:
-    needs: [test, configure-host]
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-
-      - name: Detect changed stacks
-        id: changes
-        run: |
-          scripts_changed=$(git diff --name-only HEAD~1 HEAD -- scripts/ 2>/dev/null || true)
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "Manual trigger — deploying all stacks"
-            changed=$(find stacks -name 'docker-compose.yml' \
-              | sed 's|stacks/||' \
-              | sed 's|/docker-compose\.yml||')
-          elif [ -n "$scripts_changed" ]; then
-            echo "Deploy scripts changed — deploying all stacks"
-            changed=$(find stacks -name 'docker-compose.yml' \
-              | sed 's|stacks/||' \
-              | sed 's|/docker-compose\.yml||')
-          elif git rev-parse HEAD~1 &>/dev/null; then
-            changed=$(git diff --name-only HEAD~1 HEAD -- stacks/ \
-              | grep -E '(docker-compose\.yml|\.env\.secret|config/)' \
-              | sed 's|stacks/||' \
-              | sed 's|/.*||' \
-              | sort -u)
-          else
-            echo "Initial commit — deploying all stacks"
-            changed=$(find stacks -name 'docker-compose.yml' \
-              | sed 's|stacks/||' \
-              | sed 's|/docker-compose\.yml||')
-          fi
-          echo "Changed stacks: $changed"
-          echo "stacks<<EOF" >> $GITHUB_OUTPUT
-          echo "$changed" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Sync homepage config
-        run: |
-          if echo "${{ steps.changes.outputs.stacks }}" | grep -q "^homepage$"; then
-            mkdir -p /ssd/services/homepage
-            cp -r stacks/homepage/config/. /ssd/services/homepage/
-            echo "Homepage config synced to /ssd/services/homepage/"
-          fi
-
-      - name: Deploy changed stacks
-        env:
-          PORTAINER_HOST: ${{ vars.PORTAINER_HOST }}
-          PORTAINER_TOKEN: ${{ secrets.PORTAINER_TOKEN }}
-          PORTAINER_ENDPOINT_ID: ${{ vars.PORTAINER_ENDPOINT_ID }}
-          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
-        run: |
-          failed_stacks=()
-          while IFS= read -r stack; do
-            [ -z "$stack" ] && continue
-            echo "Deploying stack: $stack"
-            if ! bash scripts/deploy-stack.sh "$stack"; then
-              echo "ERROR: Stack '$stack' failed"
-              failed_stacks+=("$stack")
-            fi
-          done <<< "${{ steps.changes.outputs.stacks }}"
-          if [ ${#failed_stacks[@]} -gt 0 ]; then
-            echo "Failed stacks: ${failed_stacks[*]}"
-            exit 1
-          fi
+        run: rm -f "$RUNNER_TEMP/ansible_key" "$RUNNER_TEMP/ansible_key.pub" "$RUNNER_TEMP/stacks_vars.json"
