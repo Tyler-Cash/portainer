@@ -5,6 +5,7 @@
     mode: "0755"
   loop: "{{ stacks | dict2items }}"
   when: item.key not in stacks_skip
+  no_log: true
 
 - name: Sync docker-compose.yml
   ansible.builtin.copy:
@@ -13,7 +14,7 @@
     mode: "0644"
   loop: "{{ stacks | dict2items }}"
   when: item.key not in stacks_skip
-  register: compose_sync
+  no_log: true
 
 - name: Write .env file
   ansible.builtin.copy:
@@ -22,7 +23,7 @@
     mode: "0600"
   loop: "{{ stacks | dict2items }}"
   when: item.key not in stacks_skip and item.value | length > 0
-  register: env_sync
+  no_log: true
 
 - name: Sync homepage config
   ansible.builtin.copy:
@@ -37,3 +38,4 @@
     chdir: "/opt/stacks/{{ item.key }}"
   loop: "{{ stacks | dict2items }}"
   when: item.key not in stacks_skip
+  no_log: true
