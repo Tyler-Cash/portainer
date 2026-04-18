@@ -2,4 +2,11 @@
 ansible ALL=(ALL) NOPASSWD: \
     /usr/bin/systemctl restart docker, \
     /usr/bin/tee /etc/docker/daemon.json, \
-    /usr/bin/mkdir -p /etc/docker
+    /usr/bin/mkdir -p /etc/docker, \
+    /usr/sbin/useradd *, \
+    /usr/bin/tee /etc/sudoers.d/ansible, \
+    /usr/sbin/visudo *, \
+    /usr/bin/chown -R ansible\:ansible /home/ansible/.ssh, \
+    /usr/bin/chmod 700 /home/ansible/.ssh, \
+    /usr/bin/chmod 600 /home/ansible/.ssh/authorized_keys, \
+    /usr/bin/mkdir -p /home/ansible/.ssh
