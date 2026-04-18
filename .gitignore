@@ -21,6 +21,7 @@ Thumbs.db
 .env.*.local
 
 .claude/
+!.claude/settings.json
 
 # Terraform
 terraform/.terraform/
