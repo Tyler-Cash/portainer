@@ -50,7 +50,7 @@
   loop: "{{ compose_result.results }}"
   loop_control:
     label: "{{ item.item }}"
-  when: item.rc is defined and item.rc != 0
+  when: (item.rc is defined and item.rc != 0) or (item.failed is defined and item.failed)
 
 - name: Fail if any docker compose up failed
   ansible.builtin.fail:
