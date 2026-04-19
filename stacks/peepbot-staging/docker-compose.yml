@@ -20,6 +20,12 @@ services:
     restart: "no"
     networks:
       - homelab_default
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+        labels: "com.docker.compose.service,com.docker.compose.project"
     environment:
       PGPASSWORD: *postgresPassword
     entrypoint: >
@@ -33,6 +39,12 @@ services:
     restart: always
     networks:
       - homelab_default
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+        labels: "com.docker.compose.service,com.docker.compose.project"
     depends_on:
       peepbot-staging-init-db:
         condition: service_completed_successfully
@@ -67,6 +79,12 @@ services:
     restart: always
     networks:
       - homelab_default
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+        labels: "com.docker.compose.service,com.docker.compose.project"
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:80/ || exit 1"]
       interval: 30s

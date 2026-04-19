@@ -1,5 +1,14 @@
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "50m"
+      max-file: "3"
+      labels: "com.docker.compose.service,com.docker.compose.project"
+
 services:
   mealie:
+    <<: *logging
     image: ghcr.io/mealie-recipes/mealie:v3.14.0@sha256:b9fac07e6daaabd8c29d0dc97965c2f500ce7d6b188b0c51f494627f23ad32f2
     container_name: mealie
     restart: unless-stopped

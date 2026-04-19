@@ -1,7 +1,16 @@
 version: '3.8'
 
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "50m"
+      max-file: "3"
+      labels: "com.docker.compose.service,com.docker.compose.project"
+
 services:
   open-webui:
+    <<: *logging
     image: ghcr.io/open-webui/open-webui:main@sha256:b8095f79a6a8ffad8f830bdacc9b5b0aef805689b31bca0b065cc2424d3cfaeb
     container_name: open-webui
     restart: unless-stopped
@@ -22,6 +31,7 @@ services:
       - homelab_default
 
   ollama:
+    <<: *logging
     image: ollama/ollama:latest@sha256:662109db8037f17257cfc6e816289c0d4c9ae8a2a4ff760b653d8d410e234ba0
     container_name: ollama
     restart: unless-stopped

@@ -3,9 +3,11 @@ x-signoz-defaults: &signoz-defaults
   networks:
     - homelab_default
   logging:
+    driver: json-file
     options:
       max-size: 50m
       max-file: "3"
+      labels: "com.docker.compose.service,com.docker.compose.project"
 
 x-db-depend: &db-depend
   <<: *signoz-defaults
@@ -361,9 +363,13 @@ services:
             log_statements:
               - context: log
                 statements:
-                  # Use service field from structured JSON body (e.g. logback/logstash)
-                  - set(resource.attributes["service.name"], attributes["service"]) where attributes["service"] != nil
-                  # Fall back to container_id for unstructured logs
+                  # Use Docker Compose service label as service.name (container name)
+                  - set(resource.attributes["service.name"], attributes["attrs"]["com.docker.compose.service"]) where attributes["attrs"] != nil and attributes["attrs"]["com.docker.compose.service"] != nil
+                  # Use Docker Compose project label as service.namespace (stack name)
+                  - set(resource.attributes["service.namespace"], attributes["attrs"]["com.docker.compose.project"]) where attributes["attrs"] != nil and attributes["attrs"]["com.docker.compose.project"] != nil
+                  # Fall back to service field from structured JSON body (e.g. logback/logstash)
+                  - set(resource.attributes["service.name"], attributes["service"]) where resource.attributes["service.name"] == nil and attributes["service"] != nil
+                  # Fall back to container_id for unstructured logs without compose labels
                   - set(resource.attributes["service.name"], attributes["container_id"]) where resource.attributes["service.name"] == nil or resource.attributes["service.name"] == ""
         exporters:
           otlp:

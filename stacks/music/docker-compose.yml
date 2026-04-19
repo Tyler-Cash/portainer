@@ -1,5 +1,14 @@
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "50m"
+      max-file: "3"
+      labels: "com.docker.compose.service,com.docker.compose.project"
+
 services:
   lidarr:
+    <<: *logging
     image: lscr.io/linuxserver/lidarr:3.1.0.4875-ls20@sha256:37a3df74f4c2a6f10eead66f4d8034362ebf2866f935026b4a71dd888b9e7f08
     container_name: lidarr
     restart: unless-stopped
@@ -33,6 +42,7 @@ services:
       - com.centurylinklabs.watchtower.enable=true
 
   navidrome:
+    <<: *logging
     image: deluan/navidrome:0.61.1@sha256:1e1660054a856cc09f227d6929252e45a519fdb16004b464dd637f7294ca3ec1
     container_name: navidrome
     restart: unless-stopped
@@ -61,6 +71,7 @@ services:
       - com.centurylinklabs.watchtower.enable=true
 
   slskd:
+    <<: *logging
     image: slskd/slskd:0.24.5@sha256:17ef977563be206f3b5932080b1e23883b2cb39dc9010640f6f39b4eaec887e3
     container_name: slskd
     restart: unless-stopped
@@ -99,6 +110,7 @@ services:
       - com.centurylinklabs.watchtower.enable=true
 
   soularr:
+    <<: *logging
     image: mrusse08/soularr:latest@sha256:1e5812f7a306a8aec4c442abafca6af782bd9944ab1e8597e78284a72f283b2a
     container_name: soularr
     restart: unless-stopped

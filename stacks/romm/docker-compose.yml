@@ -1,5 +1,13 @@
 version: "3"
 
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "50m"
+      max-file: "3"
+      labels: "com.docker.compose.service,com.docker.compose.project"
+
 volumes:
   mysql_data:
   romm_resources:
@@ -7,6 +15,7 @@ volumes:
 
 services:
   romm:
+    <<: *logging
     image: rommapp/romm:4.8.1@sha256:2b7a1714b287f69b081ad2a63bb8c2fa673666a17b2f21322b580b0cd51cb266
     container_name: romm
     restart: unless-stopped
@@ -47,14 +56,15 @@ services:
       - homelab_default
 
   romm-db:
+    <<: *logging
     image: mariadb:11.8@sha256:f5644a292224cdf4b6514aca38b3b4436f0b0443d54170a472cd14261f31402d
     container_name: romm-db
     restart: unless-stopped
     environment:
-      - MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
+      - MARIADB_ROOT_PASSWORD=${DB_PASSWD}
       - MARIADB_DATABASE=romm
       - MARIADB_USER=romm-user
-      - MARIADB_PASSWORD=${MARIADB_PASSWORD}
+      - MARIADB_PASSWORD=${DB_PASSWD}
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
