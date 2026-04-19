@@ -6,7 +6,7 @@ x-traefik:
 
 x-postgres:
   password: &postgresPassword ${POSTGRES_PASSWORD}
-  username: &postgresUser postgres
+  username: &postgresUser peepbot
 
 x-spring-datasource: &spring-datasource
   SPRING_DATASOURCE_URL: &datasourceUrl jdbc:postgresql://peepbot-postgres:5432/peepbot
