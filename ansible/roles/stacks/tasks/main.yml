@@ -27,6 +27,8 @@
     dest: "/opt/stacks/{{ item }}/.env"
     mode: "0600"
   loop: "{{ stacks | list }}"
+  loop_control:
+    label: "{{ item }}"
   when: item not in stacks_skip and stacks[item] | length > 0
   no_log: true
 
@@ -42,10 +44,14 @@
   no_log: true
 
 - name: Report docker compose failures
-  ansible.builtin.fail:
+  ansible.builtin.debug:
     msg: "docker compose up failed for stack '{{ item.item }}' with rc={{ item.rc }}"
   loop: "{{ compose_result.results }}"
   loop_control:
     label: "{{ item.item }}"
   when: item.rc is defined and item.rc != 0
-  no_log: true
+
+- name: Fail if any docker compose up failed
+  ansible.builtin.fail:
+    msg: "One or more stacks failed to start"
+  when: compose_result.results | selectattr('rc', 'defined') | selectattr('rc', 'ne', 0) | list | length > 0

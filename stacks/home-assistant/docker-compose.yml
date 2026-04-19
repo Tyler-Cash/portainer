@@ -1,7 +1,16 @@
 version: '3'
 
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "50m"
+      max-file: "3"
+      labels: "com.docker.compose.service,com.docker.compose.project"
+
 services:
   home-assistant:
+    <<: *logging
     container_name: home-assistant
     image: ghcr.io/home-assistant/home-assistant:2026.4.2@sha256:4c940155cfd5b0187a6faee2db5d52b98bb573edc1aeee95d0818bb17b6534d7
     restart: unless-stopped
@@ -34,6 +43,7 @@ services:
       - com.centurylinklabs.watchtower.enable=true
 
   mdns-repeater:
+    <<: *logging
     container_name: mdns-repeater
     image: monstrenyatko/mdns-repeater:20230701@sha256:69179cba8a1c1d8cb71bdcfdd58a7f29aba9e19583a716532300d5231ae1335d
     restart: unless-stopped
@@ -42,6 +52,7 @@ services:
       - MDNS_REPEATER_INTERFACES=enp3s0 br_iot
 
   udp-proxy-govee:
+    <<: *logging
     container_name: udp-proxy-govee
     image: synfinatic/udp-proxy-2020:v0.1.4@sha256:71fb9b54f5a019d40e256490d50c5d25b120965f1332ec97d16a36ff30cda52c
     restart: unless-stopped

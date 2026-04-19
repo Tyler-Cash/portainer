@@ -1,7 +1,16 @@
 version: '3.8'
 
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "50m"
+      max-file: "3"
+      labels: "com.docker.compose.service,com.docker.compose.project"
+
 services:
   vaultwarden:
+    <<: *logging
     image: vaultwarden/server:1.35.6@sha256:93072633c6b125628419097fc951d1ce448422a1af1d653805520a8ba90f6956
     container_name: vaultwarden
     hostname: bitwarden
