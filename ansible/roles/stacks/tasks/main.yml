@@ -42,6 +42,7 @@
   when: item not in stacks_skip
   register: compose_result
   no_log: true
+  ignore_errors: true
 
 - name: Report docker compose failures
   ansible.builtin.debug:
