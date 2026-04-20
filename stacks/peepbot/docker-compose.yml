@@ -21,7 +21,11 @@ x-backend-defaults: &backend-defaults
     peepbot-postgres:
       condition: service_healthy
   healthcheck:
-    disable: true
+    test: ["CMD-SHELL", "curl -sf http://localhost:8080/api/actuator/health || exit 1"]
+    interval: 30s
+    timeout: 10s
+    retries: 3
+    start_period: 60s
   logging:
     driver: json-file
     options:
@@ -68,6 +72,7 @@ services:
         labels: "com.docker.compose.service,com.docker.compose.project"
     volumes:
       - /ssd/databases/peepbot:/var/lib/postgresql
+      - ./init:/docker-entrypoint-initdb.d
     environment:
       POSTGRES_PASSWORD: *postgresPassword
     healthcheck:
