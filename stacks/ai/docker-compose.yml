@@ -44,7 +44,7 @@ services:
       - OLLAMA_FLASH_ATTENTION=1
       - OLLAMA_NUM_THREAD=10
       - OLLAMA_CONTEXT_LENGTH=8192
-    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 5 && ollama pull mistral-nemo:12b-instruct-2407-q8_0 && wait"]
+    entrypoint: ["/bin/sh", "-c", "ollama serve & sleep 5 && ollama pull mistral-nemo:12b-instruct-2407-q8_0 && ollama pull qwen2.5:0.5b && wait"]
     deploy:
       resources:
         limits:
