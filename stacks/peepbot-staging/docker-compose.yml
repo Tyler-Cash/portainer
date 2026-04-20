@@ -46,6 +46,8 @@ services:
         max-size: "50m"
         max-file: "3"
         labels: "com.docker.compose.service,com.docker.compose.project"
+    volumes:
+      - peepbot-staging-djl-cache:/root/.djl.ai
     depends_on:
       peepbot-staging-init-db:
         condition: service_completed_successfully
@@ -104,6 +106,9 @@ services:
       traefik.http.routers.peepbot-staging-frontend.tls.certresolver: *certresolver
       traefik.http.services.peepbot-staging-frontend.loadbalancer.server.port: *frontend-port
       com.centurylinklabs.watchtower.enable: true
+
+volumes:
+  peepbot-staging-djl-cache:
 
 networks:
   homelab_default:
