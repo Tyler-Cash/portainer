@@ -12,7 +12,8 @@
     "group:monorepos",
     "group:recommended"
   ],
-  "schedule": ["after 3am and before 5am on Monday"],
+  "schedule": ["at any time"],
+  "automergeSchedule": ["after 2am and before 8am"],
   "timezone": "Australia/Sydney",
   "enabledManagers": ["docker-compose"],
   "labels": ["renovate", "dependencies"],
