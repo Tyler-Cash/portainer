@@ -11,7 +11,7 @@ x-logging: &logging
 services:
   open-webui:
     <<: *logging
-    image: ghcr.io/open-webui/open-webui:main@sha256:1e834205e71a97812c8e3e8cbf05e7ab40887143a65aa78b85fe7930d5892f0d
+    image: ghcr.io/open-webui/open-webui:main@sha256:c2e4723fdbca5de8f9f0529e22b78acf5bc312a88da730bed88860063d028fe8
     container_name: open-webui
     restart: unless-stopped
     environment:
