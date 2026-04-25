@@ -111,7 +111,7 @@ services:
 
   soularr:
     <<: *logging
-    image: mrusse08/soularr:latest@sha256:e770f2b45b5892c96d95c5c0b8c752e6b6348d8dee68f3626872245a99088771
+    image: mrusse08/soularr:latest@sha256:6820e1eb0f7886c3d1c926b0a3a9e36a340def245edd65fa4c714880f0afa56d
     container_name: soularr
     restart: unless-stopped
     networks:
