@@ -53,7 +53,12 @@ services:
           memory: 16G
     networks:
       - homelab_default
-
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ollama.rule=Host(`ollama.tylercash.dev`) && (ClientIP(`10.0.0.0/8`) || ClientIP(`172.19.0.0/24`))"
+      - "traefik.http.routers.ollama.entrypoints=websecure"
+      - "traefik.http.routers.ollama.tls.certresolver=leresolver"
+      - "traefik.http.services.ollama.loadbalancer.server.port=11434"
 networks:
   homelab_default:
     external: true
