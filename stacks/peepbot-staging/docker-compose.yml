@@ -52,7 +52,7 @@ services:
       peepbot-staging-init-db:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:9001/api/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:9001/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
