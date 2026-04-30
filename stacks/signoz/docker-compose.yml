@@ -481,7 +481,7 @@ services:
 
   signoz:
     <<: *db-depend
-    image: signoz/signoz:v0.121.0@sha256:32fbfbe1c92ebdb804771562a1b39d392379a8daa867081e52d8b61b997ee47f
+    image: signoz/signoz:v0.121.1@sha256:332d8a554ccda480ed091d274fbf1370dd54743259596a5089b6f75cde71775b
     depends_on:
       signoz-clickhouse:
         condition: service_healthy
