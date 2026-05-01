@@ -18,7 +18,7 @@ x-db-depend: &db-depend
 services:
   signoz-init:
     <<: *signoz-defaults
-    image: clickhouse/clickhouse-server:25.12.10@sha256:59efe7d83b1e13c2e439a80adcce1fad186489d69a55d4b763102280a359a4cc
+    image: clickhouse/clickhouse-server:25.12.11@sha256:8a790dd3468db22b1d4e7b18a176f378ff5ff6053b9c48dd4ea1fa71a24c5ba6
     container_name: signoz-init
     restart: "no"
     entrypoint:
@@ -429,7 +429,7 @@ services:
 
   signoz-clickhouse:
     <<: *signoz-defaults
-    image: clickhouse/clickhouse-server:25.12.10@sha256:59efe7d83b1e13c2e439a80adcce1fad186489d69a55d4b763102280a359a4cc
+    image: clickhouse/clickhouse-server:25.12.11@sha256:8a790dd3468db22b1d4e7b18a176f378ff5ff6053b9c48dd4ea1fa71a24c5ba6
     container_name: signoz-clickhouse
     tty: true
     depends_on:
