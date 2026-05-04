@@ -32,7 +32,7 @@ services:
 
   ollama:
     <<: *logging
-    image: ollama/ollama:latest@sha256:3ca37ec2b9cb6341b62554074205c616778fe98abcf9e4fc50361b79a07407ae
+    image: ollama/ollama:latest@sha256:5600a652d1081050f398152127c584222546354491f27fe47ccbc6351bc870bd
     container_name: ollama
     restart: unless-stopped
     volumes:
