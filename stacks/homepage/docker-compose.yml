@@ -9,7 +9,7 @@ x-logging: &logging
 services:
   homepage:
     <<: *logging
-    image: ghcr.io/gethomepage/homepage:v0.10.9@sha256:b6d732817572f9af99ec168b10641b8f7820f30cfa5a5cc5c68f1e291804bec8
+    image: ghcr.io/gethomepage/homepage:v1.12.3@sha256:cc84f2f5eb3c7734353701ccbaa24ed02dacb0d119114e50e4251e2005f3990a
     container_name: homepage
     restart: unless-stopped
     networks:
