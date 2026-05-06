@@ -77,7 +77,7 @@ services:
 
   immich-postgres:
     <<: *logging
-    image: ghcr.io/immich-app/postgres:16-vectorchord0.5.3-pgvector0.8.1@sha256:a53a30c069bfbaba3630cc1a5a502b07fda6565bc2c89ab6a7c8804c5ffffdda
+    image: ghcr.io/immich-app/postgres:18-vectorchord0.5.3-pgvector0.8.1@sha256:23895db38dd685c158a7dde37577bdabc83116b6109aed95dbe2965413cf9210
     container_name: immich-postgres
     restart: unless-stopped
     networks:
