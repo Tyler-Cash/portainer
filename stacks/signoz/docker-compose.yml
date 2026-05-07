@@ -462,7 +462,7 @@ services:
 
   signoz-telemetrystore-migrator:
     <<: *db-depend
-    image: signoz/signoz-otel-collector:v0.144.3@sha256:79311701ca0d27bad7b5c80d43ea43a2f2dc9169790e19e96b210847786c7b7f
+    image: signoz/signoz-otel-collector:v0.144.4@sha256:3a3205cf47f92249c2c2eca8ead2cdf7d1181646910d397b6c435505422d777a
     container_name: signoz-telemetrystore-migrator
     restart: on-failure
     environment:
@@ -513,7 +513,7 @@ services:
 
   signoz-otel-collector:
     <<: *db-depend
-    image: signoz/signoz-otel-collector:v0.144.3@sha256:79311701ca0d27bad7b5c80d43ea43a2f2dc9169790e19e96b210847786c7b7f
+    image: signoz/signoz-otel-collector:v0.144.4@sha256:3a3205cf47f92249c2c2eca8ead2cdf7d1181646910d397b6c435505422d777a
     container_name: signoz-otel-collector
     depends_on:
       signoz-clickhouse:
@@ -563,7 +563,7 @@ services:
 
   signoz-otel-agent:
     <<: *signoz-defaults
-    image: signoz/signoz-otel-collector:v0.144.3@sha256:79311701ca0d27bad7b5c80d43ea43a2f2dc9169790e19e96b210847786c7b7f
+    image: signoz/signoz-otel-collector:v0.144.4@sha256:3a3205cf47f92249c2c2eca8ead2cdf7d1181646910d397b6c435505422d777a
     container_name: signoz-otel-agent
     user: root
     depends_on:
