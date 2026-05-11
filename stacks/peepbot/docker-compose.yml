@@ -84,7 +84,7 @@ services:
 
   peepbot-backend:
     <<: *backend-defaults
-    image: ghcr.io/tyler-cash/peep-bot-backend:3.47.1@sha256:eb9b16bdad2d0a37852dbba1538a91a31021c0524d5e5d0da6756c544e0f80a4
+    image: ghcr.io/tyler-cash/peep-bot-backend:3.47.2@sha256:8812c483fdbb13a7d7d2ae715599ca40302673dba0fc7e0c01b1d6dc2b80ad3b
     container_name: peepbot-backend
     volumes:
       - peepbot-djl-cache:/root/.djl.ai
