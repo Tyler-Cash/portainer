@@ -94,7 +94,12 @@ services:
       <<: *spring-datasource
       MANAGEMENT_OTLP_METRICS_EXPORT_URL: http://signoz-otel-collector:4318/v1/metrics
       MANAGEMENT_OTLP_TRACING_ENDPOINT: http://signoz-otel-collector:4318/v1/traces
+      MANAGEMENT_OTLP_LOGGING_EXPORT_ENDPOINT: http://signoz-otel-collector:4318/v1/logs
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
+      # Service name in SigNoz — overrides spring.application.name=peep-bot so logs/traces/
+      # metrics line up with the docker-compose service label that filelog uses for other
+      # containers (keeps every service searchable by its container name).
+      OTEL_SERVICE_NAME: peepbot-backend
       SPRING_PROFILES_ACTIVE: prod
     labels:
       <<: *backend-labels
