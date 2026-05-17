@@ -14,6 +14,22 @@
   loop: "{{ stacks | list }}"
   when: item not in stacks_skip
 
+# The signoz-init container writes /ssd/databases/signoz/otel-config/otel-agent-config.yaml
+# from a heredoc in its entrypoint. The agent reads that file at startup only, and `docker
+# compose up -d` won't recreate the agent unless its compose definition diffs — so a config
+# heredoc change alone would leave the agent stuck on the old in-memory config.
+#
+# Stamp sha256(stacks/signoz/docker-compose.yml) into the agent's AGENT_CONFIG_REVISION env
+# var. Any edit to this stack's compose (including the init heredoc) changes the hash,
+# which changes the env var, which compose sees as a definition diff on the agent, which
+# triggers a recreate. The agent then boots with whatever the freshly-rerun init wrote.
+- name: Stamp signoz docker-compose with content hash so config-rewrite changes recreate the agent
+  ansible.builtin.replace:
+    path: "/opt/stacks/signoz/docker-compose.yml"
+    regexp: "__COMPOSE_HASH__"
+    replace: "{{ lookup('file', stacks_src_dir + '/signoz/docker-compose.yml') | hash('sha256') | truncate(12, true, '') }}"
+  when: "'signoz' in stacks and 'signoz' not in stacks_skip"
+
 - name: Sync homepage config
   ansible.builtin.copy:
     src: "{{ stacks_src_dir }}/homepage/config/"
