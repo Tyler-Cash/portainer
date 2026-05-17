@@ -359,6 +359,18 @@ services:
           resourcedetection:
             detectors: [env, system]
             timeout: 2s
+          # Drop stdout/file logs for containers that ship structured logs to SigNoz directly
+          # via the OTLP appender (the peepbot Spring Boot backends). Without this filter,
+          # the same log line is ingested twice: once via OTLP (correctly attributed) and once
+          # via filelog → docker json driver (with trace_id, span_id, MDC fields buried inside
+          # body.* instead of as top-level attributes). The OTLP path is authoritative; this
+          # processor drops the duplicate filelog copy.
+          filter/drop-otlp-shipper-stdout:
+            error_mode: ignore
+            logs:
+              log_record:
+                - 'attributes["attrs"] != nil and attributes["attrs"]["com.docker.compose.service"] == "peepbot-backend"'
+                - 'attributes["attrs"] != nil and attributes["attrs"]["com.docker.compose.service"] == "peepbot-staging-backend"'
           transform/set-service-name:
             log_statements:
               - context: log
@@ -385,7 +397,7 @@ services:
           pipelines:
             logs/docker:
               receivers: [filelog/docker]
-              processors: [transform/set-service-name, batch]
+              processors: [filter/drop-otlp-shipper-stdout, transform/set-service-name, batch]
               exporters: [otlp]
             metrics/docker:
               receivers: [docker_stats]
