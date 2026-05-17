@@ -591,6 +591,13 @@ services:
       - --config=/etc/otel-agent-config.yaml
     environment:
       OTEL_RESOURCE_ATTRIBUTES: host.name=signoz-host,os.type=linux
+      # Stamped by Ansible (roles/stacks) with sha256(this file) on every deploy.
+      # When any field in this compose changes — including signoz-init's heredoc that
+      # writes /etc/otel-agent-config.yaml — this hash changes, so `docker compose up -d`
+      # sees a definition diff on this service and recreates it. Without this, the agent
+      # would keep reading its old in-memory config because compose can't see changes to
+      # the bind-mounted file written by signoz-init.
+      AGENT_CONFIG_REVISION: __COMPOSE_HASH__
     volumes:
       - /ssd/databases/signoz/otel-config/otel-agent-config.yaml:/etc/otel-agent-config.yaml
       - /var/run/docker.sock:/var/run/docker.sock:ro
