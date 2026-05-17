@@ -379,9 +379,13 @@ services:
                   - set(resource.attributes["service.name"], attributes["attrs"]["com.docker.compose.service"]) where attributes["attrs"] != nil and attributes["attrs"]["com.docker.compose.service"] != nil
                   # Use Docker Compose project label as service.namespace (stack name)
                   - set(resource.attributes["service.namespace"], attributes["attrs"]["com.docker.compose.project"]) where attributes["attrs"] != nil and attributes["attrs"]["com.docker.compose.project"] != nil
-                  # Fall back to service field from structured JSON body (e.g. logback/logstash)
-                  - set(resource.attributes["service.name"], attributes["service"]) where resource.attributes["service.name"] == nil and attributes["service"] != nil
-                  # Fall back to container_id for unstructured logs without compose labels
+                  # Final fallback to container_id for containers running without compose labels.
+                  #
+                  # Deliberately NOT falling back to a body-field "service" attribute here: doing
+                  # so misattributed Traefik's outbound routing logs to whichever upstream they
+                  # hit (e.g. Traefik logs ending up under service.name=peepbot-backend because
+                  # Traefik's JSON access log puts "service":"peepbot-backend@docker" in the
+                  # body). Keep service.name pinned to the emitting container.
                   - set(resource.attributes["service.name"], attributes["container_id"]) where resource.attributes["service.name"] == nil or resource.attributes["service.name"] == ""
         exporters:
           otlp:
