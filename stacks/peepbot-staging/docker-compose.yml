@@ -73,6 +73,9 @@ services:
       MANAGEMENT_OTLP_METRICS_EXPORT_URL: http://signoz-otel-collector:4318/v1/metrics
       MANAGEMENT_OTLP_LOGGING_EXPORT_ENDPOINT: http://signoz-otel-collector:4318/v1/logs
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
+      # Service name in SigNoz — overrides spring.application.name=peep-bot so logs/traces/
+      # metrics line up with the docker-compose service label.
+      OTEL_SERVICE_NAME: peepbot-staging-backend
     labels:
       traefik.enable: true
       traefik.http.routers.peepbot-staging-backend.entrypoints: *entrypoint
