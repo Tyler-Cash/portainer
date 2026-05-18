@@ -69,13 +69,16 @@ services:
       DEV_TYLERCASH_IMMICH_BASE_URL: ${DEV_TYLERCASH_IMMICH_BASE_URL}
       DEV_TYLERCASH_IMMICH_ENABLED: ${DEV_TYLERCASH_IMMICH_ENABLED}
       DEV_TYLERCASH_PLACES_API_KEY: ${DEV_TYLERCASH_PLACES_API_KEY}
-      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://signoz-otel-collector:4318/v1/traces
+      # Metrics keep going through Micrometer's OtlpMeterRegistry so SigNoz dashboards
+      # don't rename. Traces + logs ship via the OpenTelemetry Spring Boot starter,
+      # which reads the standard OTEL_EXPORTER_OTLP_*_ENDPOINT env vars below.
       MANAGEMENT_OTLP_METRICS_EXPORT_URL: http://signoz-otel-collector:4318/v1/metrics
-      MANAGEMENT_OTLP_LOGGING_EXPORT_ENDPOINT: http://signoz-otel-collector:4318/v1/logs
-      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
-      # Service name in SigNoz — overrides spring.application.name=peep-bot so logs/traces/
-      # metrics line up with the docker-compose service label.
-      OTEL_SERVICE_NAME: peepbot-staging-backend
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://signoz-otel-collector:4318/v1/traces
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://signoz-otel-collector:4318/v1/logs
+      OTEL_METRICS_EXPORTER: none
+      # Override application.yaml's spring.application.name=peepbot-backend so this
+      # stack shows up as peepbot-staging-backend in SigNoz/Prometheus.
+      SPRING_APPLICATION_NAME: peepbot-staging-backend
     labels:
       traefik.enable: true
       traefik.http.routers.peepbot-staging-backend.entrypoints: *entrypoint

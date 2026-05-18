@@ -92,14 +92,15 @@ services:
       - .env
     environment:
       <<: *spring-datasource
+      # Metrics keep going through Micrometer's OtlpMeterRegistry so SigNoz dashboards
+      # don't rename. Traces + logs ship via the OpenTelemetry Spring Boot starter,
+      # which reads the standard OTEL_EXPORTER_OTLP_*_ENDPOINT env vars below.
       MANAGEMENT_OTLP_METRICS_EXPORT_URL: http://signoz-otel-collector:4318/v1/metrics
-      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://signoz-otel-collector:4318/v1/traces
-      MANAGEMENT_OTLP_LOGGING_EXPORT_ENDPOINT: http://signoz-otel-collector:4318/v1/logs
-      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
-      # Service name in SigNoz — overrides spring.application.name=peep-bot so logs/traces/
-      # metrics line up with the docker-compose service label that filelog uses for other
-      # containers (keeps every service searchable by its container name).
-      OTEL_SERVICE_NAME: peepbot-backend
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://signoz-otel-collector:4318/v1/traces
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://signoz-otel-collector:4318/v1/logs
+      # The starter would otherwise auto-export its own metrics on top of the Micrometer
+      # path, doubling every counter/histogram. Pin it off.
+      OTEL_METRICS_EXPORTER: none
       SPRING_PROFILES_ACTIVE: prod
     labels:
       <<: *backend-labels
