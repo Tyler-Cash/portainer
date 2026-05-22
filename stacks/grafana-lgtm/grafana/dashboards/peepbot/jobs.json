@@ -1,0 +1,203 @@
+{
+  "uid": "peepbot-jobs",
+  "title": "Peep Bot — Jobs & Schedulers",
+  "tags": ["peepbot", "jobs"],
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "editable": false,
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": { "text": "Prometheus", "value": "prometheus" },
+        "hide": 0
+      },
+      {
+        "name": "service",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(application_ready_time_milliseconds{service_namespace=\"peep-bot\"}, service_name)",
+        "refresh": 1,
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "peepbot-backend", "value": "peepbot-backend" }
+      },
+      {
+        "name": "env",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(application_ready_time_milliseconds{service_namespace=\"peep-bot\"}, deployment_environment_name)",
+        "refresh": 1,
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "production", "value": "production" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "table",
+      "title": "Scheduled tasks — RED",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (code_namespace, code_function) (rate(tasks_scheduled_execution_milliseconds_count{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}[5m]))",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "expr": "sum by (code_namespace, code_function) (rate(tasks_scheduled_execution_milliseconds_count{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\", exception!=\"\"}[5m]))",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.95, sum by (le, code_namespace, code_function) (rate(tasks_scheduled_execution_milliseconds_bucket{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}[5m])))",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": { "byField": "code_function", "mode": "outer" }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time 1": true,
+              "Time 2": true,
+              "Time 3": true,
+              "code_namespace 2": true,
+              "code_namespace 3": true
+            },
+            "renameByName": {
+              "code_function": "Method",
+              "code_namespace 1": "Class",
+              "Value #A": "rate/s",
+              "Value #B": "err/s",
+              "Value #C": "p95 (ms)"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [{ "field": "err/s", "desc": true }]
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "rate/s" }, "properties": [{ "id": "unit", "value": "ops" }] },
+          { "matcher": { "id": "byName", "options": "err/s" }, "properties": [{ "id": "unit", "value": "ops" }] },
+          { "matcher": { "id": "byName", "options": "p95 (ms)" }, "properties": [{ "id": "unit", "value": "ms" }] }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Lifecycle events published",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (type) (rate(event_lifecycle_published_total{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}[5m]))",
+          "legendFormat": "{{type}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 50,
+            "stacking": { "mode": "normal", "group": "A" }
+          }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Stuck listeners",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "event_lifecycle_listener_stuck{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        { "id": "labelsToFields", "options": { "mode": "columns" } }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "/^Value$/" },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Listener invocation rate (retry-poller proxy)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (listener_name) (rate(lifecycle_listener_invoke_milliseconds_count{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}[5m]))",
+          "legendFormat": "{{listener_name}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops" } }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "TfNSW poller activity (Loki fallback)",
+      "description": "Loki fallback until spec Prereq E adds tfnsw_poller_runs_total.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
+      "datasource": { "type": "loki", "uid": "loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service_name=~\"$service\"} |= \"TfNSW\" |~ \"noteworthy|posted\" [$__interval]))",
+          "legendFormat": "TfNSW posts"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short" } }
+    }
+  ]
+}
