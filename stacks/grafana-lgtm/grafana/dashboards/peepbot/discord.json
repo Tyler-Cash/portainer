@@ -109,7 +109,7 @@
       "type": "stat",
       "title": "Executor pool size",
       "description": "Gated on spec Prereq B. Flat until discordListenerExecutor is bound via ExecutorServiceMetrics.",
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 5 },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 8 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
@@ -129,7 +129,7 @@
       "type": "stat",
       "title": "Active threads",
       "description": "Gated on spec Prereq B. Flat until discordListenerExecutor is bound via ExecutorServiceMetrics.",
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 5 },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 8 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
@@ -149,7 +149,7 @@
       "type": "stat",
       "title": "Queue depth",
       "description": "Gated on spec Prereq B. Flat until discordListenerExecutor is bound via ExecutorServiceMetrics.",
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 5 },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 8 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
@@ -181,7 +181,7 @@
       "type": "stat",
       "title": "Completed rate",
       "description": "Gated on spec Prereq B. Flat until discordListenerExecutor is bound via ExecutorServiceMetrics.",
-      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 5 },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 8 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
