@@ -100,6 +100,5 @@ sudo docker run --rm \
 ## Notes
 
 - `ssd-services` contains all service data *except* child datasets (plex, ollama). Those have their own repos.
-- `ssd-signoz` excludes `clickhouse/` and `zookeeper/` — only config and `signoz.db`.
 - `ssd-databases` is mostly empty (all databases are child datasets).
 - Ollama is not backed up.
