@@ -193,6 +193,9 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
       GF_SERVER_ROOT_URL: https://grafana.tylercash.dev
       # Anonymous OTLP/Grafana access disabled — auth via Grafana login.
+      # Home dashboard: redirect / and the Home nav button to the peep-bot
+      # Overview instead of the bundled "Welcome to Grafana" landing.
+      GF_USERS_DEFAULT_HOME_DASHBOARD_UID: peepbot-overview
       # Ansible replaces this with a 12-char hash of the synced stack tree
       # so any change under stacks/grafana-lgtm/ (dashboard JSON, provisioning
       # yaml, etc.) forces a container recreate. Without this, compose sees

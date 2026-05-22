@@ -255,16 +255,128 @@
     },
     {
       "id": 10,
-      "type": "dashlist",
-      "title": "Dashboards",
-      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 15 },
+      "type": "stat",
+      "title": "",
+      "gridPos": { "h": 5, "w": 8, "x": 0, "y": 15 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "vector(1)" }],
       "options": {
-        "showStarred": false,
-        "showRecentlyViewed": false,
-        "showSearch": true,
-        "showHeadings": false,
-        "tags": ["peepbot"],
-        "maxItems": 20
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [{ "type": "value", "options": { "1": { "text": "HTTP API", "color": "blue" } } }],
+          "links": [{ "title": "Open HTTP API dashboard", "url": "/d/peepbot-http", "targetBlank": false }]
+        }
+      }
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "",
+      "gridPos": { "h": 5, "w": 8, "x": 8, "y": 15 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "vector(1)" }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [{ "type": "value", "options": { "1": { "text": "Discord Listener", "color": "purple" } } }],
+          "links": [{ "title": "Open Discord dashboard", "url": "/d/peepbot-discord", "targetBlank": false }]
+        }
+      }
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "",
+      "gridPos": { "h": 5, "w": 8, "x": 16, "y": 15 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "vector(1)" }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [{ "type": "value", "options": { "1": { "text": "Jobs & Schedulers", "color": "orange" } } }],
+          "links": [{ "title": "Open Jobs dashboard", "url": "/d/peepbot-jobs", "targetBlank": false }]
+        }
+      }
+    },
+    {
+      "id": 13,
+      "type": "stat",
+      "title": "",
+      "gridPos": { "h": 5, "w": 8, "x": 0, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "vector(1)" }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [{ "type": "value", "options": { "1": { "text": "Data Layer", "color": "green" } } }],
+          "links": [{ "title": "Open Data Layer dashboard", "url": "/d/peepbot-data", "targetBlank": false }]
+        }
+      }
+    },
+    {
+      "id": 14,
+      "type": "stat",
+      "title": "",
+      "gridPos": { "h": 5, "w": 8, "x": 8, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "vector(1)" }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [{ "type": "value", "options": { "1": { "text": "JVM & Host", "color": "yellow" } } }],
+          "links": [{ "title": "Open JVM dashboard", "url": "/d/peepbot-jvm", "targetBlank": false }]
+        }
+      }
+    },
+    {
+      "id": 15,
+      "type": "stat",
+      "title": "",
+      "gridPos": { "h": 5, "w": 8, "x": 16, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "vector(1)" }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [{ "type": "value", "options": { "1": { "text": "External Dependencies", "color": "red" } } }],
+          "links": [{ "title": "Open Deps dashboard", "url": "/d/peepbot-deps", "targetBlank": false }]
+        }
       }
     }
   ]
