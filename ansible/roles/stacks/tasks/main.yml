@@ -37,6 +37,19 @@
     mode: "0644"
   when: "'homepage' not in stacks_skip and 'homepage' in stacks"
 
+# grafana-lgtm bind-mounts dashboard JSON + provisioning yaml from `./grafana/` (relative
+# to the stack dir). The default sync above only copies docker-compose.yml, so without
+# this step the source paths don't exist on the host, Docker silently creates them as
+# empty dirs, and Grafana crashes with "is a directory" when it tries to read
+# provisioning/dashboards/peepbot.yaml.
+- name: Sync grafana-lgtm provisioning + dashboards
+  ansible.builtin.copy:
+    src: "{{ stacks_src_dir }}/grafana-lgtm/grafana/"
+    dest: /opt/stacks/grafana-lgtm/grafana/
+    mode: "0644"
+    directory_mode: "0755"
+  when: "'grafana-lgtm' not in stacks_skip and 'grafana-lgtm' in stacks"
+
 - name: Write .env file
   ansible.builtin.copy:
     content: "{% for key, value in stacks[item].items() %}{{ key }}={{ value | replace('$', '$$') }}\n{% endfor %}"
