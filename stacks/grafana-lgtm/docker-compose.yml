@@ -196,7 +196,8 @@ services:
     volumes:
       - /ssd/databases/grafana-lgtm/data:/data
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      # otel-lgtm image ships no wget/curl; use bash's /dev/tcp builtin to probe.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/3000"]
       interval: 30s
       timeout: 5s
       retries: 3
