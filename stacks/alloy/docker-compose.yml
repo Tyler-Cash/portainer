@@ -13,7 +13,7 @@ services:
   alloy-init:
     <<: *defaults
     # Renovate will pin digests on the next run.
-    image: alpine:3.23
+    image: alpine:3.23@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
     container_name: alloy-init
     restart: "no"
     entrypoint:
@@ -30,7 +30,7 @@ services:
   alloy:
     <<: *defaults
     # Renovate will pin digests on the next run.
-    image: grafana/alloy:v1.16.1
+    image: grafana/alloy:v1.16.1@sha256:51aeb9d829239345070619dad3edd6873186f913c84f45b365b74574fcb38ec0
     container_name: alloy
     depends_on:
       alloy-init:
