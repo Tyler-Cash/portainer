@@ -191,11 +191,14 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - /ssd/databases/grafana-lgtm/otel-config/otel-agent-config.yaml:/etc/otel-agent-config.yaml
+      # docker_stats receiver reads container metadata + cgroups via the daemon socket.
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      # /hostfs is required by the hostmetrics receiver (root_path=/hostfs).
-      # /var/lib/docker/containers used to feed filelog/docker; Alloy owns
-      # container log shipping now, so we no longer mount it here.
-      - /:/hostfs:ro
+      # Scoped hostmetrics mounts (was `/:/hostfs:ro`). The hostmetrics receiver
+      # needs /proc + /sys; /etc/os-release enriches the host resource attrs.
+      # Nothing else from the host is exposed.
+      - /proc:/hostfs/proc:ro
+      - /sys:/hostfs/sys:ro
+      - /etc/os-release:/hostfs/etc/os-release:ro
     # The contrib image is `scratch`-based and has no shell, so we can't easily
     # probe :13133 from inside. Container exit on collector crash is sufficient
     # given depends_on with service_healthy upstream — restart policy will cycle.
