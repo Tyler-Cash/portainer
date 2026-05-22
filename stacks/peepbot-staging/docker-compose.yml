@@ -69,15 +69,15 @@ services:
       DEV_TYLERCASH_IMMICH_BASE_URL: ${DEV_TYLERCASH_IMMICH_BASE_URL}
       DEV_TYLERCASH_IMMICH_ENABLED: ${DEV_TYLERCASH_IMMICH_ENABLED}
       DEV_TYLERCASH_PLACES_API_KEY: ${DEV_TYLERCASH_PLACES_API_KEY}
-      # Metrics keep going through Micrometer's OtlpMeterRegistry so SigNoz dashboards
-      # don't rename. Traces + logs ship via the OpenTelemetry Spring Boot starter,
-      # which reads the standard OTEL_EXPORTER_OTLP_*_ENDPOINT env vars below.
-      MANAGEMENT_OTLP_METRICS_EXPORT_URL: http://signoz-otel-collector:4318/v1/metrics
-      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://signoz-otel-collector:4318/v1/traces
-      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://signoz-otel-collector:4318/v1/logs
+      # Metrics ship via Micrometer's OtlpMeterRegistry; traces + logs ship via the
+      # OpenTelemetry Spring Boot starter, which reads the standard
+      # OTEL_EXPORTER_OTLP_*_ENDPOINT env vars below.
+      MANAGEMENT_OTLP_METRICS_EXPORT_URL: http://grafana-lgtm:4318/v1/metrics
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://grafana-lgtm:4318/v1/traces
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://grafana-lgtm:4318/v1/logs
       OTEL_METRICS_EXPORTER: none
       # Override application.yaml's spring.application.name=peepbot-backend so this
-      # stack shows up as peepbot-staging-backend in SigNoz/Prometheus.
+      # stack shows up as peepbot-staging-backend in Grafana/Prometheus.
       SPRING_APPLICATION_NAME: peepbot-staging-backend
     labels:
       traefik.enable: true

@@ -57,7 +57,7 @@ services:
 
       # OpenTelemetry
       - N8N_OTEL_ENABLED=true
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://signoz-otel-collector:4318
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://grafana-lgtm:4318
       - OTEL_SERVICE_NAME=n8n
 
       # Prometheus metrics at /metrics

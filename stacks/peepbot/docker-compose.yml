@@ -92,12 +92,12 @@ services:
       - .env
     environment:
       <<: *spring-datasource
-      # Metrics keep going through Micrometer's OtlpMeterRegistry so SigNoz dashboards
-      # don't rename. Traces + logs ship via the OpenTelemetry Spring Boot starter,
-      # which reads the standard OTEL_EXPORTER_OTLP_*_ENDPOINT env vars below.
-      MANAGEMENT_OTLP_METRICS_EXPORT_URL: http://signoz-otel-collector:4318/v1/metrics
-      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://signoz-otel-collector:4318/v1/traces
-      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://signoz-otel-collector:4318/v1/logs
+      # Metrics ship via Micrometer's OtlpMeterRegistry; traces + logs ship via the
+      # OpenTelemetry Spring Boot starter, which reads the standard
+      # OTEL_EXPORTER_OTLP_*_ENDPOINT env vars below.
+      MANAGEMENT_OTLP_METRICS_EXPORT_URL: http://grafana-lgtm:4318/v1/metrics
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://grafana-lgtm:4318/v1/traces
+      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://grafana-lgtm:4318/v1/logs
       # The starter would otherwise auto-export its own metrics on top of the Micrometer
       # path, doubling every counter/histogram. Pin it off.
       OTEL_METRICS_EXPORTER: none
