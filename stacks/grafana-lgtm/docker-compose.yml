@@ -140,6 +140,8 @@ services:
       - /ssd/databases/grafana-lgtm/data:/data
       - ./grafana/dashboards/peepbot:/etc/grafana/provisioning/peepbot:ro
       - ./grafana/provisioning/dashboards/peepbot.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/peepbot.yaml:ro
+      - ./grafana/dashboards/homelab:/etc/grafana/provisioning/homelab:ro
+      - ./grafana/provisioning/dashboards/homelab.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/homelab.yaml:ro
     # v0.28.0 ships its own healthcheck (/otel-lgtm/docker/healthcheck.sh) that
     # waits for Grafana + Loki + Tempo + Mimir + Pyroscope to all report ready.
     # Default 3×30s = 90s is too tight on a cold start; otel-agent's
