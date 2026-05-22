@@ -39,9 +39,20 @@
 
 # grafana-lgtm bind-mounts dashboard JSON + provisioning yaml from `./grafana/` (relative
 # to the stack dir). The default sync above only copies docker-compose.yml, so without
-# this step the source paths don't exist on the host, Docker silently creates them as
+# these steps the source paths don't exist on the host, Docker silently creates them as
 # empty dirs, and Grafana crashes with "is a directory" when it tries to read
 # provisioning/dashboards/peepbot.yaml.
+#
+# Wipe the dir before the sync — earlier failed deploys leave behind Docker-created
+# empty directories at file bind-mount paths (e.g. peepbot.yaml/), which `copy` then
+# refuses to overwrite with the actual file. Persistent data lives elsewhere
+# (/ssd/databases/grafana-lgtm/data), so this is safe.
+- name: Reset grafana-lgtm provisioning dir
+  ansible.builtin.file:
+    path: /opt/stacks/grafana-lgtm/grafana
+    state: absent
+  when: "'grafana-lgtm' not in stacks_skip and 'grafana-lgtm' in stacks"
+
 - name: Sync grafana-lgtm provisioning + dashboards
   ansible.builtin.copy:
     src: "{{ stacks_src_dir }}/grafana-lgtm/grafana/"
