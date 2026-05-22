@@ -1,0 +1,72 @@
+x-defaults: &defaults
+  restart: unless-stopped
+  networks:
+    - homelab_default
+  logging:
+    driver: json-file
+    options:
+      max-size: 50m
+      max-file: "3"
+      labels: "com.docker.compose.service,com.docker.compose.project"
+
+services:
+  alloy-init:
+    <<: *defaults
+    # Renovate will pin digests on the next run.
+    image: alpine:3.23
+    container_name: alloy-init
+    restart: "no"
+    entrypoint:
+      - sh
+      - -c
+      - |
+        mkdir -p /alloy-data
+        # Alloy runs as uid 473 by default in its container; data dir must be writable.
+        chown -R 473:473 /alloy-data
+        echo "Init complete"
+    volumes:
+      - /ssd/databases/alloy/data:/alloy-data
+
+  alloy:
+    <<: *defaults
+    # Renovate will pin digests on the next run.
+    image: grafana/alloy:v1.16.1
+    container_name: alloy
+    depends_on:
+      alloy-init:
+        condition: service_completed_successfully
+    # Privileged + root because journal access needs CAP_SYSLOG and /run/log/journal
+    # is owned root:systemd-journal. Mounting /etc/machine-id lets Alloy resolve the
+    # journal's persistent ID.
+    user: root
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    volumes:
+      - ./config.alloy:/etc/alloy/config.alloy:ro
+      - /ssd/databases/alloy/data:/var/lib/alloy/data
+      # Container discovery + log files
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      # Host syslog files
+      - /var/log:/var/log:ro
+      # systemd journal (persistent + runtime)
+      - /var/log/journal:/var/log/journal:ro
+      - /run/log/journal:/run/log/journal:ro
+      - /etc/machine-id:/etc/machine-id:ro
+    # Image is distroless — no shell/wget/curl, so no exec-based healthcheck.
+    # Compose still restarts on crash via restart: unless-stopped.
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+      # Alloy's UI on :12345; expose at alloy.tylercash.dev for in-LAN debugging.
+      traefik.enable: "true"
+      traefik.http.routers.alloy.rule: "Host(`alloy.tylercash.dev`) && (ClientIP(`10.0.0.0/8`) || ClientIP(`172.19.0.0/24`))"
+      traefik.http.routers.alloy.entrypoints: websecure
+      traefik.http.routers.alloy.tls.certresolver: leresolver
+      traefik.http.services.alloy.loadbalancer.server.port: "12345"
+
+networks:
+  homelab_default:
+    external: true

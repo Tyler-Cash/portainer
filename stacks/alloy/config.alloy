@@ -1,0 +1,121 @@
+// Grafana Alloy log-shipping config.
+//
+// Ships three sources to the bundled Loki in grafana-lgtm:
+//   1. Container stdout/stderr (via Docker API discovery)
+//   2. systemd journal (host services, kernel, ssh, etc.)
+//   3. Host syslog files (/var/log/syslog, /var/log/auth.log, ...)
+//
+// Peep-bot's Spring Boot app exports logs via OTLP directly to the LGTM
+// bundle with trace correlation, so we drop its container stdout here to
+// avoid duplicate, lower-fidelity copies of the same lines.
+
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+// -------- Docker container logs --------
+
+discovery.docker "containers" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "30s"
+}
+
+discovery.relabel "containers" {
+  targets = discovery.docker.containers.targets
+
+  // service_name <- compose service label (matches what peep-bot's OTLP path uses)
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service_name"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label  = "service_namespace"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+  rule {
+    source_labels = ["__meta_docker_container_log_stream"]
+    target_label  = "stream"
+  }
+
+  // Drop peep-bot containers — their Spring OTLP exporter already ships
+  // trace-correlated logs to Loki. Capturing stdout here would duplicate.
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    regex         = "peepbot.*"
+    action        = "drop"
+  }
+
+  // Allow per-container opt-out via a compose label:
+  //   labels:
+  //     loki.shipping: "false"
+  rule {
+    source_labels = ["__meta_docker_container_label_loki_shipping"]
+    regex         = "false"
+    action        = "drop"
+  }
+}
+
+loki.source.docker "containers" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.containers.output
+  forward_to = [loki.write.lgtm.receiver]
+  labels     = { source = "docker" }
+}
+
+// -------- systemd journal --------
+
+loki.source.journal "host" {
+  forward_to    = [loki.write.lgtm.receiver]
+  relabel_rules = loki.relabel.journal.rules
+  labels        = { source = "journal", service_name = "host-journal" }
+  // Tail rather than re-read from the beginning on every restart.
+  max_age       = "12h"
+}
+
+loki.relabel "journal" {
+  forward_to = []
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+  rule {
+    source_labels = ["__journal__hostname"]
+    target_label  = "host"
+  }
+  rule {
+    source_labels = ["__journal_priority_keyword"]
+    target_label  = "level"
+  }
+}
+
+// -------- Host syslog files --------
+
+local.file_match "host_logs" {
+  path_targets = [
+    { __path__ = "/var/log/syslog", source = "syslog", service_name = "host-syslog" },
+    { __path__ = "/var/log/auth.log", source = "syslog", service_name = "host-auth" },
+    { __path__ = "/var/log/kern.log", source = "syslog", service_name = "host-kernel" },
+  ]
+}
+
+loki.source.file "host_logs" {
+  targets    = local.file_match.host_logs.targets
+  forward_to = [loki.write.lgtm.receiver]
+}
+
+// -------- Output --------
+
+loki.write "lgtm" {
+  endpoint {
+    url = "http://grafana-lgtm:3100/loki/api/v1/push"
+  }
+  external_labels = {
+    host = "homelab",
+  }
+}

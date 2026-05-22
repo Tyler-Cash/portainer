@@ -29,54 +29,8 @@ services:
           health_check:
             endpoint: 0.0.0.0:13133
         receivers:
-          filelog/docker:
-            include:
-              - /var/lib/docker/containers/*/*.log
-            start_at: end
-            include_file_path: true
-            include_file_name: false
-            operators:
-              - type: json_parser
-                id: parse-docker-json
-                timestamp:
-                  parse_from: attributes.time
-                  layout: '%Y-%m-%dT%H:%M:%S.%LZ'
-              - type: regex_parser
-                id: extract-container-id
-                regex: '^.*/containers/(?P<container_id>[a-f0-9]+)/.*$$'
-                parse_from: attributes["log.file.path"]
-              - type: move
-                from: attributes.log
-                to: body
-              - type: remove
-                field: attributes.time
-              - type: router
-                id: route-json-body
-                routes:
-                  - output: try-parse-json-body
-                    expr: 'body matches "^\\s*\\{"'
-                default: parse-severity
-              - type: json_parser
-                id: try-parse-json-body
-                parse_from: body
-                on_error: send
-              - type: severity_parser
-                id: parse-severity
-                if: 'attributes.level != nil'
-                parse_from: attributes.level
-                on_error: send
-                mapping:
-                  debug: DEBUG
-                  info: INFO
-                  warn: WARN
-                  warning: WARN
-                  error: ERROR
-                  fatal: FATAL
-              - type: move
-                id: move-message-to-body
-                if: 'attributes.message != nil'
-                from: attributes.message
-                to: body
+          # Container log shipping is owned by the alloy stack (loki.source.docker).
+          # This collector keeps only metrics receivers below.
           docker_stats:
             endpoint: unix:///var/run/docker.sock
             collection_interval: 30s
@@ -133,14 +87,6 @@ services:
               - key: service.name
                 value: peepbot-postgres
                 action: upsert
-          transform/set-service-name:
-            log_statements:
-              - context: log
-                statements:
-                  - set(resource.attributes["service.name"], attributes["attrs"]["com.docker.compose.service"]) where attributes["attrs"] != nil and attributes["attrs"]["com.docker.compose.service"] != nil
-                  - set(resource.attributes["service.namespace"], attributes["attrs"]["com.docker.compose.project"]) where attributes["attrs"] != nil and attributes["attrs"]["com.docker.compose.project"] != nil
-                  - set(resource.attributes["service.name"], attributes["service"]) where resource.attributes["service.name"] == nil and attributes["service"] != nil
-                  - set(resource.attributes["service.name"], attributes["container_id"]) where resource.attributes["service.name"] == nil or resource.attributes["service.name"] == ""
         exporters:
           otlp:
             endpoint: grafana-lgtm:4317
@@ -153,10 +99,6 @@ services:
           extensions:
             - health_check
           pipelines:
-            logs/docker:
-              receivers: [filelog/docker]
-              processors: [transform/set-service-name, batch]
-              exporters: [otlp]
             metrics/docker:
               receivers: [docker_stats]
               processors: [batch]
@@ -250,7 +192,9 @@ services:
     volumes:
       - /ssd/databases/grafana-lgtm/otel-config/otel-agent-config.yaml:/etc/otel-agent-config.yaml
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      # /hostfs is required by the hostmetrics receiver (root_path=/hostfs).
+      # /var/lib/docker/containers used to feed filelog/docker; Alloy owns
+      # container log shipping now, so we no longer mount it here.
       - /:/hostfs:ro
     # The contrib image is `scratch`-based and has no shell, so we can't easily
     # probe :13133 from inside. Container exit on collector crash is sufficient
