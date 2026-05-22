@@ -13,7 +13,7 @@ services:
   grafana-lgtm-init:
     <<: *defaults
     # Renovate will pin digests on the next run.
-    image: alpine:3.20
+    image: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
     container_name: grafana-lgtm-init
     restart: "no"
     entrypoint:
@@ -182,7 +182,7 @@ services:
 
   grafana-lgtm:
     <<: *defaults
-    image: grafana/otel-lgtm:0.11.10
+    image: grafana/otel-lgtm:0.11.10@sha256:09d8c3ce4f3a5f2f5b1ef7a3cc526a7e03b608aeef3ea1c67c912df43b2690c9
     container_name: grafana-lgtm
     depends_on:
       grafana-lgtm-init:
@@ -219,7 +219,7 @@ services:
 
   otel-agent:
     <<: *defaults
-    image: otel/opentelemetry-collector-contrib:0.119.0
+    image: otel/opentelemetry-collector-contrib:0.119.0@sha256:36c35cc213c0f3b64d6e8a3e844dc90822f00725e0e518eaed5b08bcc2231e72
     container_name: otel-agent
     user: root
     depends_on:
