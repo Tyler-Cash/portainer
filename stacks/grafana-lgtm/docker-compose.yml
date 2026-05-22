@@ -195,6 +195,8 @@ services:
       # Anonymous OTLP/Grafana access disabled — auth via Grafana login.
     volumes:
       - /ssd/databases/grafana-lgtm/data:/data
+      - ./grafana/dashboards/peepbot:/etc/grafana/provisioning/peepbot:ro
+      - ./grafana/provisioning/dashboards/peepbot.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/peepbot.yaml:ro
     healthcheck:
       # otel-lgtm image ships no wget/curl; use bash's /dev/tcp builtin to probe.
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/3000"]
