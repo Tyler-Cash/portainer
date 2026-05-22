@@ -203,10 +203,16 @@ services:
       - /ssd/databases/grafana-lgtm/data:/data
       - ./grafana/dashboards/peepbot:/etc/grafana/provisioning/peepbot:ro
       - ./grafana/provisioning/dashboards/peepbot.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/peepbot.yaml:ro
-    # Healthcheck comes from the image (v0.28.0+ ships /otel-lgtm/docker/healthcheck.sh
-    # which probes Grafana/Loki/Tempo/Mimir via curl). Earlier versions had no
-    # healthcheck and no curl/wget, requiring the bash /dev/tcp workaround that
-    # used to live here — removed because the v0.28.0 ubi9-micro base has no bash.
+    # v0.28.0 ships its own healthcheck (/otel-lgtm/docker/healthcheck.sh) that
+    # waits for Grafana + Loki + Tempo + Mimir + Pyroscope to all report ready.
+    # Default 3×30s = 90s is too tight on a cold start; otel-agent's
+    # depends_on:service_healthy then times out and the compose-up fails with
+    # rc=1 even though the container converges shortly after. Wider window:
+    healthcheck:
+      start_period: 5m
+      interval: 30s
+      timeout: 10s
+      retries: 5
     labels:
       traefik.enable: "true"
       # Grafana UI — internal network only (matches SigNoz UI access pattern)
