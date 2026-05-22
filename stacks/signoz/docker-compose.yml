@@ -597,7 +597,7 @@ services:
       # sees a definition diff on this service and recreates it. Without this, the agent
       # would keep reading its old in-memory config because compose can't see changes to
       # the bind-mounted file written by signoz-init.
-      AGENT_CONFIG_REVISION: __COMPOSE_HASH__
+      AGENT_CONFIG_REVISION: __STACK_CONTENT_HASH__
     volumes:
       - /ssd/databases/signoz/otel-config/otel-agent-config.yaml:/etc/otel-agent-config.yaml
       - /var/run/docker.sock:/var/run/docker.sock:ro

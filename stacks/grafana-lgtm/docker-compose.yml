@@ -193,8 +193,12 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
       GF_SERVER_ROOT_URL: https://grafana.tylercash.dev
       # Anonymous OTLP/Grafana access disabled — auth via Grafana login.
-      # TEMP: surface Grafana stdout in docker logs while we diagnose v0.28.0 startup.
-      ENABLE_LOGS_GRAFANA: "true"
+      # Ansible replaces this with a 12-char hash of the synced stack tree
+      # so any change under stacks/grafana-lgtm/ (dashboard JSON, provisioning
+      # yaml, etc.) forces a container recreate. Without this, compose sees
+      # the compose-yml itself unchanged and won't pick up new bind-mounted
+      # files — and a file→dir mount-source switch hangs runc.
+      STACK_CONTENT_HASH: __STACK_CONTENT_HASH__
     volumes:
       - /ssd/databases/grafana-lgtm/data:/data
       - ./grafana/dashboards/peepbot:/etc/grafana/provisioning/peepbot:ro

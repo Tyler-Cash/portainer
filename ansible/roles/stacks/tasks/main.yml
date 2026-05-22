@@ -6,60 +6,59 @@
   loop: "{{ stacks | list }}"
   when: item not in stacks_skip
 
-- name: Sync docker-compose.yml
-  ansible.builtin.copy:
-    src: "{{ stacks_src_dir }}/{{ item }}/docker-compose.yml"
-    dest: "/opt/stacks/{{ item }}/docker-compose.yml"
-    mode: "0644"
+# Sync every file under stacks/<name>/ to /opt/stacks/<name>/ via rsync.
+# --delete cleans up paths left behind by earlier failed deploys (e.g. Docker-
+# created empty dirs at file bind-mount sources that would otherwise persist).
+# --exclude='.env*' preserves the .env file written later in this play, and
+# keeps cleartext .env.secret.dec out of the deploy.
+- name: Sync stack files
+  ansible.builtin.command:
+    cmd: >-
+      rsync -a --delete --itemize-changes
+      --exclude=.env --exclude=.env.secret --exclude=.env.secret.dec
+      {{ stacks_src_dir }}/{{ item }}/ /opt/stacks/{{ item }}/
   loop: "{{ stacks | list }}"
+  loop_control:
+    label: "{{ item }}"
+  when: item not in stacks_skip
+  register: sync_result
+  changed_when: sync_result.stdout_lines | length > 0
+
+# Compute a content hash over each stack's source tree and stash it in a fact.
+# Stacks that want compose-recreation-on-content-change put __STACK_CONTENT_HASH__
+# somewhere in their docker-compose.yml (an env var or label); the next task
+# replaces the placeholder with the hash, so compose sees a definition diff and
+# recreates affected containers. Stacks without the placeholder are no-ops.
+- name: Compute content hash for each stack
+  ansible.builtin.set_fact:
+    stack_content_hashes: >-
+      {{ stack_content_hashes | default({}) | combine({item: lookup('pipe',
+         'cd ' + stacks_src_dir + '/' + item +
+         ' && find . -type f ! -name .env ! -name .env.secret ! -name .env.secret.dec' +
+         ' -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -c1-12') }) }}
+  loop: "{{ stacks | list }}"
+  loop_control:
+    label: "{{ item }}"
   when: item not in stacks_skip
 
-# The signoz-init container writes /ssd/databases/signoz/otel-config/otel-agent-config.yaml
-# from a heredoc in its entrypoint. The agent reads that file at startup only, and `docker
-# compose up -d` won't recreate the agent unless its compose definition diffs — so a config
-# heredoc change alone would leave the agent stuck on the old in-memory config.
-#
-# Stamp sha256(stacks/signoz/docker-compose.yml) into the agent's AGENT_CONFIG_REVISION env
-# var. Any edit to this stack's compose (including the init heredoc) changes the hash,
-# which changes the env var, which compose sees as a definition diff on the agent, which
-# triggers a recreate. The agent then boots with whatever the freshly-rerun init wrote.
-- name: Stamp signoz docker-compose with content hash so config-rewrite changes recreate the agent
+- name: Stamp __STACK_CONTENT_HASH__ into deployed compose
   ansible.builtin.replace:
-    path: "/opt/stacks/signoz/docker-compose.yml"
-    regexp: "__COMPOSE_HASH__"
-    replace: "{{ lookup('file', stacks_src_dir + '/signoz/docker-compose.yml') | hash('sha256') | truncate(12, true, '') }}"
-  when: "'signoz' in stacks and 'signoz' not in stacks_skip"
+    path: "/opt/stacks/{{ item }}/docker-compose.yml"
+    regexp: "__STACK_CONTENT_HASH__"
+    replace: "{{ stack_content_hashes[item] }}"
+  loop: "{{ stacks | list }}"
+  loop_control:
+    label: "{{ item }}"
+  when: item not in stacks_skip and item in (stack_content_hashes | default({}))
 
+# homepage's config lives outside /opt/stacks/ because the compose bind-mounts
+# from /ssd/services/homepage. Different target dir → still a special case.
 - name: Sync homepage config
   ansible.builtin.copy:
     src: "{{ stacks_src_dir }}/homepage/config/"
     dest: /ssd/services/homepage/
     mode: "0644"
   when: "'homepage' not in stacks_skip and 'homepage' in stacks"
-
-# grafana-lgtm bind-mounts dashboard JSON + provisioning yaml from `./grafana/` (relative
-# to the stack dir). The default sync above only copies docker-compose.yml, so without
-# these steps the source paths don't exist on the host, Docker silently creates them as
-# empty dirs, and Grafana crashes with "is a directory" when it tries to read
-# provisioning/dashboards/peepbot.yaml.
-#
-# Wipe the dir before the sync — earlier failed deploys leave behind Docker-created
-# empty directories at file bind-mount paths (e.g. peepbot.yaml/), which `copy` then
-# refuses to overwrite with the actual file. Persistent data lives elsewhere
-# (/ssd/databases/grafana-lgtm/data), so this is safe.
-- name: Reset grafana-lgtm provisioning dir
-  ansible.builtin.file:
-    path: /opt/stacks/grafana-lgtm/grafana
-    state: absent
-  when: "'grafana-lgtm' not in stacks_skip and 'grafana-lgtm' in stacks"
-
-- name: Sync grafana-lgtm provisioning + dashboards
-  ansible.builtin.copy:
-    src: "{{ stacks_src_dir }}/grafana-lgtm/grafana/"
-    dest: /opt/stacks/grafana-lgtm/grafana/
-    mode: "0644"
-    directory_mode: "0755"
-  when: "'grafana-lgtm' not in stacks_skip and 'grafana-lgtm' in stacks"
 
 - name: Write .env file
   ansible.builtin.copy:
