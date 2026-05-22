@@ -40,3 +40,11 @@ A pre-commit hook (`hooks/pre-commit`) blocks commits containing unencrypted `.e
 A Homepage dashboard runs at `home.tylercash.dev` (`stacks/homepage/`).
 
 **Rule: Whenever you add a new service with a Traefik hostname to any stack, you must also add it to `stacks/homepage/config/services.yaml`** under the appropriate group. Use the existing entries as a template. If the service has a native Homepage widget integration, wire it up with the relevant `HOMEPAGE_VAR_*` key in both `docker-compose.yml` (environment section) and `.env.secret`.
+
+## Grafana Dashboards (peep-bot)
+
+Peep Bot dashboards are JSON-provisioned via the `grafana/otel-lgtm` bundle. JSON lives in `stacks/grafana-lgtm/grafana/dashboards/peepbot/`; the provider config lives in `stacks/grafana-lgtm/grafana/provisioning/dashboards/peepbot.yaml`. Both are bind-mounted into the container. UI edits revert on the next 30s sweep — source of truth is git.
+
+After changing any dashboard JSON, run `task grafana:smoke` (requires `GRAFANA_TOKEN`) to validate every PromQL expression parses against the live Prometheus.
+
+The dashboards use an OTel-flavoured selector: `{service_namespace="peep-bot", service_name=~"$service", deployment_environment_name=~"$env"}`. **All Micrometer timers from peep-bot export with `_milliseconds_*` suffix, not `_seconds_*`.** Template variables use `application_ready_time_milliseconds` (not `up{}`) for label discovery since OTLP-ingested series don't carry the resource labels on `up`.

@@ -115,6 +115,11 @@ tasks:
     cmds:
       - bats tests/
 
+  grafana:smoke:
+    desc: "Smoke-test PromQL in peepbot dashboards (requires GRAFANA_TOKEN)"
+    cmds:
+      - stacks/grafana-lgtm/scripts/smoke-dashboards.sh
+
   setup:
     desc: First-time setup
     deps: [hook]
