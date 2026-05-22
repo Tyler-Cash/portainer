@@ -193,6 +193,8 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
       GF_SERVER_ROOT_URL: https://grafana.tylercash.dev
       # Anonymous OTLP/Grafana access disabled — auth via Grafana login.
+      # TEMP: surface Grafana stdout in docker logs while we diagnose v0.28.0 startup.
+      ENABLE_LOGS_GRAFANA: "true"
     volumes:
       - /ssd/databases/grafana-lgtm/data:/data
       - ./grafana/dashboards/peepbot:/etc/grafana/provisioning/peepbot:ro
