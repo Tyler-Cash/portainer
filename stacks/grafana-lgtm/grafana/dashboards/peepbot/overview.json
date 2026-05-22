@@ -1,0 +1,271 @@
+{
+  "uid": "peepbot-overview",
+  "title": "Peep Bot — Overview",
+  "tags": ["peepbot", "overview"],
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "editable": false,
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": { "text": "Prometheus", "value": "prometheus" },
+        "hide": 0
+      },
+      {
+        "name": "service",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(application_ready_time_milliseconds{service_namespace=\"peep-bot\"}, service_name)",
+        "refresh": 1,
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "peepbot-backend", "value": "peepbot-backend" }
+      },
+      {
+        "name": "env",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(application_ready_time_milliseconds{service_namespace=\"peep-bot\"}, deployment_environment_name)",
+        "refresh": 1,
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "production", "value": "production" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "alertlist",
+      "title": "Firing alerts",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "showOptions": "current",
+        "maxItems": 20,
+        "alertName": "",
+        "stateFilter": { "firing": true, "pending": false, "noData": false, "normal": false, "error": true },
+        "alertInstanceLabelFilter": "{service_namespace=\"peep-bot\"}"
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Req/s",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(http_server_requests_milliseconds_count{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}[5m]))"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "graphMode": "area",
+        "colorMode": "value"
+      },
+      "fieldConfig": { "defaults": { "unit": "reqps", "decimals": 2 } }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Error %",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "100 * sum(rate(http_server_requests_milliseconds_count{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\", outcome=~\"SERVER_ERROR|CLIENT_ERROR\"}[5m])) / clamp_min(sum(rate(http_server_requests_milliseconds_count{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}[5m])), 1)"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "graphMode": "area",
+        "colorMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "p95 latency",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_milliseconds_bucket{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}[5m])))"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "graphMode": "area",
+        "colorMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 500 },
+              { "color": "red", "value": 2000 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "CPU",
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "process_cpu_usage{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "graphMode": "area",
+        "colorMode": "value"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.5 },
+              { "color": "red", "value": 0.8 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Backend",
+      "gridPos": { "h": 3, "w": 6, "x": 0, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "count(application_ready_time_milliseconds{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}) > bool 0"
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ]
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Postgres (via HikariCP)",
+      "gridPos": { "h": 3, "w": 6, "x": 6, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(sum(hikaricp_connections{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}) > bool 0)"
+        }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ]
+        }
+      },
+      "description": "Derived from HikariCP until OTel postgres receiver (spec Prereq F) emits postgresql_up."
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "OTel collector",
+      "gridPos": { "h": 3, "w": 6, "x": 12, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "count(otelcol_process_uptime_seconds_total or otelcol_process_uptime_seconds) > bool 0"
+        }
+      ],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ]
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "Frontend",
+      "gridPos": { "h": 3, "w": 6, "x": 18, "y": 12 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "vector(0)" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "Not yet wired", "color": "blue" } } }
+          ]
+        }
+      },
+      "description": "Placeholder until Next.js RUM is instrumented."
+    },
+    {
+      "id": 10,
+      "type": "dashlist",
+      "title": "Dashboards",
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 15 },
+      "options": {
+        "showStarred": false,
+        "showRecentlyViewed": false,
+        "showSearch": true,
+        "showHeadings": false,
+        "tags": ["peepbot"],
+        "maxItems": 20
+      }
+    }
+  ]
+}
