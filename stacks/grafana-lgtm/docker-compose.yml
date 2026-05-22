@@ -182,7 +182,7 @@ services:
 
   grafana-lgtm:
     <<: *defaults
-    image: grafana/otel-lgtm:0.11.10@sha256:09d8c3ce4f3a5f2f5b1ef7a3cc526a7e03b608aeef3ea1c67c912df43b2690c9
+    image: grafana/otel-lgtm:0.11.18@sha256:7fcbe915656378fea9fbd6b798b1b925340e85ba5219aaa9b41f8171bee8c9b3
     container_name: grafana-lgtm
     depends_on:
       grafana-lgtm-init:
