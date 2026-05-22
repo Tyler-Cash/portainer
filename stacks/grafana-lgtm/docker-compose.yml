@@ -220,7 +220,7 @@ services:
 
   otel-agent:
     <<: *defaults
-    image: otel/opentelemetry-collector-contrib:0.119.0@sha256:36c35cc213c0f3b64d6e8a3e844dc90822f00725e0e518eaed5b08bcc2231e72
+    image: otel/opentelemetry-collector-contrib:0.152.1@sha256:fa1f6ea8dabd3042fabf4411eed7fa52f253edd8940140bec89a573e62a24eb7
     container_name: otel-agent
     user: root
     depends_on:
