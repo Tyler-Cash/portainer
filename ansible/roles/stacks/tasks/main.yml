@@ -6,23 +6,24 @@
   loop: "{{ stacks | list }}"
   when: item not in stacks_skip
 
-# Sync every file under stacks/<name>/ to /opt/stacks/<name>/ via rsync.
-# --delete cleans up paths left behind by earlier failed deploys (e.g. Docker-
-# created empty dirs at file bind-mount sources that would otherwise persist).
-# --exclude='.env*' preserves the .env file written later in this play, and
-# keeps cleartext .env.secret.dec out of the deploy.
+# Sync every file under stacks/<name>/ to /opt/stacks/<name>/ via ssh-rsync.
+# delete=true cleans up paths left behind by earlier failed deploys (e.g.
+# Docker-created empty dirs at file bind-mount sources that would otherwise
+# persist). The excludes preserve the .env file written later in this play
+# and keep cleartext .env.secret.dec out of the deploy.
 - name: Sync stack files
-  ansible.builtin.command:
-    cmd: >-
-      rsync -a --delete --itemize-changes
-      --exclude=.env --exclude=.env.secret --exclude=.env.secret.dec
-      {{ stacks_src_dir }}/{{ item }}/ /opt/stacks/{{ item }}/
+  ansible.posix.synchronize:
+    src: "{{ stacks_src_dir }}/{{ item }}/"
+    dest: "/opt/stacks/{{ item }}/"
+    delete: true
+    rsync_opts:
+      - "--exclude=.env"
+      - "--exclude=.env.secret"
+      - "--exclude=.env.secret.dec"
   loop: "{{ stacks | list }}"
   loop_control:
     label: "{{ item }}"
   when: item not in stacks_skip
-  register: sync_result
-  changed_when: sync_result.stdout_lines | length > 0
 
 # Compute a content hash over each stack's source tree and stash it in a fact.
 # Stacks that want compose-recreation-on-content-change put __STACK_CONTENT_HASH__
