@@ -110,10 +110,10 @@
         href: https://unifi.tylercash.dev
         description: Network management
         icon: unifi.png
-    - Signoz:
-        href: https://signoz.tylercash.dev
-        description: Observability
-        icon: mdi-chart-timeline-variant
+    - Grafana:
+        href: https://grafana.tylercash.dev
+        description: Observability (LGTM)
+        icon: grafana.png
     - Adminer:
         href: https://adminer.tylercash.dev
         description: Database admin

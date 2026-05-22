@@ -1,0 +1,248 @@
+x-defaults: &defaults
+  restart: unless-stopped
+  networks:
+    - homelab_default
+  logging:
+    driver: json-file
+    options:
+      max-size: 50m
+      max-file: "3"
+      labels: "com.docker.compose.service,com.docker.compose.project"
+
+services:
+  grafana-lgtm-init:
+    <<: *defaults
+    # Renovate will pin digests on the next run.
+    image: alpine:3.20
+    container_name: grafana-lgtm-init
+    restart: "no"
+    entrypoint:
+      - sh
+      - -c
+      - |
+        mkdir -p /otel-config /grafana-data
+        # Ensure /data is writable by the otel-lgtm bundled user (uid 472 = grafana)
+        chown -R 472:472 /grafana-data
+
+        cat > /otel-config/otel-agent-config.yaml << 'YAMLEOF'
+        extensions:
+          health_check:
+            endpoint: 0.0.0.0:13133
+        receivers:
+          filelog/docker:
+            include:
+              - /var/lib/docker/containers/*/*.log
+            start_at: end
+            include_file_path: true
+            include_file_name: false
+            operators:
+              - type: json_parser
+                id: parse-docker-json
+                timestamp:
+                  parse_from: attributes.time
+                  layout: '%Y-%m-%dT%H:%M:%S.%LZ'
+              - type: regex_parser
+                id: extract-container-id
+                regex: '^.*/containers/(?P<container_id>[a-f0-9]+)/.*$$'
+                parse_from: attributes["log.file.path"]
+              - type: move
+                from: attributes.log
+                to: body
+              - type: remove
+                field: attributes.time
+              - type: router
+                id: route-json-body
+                routes:
+                  - output: try-parse-json-body
+                    expr: 'body matches "^\\s*\\{"'
+                default: parse-severity
+              - type: json_parser
+                id: try-parse-json-body
+                parse_from: body
+                on_error: send
+              - type: severity_parser
+                id: parse-severity
+                if: 'attributes.level != nil'
+                parse_from: attributes.level
+                on_error: send
+                mapping:
+                  debug: DEBUG
+                  info: INFO
+                  warn: WARN
+                  warning: WARN
+                  error: ERROR
+                  fatal: FATAL
+              - type: move
+                id: move-message-to-body
+                if: 'attributes.message != nil'
+                from: attributes.message
+                to: body
+          docker_stats:
+            endpoint: unix:///var/run/docker.sock
+            collection_interval: 30s
+            timeout: 20s
+          hostmetrics:
+            root_path: /hostfs
+            collection_interval: 60s
+            scrapers:
+              cpu: {}
+              load: {}
+              memory: {}
+              disk: {}
+              filesystem: {}
+              network: {}
+              paging: {}
+          postgresql:
+            endpoint: peepbot-postgres:5432
+            transport: tcp
+            username: postgres
+            password: $${env:POSTGRES_PASSWORD}
+            databases:
+              - peepbot
+            collection_interval: 60s
+            tls:
+              insecure: true
+          prometheus/infra:
+            config:
+              scrape_configs:
+                - job_name: navidrome
+                  scrape_interval: 60s
+                  static_configs:
+                    - targets:
+                        - navidrome:4533
+                - job_name: n8n
+                  scrape_interval: 60s
+                  static_configs:
+                    - targets:
+                        - n8n:5678
+                - job_name: grafana-lgtm
+                  scrape_interval: 60s
+                  static_configs:
+                    - targets:
+                        - grafana-lgtm:3000
+        processors:
+          batch:
+            send_batch_size: 10000
+            send_batch_max_size: 11000
+            timeout: 10s
+          resourcedetection:
+            detectors: [env, system]
+            timeout: 2s
+          resource/postgres:
+            attributes:
+              - key: service.name
+                value: peepbot-postgres
+                action: upsert
+          transform/set-service-name:
+            log_statements:
+              - context: log
+                statements:
+                  - set(resource.attributes["service.name"], attributes["attrs"]["com.docker.compose.service"]) where attributes["attrs"] != nil and attributes["attrs"]["com.docker.compose.service"] != nil
+                  - set(resource.attributes["service.namespace"], attributes["attrs"]["com.docker.compose.project"]) where attributes["attrs"] != nil and attributes["attrs"]["com.docker.compose.project"] != nil
+                  - set(resource.attributes["service.name"], attributes["service"]) where resource.attributes["service.name"] == nil and attributes["service"] != nil
+                  - set(resource.attributes["service.name"], attributes["container_id"]) where resource.attributes["service.name"] == nil or resource.attributes["service.name"] == ""
+        exporters:
+          otlp:
+            endpoint: grafana-lgtm:4317
+            tls:
+              insecure: true
+        service:
+          telemetry:
+            logs:
+              encoding: json
+          extensions:
+            - health_check
+          pipelines:
+            logs/docker:
+              receivers: [filelog/docker]
+              processors: [transform/set-service-name, batch]
+              exporters: [otlp]
+            metrics/docker:
+              receivers: [docker_stats]
+              processors: [batch]
+              exporters: [otlp]
+            metrics/host:
+              receivers: [hostmetrics]
+              processors: [resourcedetection, batch]
+              exporters: [otlp]
+            metrics/infra:
+              receivers: [prometheus/infra]
+              processors: [batch]
+              exporters: [otlp]
+            metrics/postgres:
+              receivers: [postgresql]
+              processors: [resource/postgres, batch]
+              exporters: [otlp]
+        YAMLEOF
+
+        echo "Init complete"
+    volumes:
+      - /ssd/databases/grafana-lgtm/otel-config:/otel-config
+      - /ssd/databases/grafana-lgtm/data:/grafana-data
+
+  grafana-lgtm:
+    <<: *defaults
+    image: grafana/otel-lgtm:0.11.10
+    container_name: grafana-lgtm
+    depends_on:
+      grafana-lgtm-init:
+        condition: service_completed_successfully
+    environment:
+      # Sidestep the default `admin/admin` on first login.
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_SERVER_ROOT_URL: https://grafana.tylercash.dev
+      # Anonymous OTLP/Grafana access disabled — auth via Grafana login.
+    volumes:
+      - /ssd/databases/grafana-lgtm/data:/data
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    labels:
+      traefik.enable: "true"
+      # Grafana UI — internal network only (matches SigNoz UI access pattern)
+      traefik.http.routers.grafana.service: grafana
+      traefik.http.routers.grafana.rule: "Host(`grafana.tylercash.dev`) && (ClientIP(`10.0.0.0/8`) || ClientIP(`172.19.0.0/24`))"
+      traefik.http.routers.grafana.entrypoints: websecure
+      traefik.http.routers.grafana.tls.certresolver: leresolver
+      traefik.http.services.grafana.loadbalancer.server.port: "3000"
+      # OTLP HTTP — used by browser RUM and any external pusher
+      traefik.http.routers.grafana-otel.service: grafana-otel
+      traefik.http.routers.grafana-otel.rule: "Host(`otel.tylercash.dev`)"
+      traefik.http.routers.grafana-otel.entrypoints: websecure
+      traefik.http.routers.grafana-otel.tls.certresolver: leresolver
+      traefik.http.services.grafana-otel.loadbalancer.server.port: "4318"
+      com.centurylinklabs.watchtower.enable: "true"
+
+  otel-agent:
+    <<: *defaults
+    image: otel/opentelemetry-collector-contrib:0.119.0
+    container_name: otel-agent
+    user: root
+    depends_on:
+      grafana-lgtm-init:
+        condition: service_completed_successfully
+      grafana-lgtm:
+        condition: service_healthy
+    command:
+      - --config=/etc/otel-agent-config.yaml
+    environment:
+      OTEL_RESOURCE_ATTRIBUTES: host.name=homelab,os.type=linux
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - /ssd/databases/grafana-lgtm/otel-config/otel-agent-config.yaml:/etc/otel-agent-config.yaml
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /:/hostfs:ro
+    # The contrib image is `scratch`-based and has no shell, so we can't easily
+    # probe :13133 from inside. Container exit on collector crash is sufficient
+    # given depends_on with service_healthy upstream — restart policy will cycle.
+    labels:
+      com.centurylinklabs.watchtower.enable: "true"
+
+networks:
+  homelab_default:
+    external: true

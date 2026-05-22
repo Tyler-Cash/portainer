@@ -118,8 +118,8 @@ services:
                     echo "$$BASE --exclude **/MediaCover" ;;
                 unifi)
                     echo "$$BASE --exclude **/autobackup" ;;
-                signoz)
-                    echo "$$BASE --exclude clickhouse --exclude zookeeper" ;;
+                grafana-lgtm)
+                    echo "$$BASE --exclude data" ;;
                 *)
                     echo "$$BASE" ;;
             esac

@@ -92,8 +92,8 @@ services:
       - .env
     environment:
       <<: *spring-datasource
-      MANAGEMENT_OTLP_METRICS_EXPORT_URL: http://signoz-otel-collector:4318/v1/metrics
-      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://signoz-otel-collector:4318/v1/traces
+      MANAGEMENT_OTLP_METRICS_EXPORT_URL: http://grafana-lgtm:4318/v1/metrics
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://grafana-lgtm:4318/v1/traces
       MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
       SPRING_PROFILES_ACTIVE: prod
     labels:

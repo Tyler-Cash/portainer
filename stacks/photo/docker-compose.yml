@@ -26,7 +26,7 @@ services:
       - REDIS_HOSTNAME=immich-redis
       # OpenTelemetry
       - IMMICH_TELEMETRY_INCLUDE=all
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://signoz-otel-collector:4318
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://grafana-lgtm:4318
       - OTEL_SERVICE_NAME=immich-server
     depends_on:
       immich-redis:
