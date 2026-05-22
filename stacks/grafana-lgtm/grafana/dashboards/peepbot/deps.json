@@ -1,0 +1,230 @@
+{
+  "uid": "peepbot-deps",
+  "title": "Peep Bot — External Dependencies",
+  "tags": ["peepbot", "deps"],
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "timezone": "browser",
+  "editable": false,
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": { "text": "Prometheus", "value": "prometheus" },
+        "hide": 0
+      },
+      {
+        "name": "service",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(application_ready_time_milliseconds{service_namespace=\"peep-bot\"}, service_name)",
+        "refresh": 1,
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "peepbot-backend", "value": "peepbot-backend" }
+      },
+      {
+        "name": "env",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(application_ready_time_milliseconds{service_namespace=\"peep-bot\"}, deployment_environment_name)",
+        "refresh": 1,
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "production", "value": "production" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "table",
+      "title": "Outbound HTTP RED",
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (client_name) (rate(http_client_requests_milliseconds_count{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}[5m]))",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "expr": "100 * sum by (client_name) (rate(http_client_requests_milliseconds_count{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\", outcome=~\"SERVER_ERROR|CLIENT_ERROR\"}[5m])) / clamp_min(sum by (client_name) (rate(http_client_requests_milliseconds_count{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}[5m])), 1)",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.95, sum by (le, client_name) (rate(http_client_requests_milliseconds_bucket{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}[5m])))",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        { "id": "joinByField", "options": { "byField": "client_name", "mode": "outer" } },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time 1": true,
+              "Time 2": true,
+              "Time 3": true
+            },
+            "renameByName": {
+              "client_name": "Client",
+              "Value #A": "req/s",
+              "Value #B": "err %",
+              "Value #C": "p95 (ms)"
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "fields": {},
+            "sort": [{ "field": "p95 (ms)", "desc": true }]
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Discord REST latency",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(discord_http_milliseconds_bucket{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}[5m])))",
+          "legendFormat": "p50"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(discord_http_milliseconds_bucket{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}[5m])))",
+          "legendFormat": "p95"
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(discord_http_milliseconds_bucket{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}[5m])))",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ms" } }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Discord REST rate",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(discord_http_milliseconds_count{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}[5m]))",
+          "legendFormat": "req/s"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps" } }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "TfNSW polls",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(tfnsw_live_traffic_major_events_milliseconds_count{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}[5m]))",
+          "legendFormat": "major-events"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(rate(tfnsw_live_traffic_hazards_milliseconds_count{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}[5m]))",
+          "legendFormat": "hazards"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": { "stacking": { "mode": "normal", "group": "A" } }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "TfNSW circuit",
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 18 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "vector(0)" }],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "Not yet wired", "color": "blue" } } }
+          ]
+        }
+      },
+      "description": "Gated on spec Prereq H — needs resilience4j-micrometer dep."
+    },
+    {
+      "id": 6,
+      "type": "table",
+      "title": "Immich per-operation",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 26 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (__name__) (rate({__name__=~\"immich_.+_milliseconds_count\", service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}[5m]))",
+          "legendFormat": "{{__name__}}",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": { "Time": true },
+            "renameByName": {
+              "__name__": "Operation",
+              "Value": "req/s"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Places fetch rate + p95",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 26 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(places_fetch_coords_milliseconds_count{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}[5m]))",
+          "legendFormat": "req/s"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(places_fetch_coords_milliseconds_bucket{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}[5m])))",
+          "legendFormat": "p95 (ms)"
+        }
+      ]
+    }
+  ]
+}
