@@ -197,13 +197,10 @@ services:
       - /ssd/databases/grafana-lgtm/data:/data
       - ./grafana/dashboards/peepbot:/etc/grafana/provisioning/peepbot:ro
       - ./grafana/provisioning/dashboards/peepbot.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/peepbot.yaml:ro
-    healthcheck:
-      # otel-lgtm image ships no wget/curl; use bash's /dev/tcp builtin to probe.
-      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/3000"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 60s
+    # Healthcheck comes from the image (v0.28.0+ ships /otel-lgtm/docker/healthcheck.sh
+    # which probes Grafana/Loki/Tempo/Mimir via curl). Earlier versions had no
+    # healthcheck and no curl/wget, requiring the bash /dev/tcp workaround that
+    # used to live here — removed because the v0.28.0 ubi9-micro base has no bash.
     labels:
       traefik.enable: "true"
       # Grafana UI — internal network only (matches SigNoz UI access pattern)
