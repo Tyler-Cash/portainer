@@ -240,27 +240,23 @@ services:
     labels:
       com.centurylinklabs.watchtower.enable: "true"
 
-  # SMART disk health. Discovers devices fine with CAP_SYS_RAWIO + CAP_SYS_ADMIN
-  # but the underlying SCSI/ATA ioctls are blocked by Docker's default AppArmor
-  # profile — logs showed "Operation not permitted" on every /dev/sd*.
-  # apparmor:unconfined lifts that restriction. Still tighter than
-  # privileged: true (no host networking, no /dev:rw, no all-caps).
+  # SMART disk health.
+  #
+  # Tried scoped permissions (cap_add: SYS_RAWIO + SYS_ADMIN,
+  # apparmor:unconfined, /dev:rw) and every SMART ioctl still came back
+  # "Operation not permitted". Docker's default seccomp profile blocks the
+  # raw SG_IO / ATA_PASSTHRU ioctls smartctl issues — those gates aren't
+  # exposed via cap_add. The community's recommended config (matching the
+  # upstream Docker example) is just privileged: true, which lifts seccomp
+  # + apparmor + grants all caps. For a single-tenant homelab the trust
+  # model accepts this; the container is the official prom-community image.
   smartctl-exporter:
     <<: *defaults
     # Renovate will pin digests on the next run.
     image: quay.io/prometheuscommunity/smartctl-exporter:v0.14.0@sha256:cfe22c36d7d2fac48ebf619707305acb65eb0fb670656eb80f356e606d782bc1
     container_name: smartctl-exporter
-    user: root
-    cap_add:
-      - SYS_RAWIO
-      - SYS_ADMIN
-    security_opt:
-      - apparmor:unconfined
+    privileged: true
     volumes:
-      # /dev must be rw, not :ro. smartctl opens devices with O_RDWR before
-      # issuing the (read-only) SMART ioctl, and a :ro mount blocks the
-      # open() call with EPERM. The kernel still enforces that SMART ioctls
-      # don't modify data, so this isn't actually elevated risk.
       - /dev:/dev
     labels:
       com.centurylinklabs.watchtower.enable: "true"
