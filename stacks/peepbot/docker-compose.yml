@@ -92,15 +92,9 @@ services:
       - .env
     environment:
       <<: *spring-datasource
-      # Metrics ship via Micrometer's OtlpMeterRegistry; traces + logs ship via the
-      # OpenTelemetry Spring Boot starter, which reads the standard
-      # OTEL_EXPORTER_OTLP_*_ENDPOINT env vars below.
-      MANAGEMENT_OTLP_METRICS_EXPORT_URL: http://grafana-lgtm:4318/v1/metrics
-      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://grafana-lgtm:4318/v1/traces
-      OTEL_EXPORTER_OTLP_LOGS_ENDPOINT: http://grafana-lgtm:4318/v1/logs
-      # The starter would otherwise auto-export its own metrics on top of the Micrometer
-      # path, doubling every counter/histogram. Pin it off.
-      OTEL_METRICS_EXPORTER: none
+      # OTLP endpoints for all three signals (metrics/traces/logs) default to
+      # http://grafana-lgtm:4318 in the backend's application.yaml, so no env-var
+      # wiring is needed here.
       SPRING_PROFILES_ACTIVE: prod
       # ONE-SHOT: re-classify every event whose category was assigned before this cutoff
       # under the new v2 prompt + mistral-nemo model (peep-bot v3.53.x). Runs once per
