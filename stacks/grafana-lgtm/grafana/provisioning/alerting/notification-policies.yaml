@@ -15,6 +15,15 @@ policies:
     group_interval: 5m
     repeat_interval: 4h
     routes:
+      - receiver: null-receiver
+        matchers:
+          - severity = info
+        # Group aggressively — these never page, so we don't need fine-grained
+        # delivery timing.
+        group_wait: 5m
+        group_interval: 1h
+        repeat_interval: 24h
+        continue: false
       - receiver: peepbot-discord
         matchers:
           - severity = critical
