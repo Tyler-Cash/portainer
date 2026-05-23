@@ -49,12 +49,12 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "jvm_memory_used_bytes{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\", area=\"heap\"}",
+          "expr": "sum without (service_version, service_commit, service_instance_id) (jvm_memory_used_bytes{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\", area=\"heap\"})",
           "legendFormat": "{{id}}"
         },
         {
           "refId": "B",
-          "expr": "jvm_memory_max_bytes{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\", area=\"heap\"}",
+          "expr": "sum without (service_version, service_commit, service_instance_id) (jvm_memory_max_bytes{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\", area=\"heap\"})",
           "legendFormat": "max {{id}}"
         }
       ],
@@ -120,7 +120,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "jvm_gc_overhead{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}"
+          "expr": "sum without (service_version, service_commit, service_instance_id) (jvm_gc_overhead{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"})"
         }
       ],
       "options": {
@@ -152,7 +152,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "jvm_memory_used_bytes{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\", area=\"nonheap\"}",
+          "expr": "sum without (service_version, service_commit, service_instance_id) (jvm_memory_used_bytes{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\", area=\"nonheap\"})",
           "legendFormat": "{{id}}"
         }
       ],
@@ -246,7 +246,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "jvm_threads_live{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}"
+          "expr": "sum without (service_version, service_commit, service_instance_id) (jvm_threads_live{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"})"
         }
       ],
       "options": {
@@ -265,7 +265,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "jvm_threads_daemon{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}"
+          "expr": "sum without (service_version, service_commit, service_instance_id) (jvm_threads_daemon{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"})"
         }
       ],
       "options": {
@@ -284,7 +284,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "jvm_threads_peak{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}"
+          "expr": "sum without (service_version, service_commit, service_instance_id) (jvm_threads_peak{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"})"
         }
       ],
       "options": {
@@ -303,12 +303,12 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "process_files_open{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}",
+          "expr": "sum without (service_version, service_commit, service_instance_id) (process_files_open{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"})",
           "legendFormat": "open"
         },
         {
           "refId": "B",
-          "expr": "process_files_max{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}",
+          "expr": "sum without (service_version, service_commit, service_instance_id) (process_files_max{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"})",
           "legendFormat": "max"
         }
       ],
@@ -323,7 +323,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "process_uptime_milliseconds{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"} / 1000"
+          "expr": "sum without (service_version, service_commit, service_instance_id) (process_uptime_milliseconds{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}) / 1000"
         }
       ],
       "options": {
@@ -342,7 +342,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "system_load_average_1m{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}"
+          "expr": "sum without (service_version, service_commit, service_instance_id) (system_load_average_1m{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"})"
         }
       ],
       "options": {

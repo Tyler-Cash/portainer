@@ -278,7 +278,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "rate(spring_security_filterchains_RateLimitFilter_before_total{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}[5m])",
+          "expr": "sum without (service_version, service_commit, service_instance_id) (rate(spring_security_filterchains_RateLimitFilter_before_total{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}[5m]))",
           "legendFormat": "{{spring_security_reached_filter_name}}"
         }
       ],

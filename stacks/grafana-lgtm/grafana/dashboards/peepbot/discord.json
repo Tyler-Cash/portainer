@@ -114,7 +114,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "executor_pool_size_threads{name=\"discordListenerExecutor\", service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}"
+          "expr": "sum without (service_version, service_commit, service_instance_id) (executor_pool_size_threads{name=\"discordListenerExecutor\", service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"})"
         }
       ],
       "options": {
@@ -134,7 +134,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "executor_active_threads{name=\"discordListenerExecutor\", service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}"
+          "expr": "sum without (service_version, service_commit, service_instance_id) (executor_active_threads{name=\"discordListenerExecutor\", service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"})"
         }
       ],
       "options": {
@@ -154,7 +154,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "executor_queued_tasks{name=\"discordListenerExecutor\", service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}"
+          "expr": "sum without (service_version, service_commit, service_instance_id) (executor_queued_tasks{name=\"discordListenerExecutor\", service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"})"
         }
       ],
       "options": {
@@ -186,7 +186,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "rate(executor_completed_tasks_total{name=\"discordListenerExecutor\", service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}[5m])"
+          "expr": "sum without (service_version, service_commit, service_instance_id) (rate(executor_completed_tasks_total{name=\"discordListenerExecutor\", service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}[5m]))"
         }
       ],
       "options": {

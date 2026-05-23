@@ -145,7 +145,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "process_cpu_usage{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}"
+          "expr": "sum without (service_version, service_commit, service_instance_id) (process_cpu_usage{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"})"
         }
       ],
       "options": {

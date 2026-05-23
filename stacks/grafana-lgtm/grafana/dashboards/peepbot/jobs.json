@@ -140,7 +140,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "event_lifecycle_listener_stuck{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"}",
+          "expr": "sum without (service_version, service_commit, service_instance_id) (event_lifecycle_listener_stuck{service_namespace=\"peep-bot\", service_name=~\"$service\", deployment_environment_name=~\"$env\"})",
           "instant": true,
           "format": "table"
         }
