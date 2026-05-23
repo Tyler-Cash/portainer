@@ -522,7 +522,7 @@ groups:
             datasourceUid: prometheus
             model:
               refId: A
-              expr: changes(process_start_time_seconds{service_namespace="peep-bot"}[1h])
+              expr: changes(process_start_time_milliseconds{service_namespace="peep-bot"}[1h])
               queryType: instant
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
