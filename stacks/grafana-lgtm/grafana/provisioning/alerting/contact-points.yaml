@@ -28,3 +28,18 @@ contactPoints:
             {{ end }}
           use_discord_username: true
           avatar_url: ""
+  - orgId: 1
+    name: null-receiver
+    receivers:
+      - uid: null-receiver
+        type: webhook
+        # Discard target: TCP-refused on localhost:1. Grafana logs a single
+        # delivery error per evaluation; that's acceptable for an alert tier
+        # we explicitly don't want to notify. If log noise becomes an issue,
+        # swap to a dedicated low-traffic Discord channel.
+        settings:
+          url: http://127.0.0.1:1/discard
+          httpMethod: POST
+          # Don't retry — fire-and-forget delivery attempt.
+          maxAlerts: 0
+        disableResolveMessage: true
