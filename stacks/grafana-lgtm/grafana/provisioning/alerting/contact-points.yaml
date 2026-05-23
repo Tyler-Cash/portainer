@@ -40,6 +40,4 @@ contactPoints:
         settings:
           url: http://127.0.0.1:1/discard
           httpMethod: POST
-          # Don't retry — fire-and-forget delivery attempt.
-          maxAlerts: 0
         disableResolveMessage: true
