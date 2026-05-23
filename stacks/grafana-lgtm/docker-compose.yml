@@ -187,7 +187,12 @@ services:
       grafana-lgtm-init:
         condition: service_completed_successfully
       grafana-lgtm:
-        condition: service_healthy
+        # service_started, not service_healthy. The image's bundled healthcheck
+        # waits for all 5 LGTM services to ready up, taking several minutes
+        # on cold start — compose-up would time out the wait before otel-agent
+        # ever launched. OTLP has its own retry logic so it's fine to start
+        # early and wait for the endpoint to come up in-band.
+        condition: service_started
     command:
       - --config=/etc/otel-agent-config.yaml
     environment:
@@ -232,9 +237,11 @@ services:
     labels:
       com.centurylinklabs.watchtower.enable: "true"
 
-  # SMART disk health. Needs CAP_SYS_RAWIO + CAP_SYS_ADMIN to issue ATA
-  # commands; mounting /dev:ro lets it enumerate block devices. Privileged
-  # would also work but cap_add is tighter.
+  # SMART disk health. Discovers devices fine with CAP_SYS_RAWIO + CAP_SYS_ADMIN
+  # but the underlying SCSI/ATA ioctls are blocked by Docker's default AppArmor
+  # profile — logs showed "Operation not permitted" on every /dev/sd*.
+  # apparmor:unconfined lifts that restriction. Still tighter than
+  # privileged: true (no host networking, no /dev:rw, no all-caps).
   smartctl-exporter:
     <<: *defaults
     # Renovate will pin digests on the next run.
@@ -244,6 +251,8 @@ services:
     cap_add:
       - SYS_RAWIO
       - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
     volumes:
       - /dev:/dev:ro
     labels:
