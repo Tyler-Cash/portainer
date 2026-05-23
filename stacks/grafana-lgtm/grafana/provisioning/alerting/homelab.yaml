@@ -292,3 +292,306 @@ groups:
           description: |
             Reported NVMe endurance is past 80%. Plan replacement within the
             next few months; the firmware will eventually flip to read-only.
+
+  - orgId: 1
+    name: homelab-info
+    folder: Homelab
+    interval: 1m
+    rules:
+      - uid: host-load-high
+        title: Load avg high vs cores
+        condition: B
+        for: 30m
+        noDataState: OK
+        execErrState: OK
+        data:
+          - refId: A
+            relativeTimeRange: { from: 1800, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: node_load5{job="node-exporter"} / count by (instance) (node_cpu_seconds_total{job="node-exporter",mode="idle"})
+              queryType: instant
+          - refId: B
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [2] }
+        labels:
+          severity: info
+          component: host
+        annotations:
+          summary: "Load5/cores > 2 on {{ $labels.instance }}"
+
+      - uid: host-iowait-high
+        title: CPU iowait elevated
+        condition: B
+        for: 30m
+        noDataState: OK
+        execErrState: OK
+        data:
+          - refId: A
+            relativeTimeRange: { from: 1800, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: avg by (instance) (rate(node_cpu_seconds_total{job="node-exporter",mode="iowait"}[5m]))
+              queryType: instant
+          - refId: B
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0.2] }
+        labels:
+          severity: info
+          component: host
+        annotations:
+          summary: "iowait > 20% for 30m on {{ $labels.instance }}"
+
+      - uid: host-cpu-temp-warm
+        title: CPU temperature warm
+        condition: B
+        for: 30m
+        noDataState: OK
+        execErrState: OK
+        data:
+          - refId: A
+            relativeTimeRange: { from: 1800, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: node_hwmon_temp_celsius{job="node-exporter"}
+              queryType: instant
+          - refId: B
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [75] }
+        labels:
+          severity: info
+          component: host
+        annotations:
+          summary: "CPU sensor {{ $labels.chip }}/{{ $labels.sensor }} > 75°C"
+
+      - uid: host-root-fs-75
+        title: Root filesystem ≥75% full
+        condition: B
+        for: 1h
+        noDataState: OK
+        execErrState: OK
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: |
+                node_filesystem_avail_bytes{job="node-exporter",mountpoint="/"}
+                / node_filesystem_size_bytes{job="node-exporter",mountpoint="/"}
+              queryType: instant
+          - refId: B
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: lt, params: [0.25] }
+        labels:
+          severity: info
+          component: disk
+        annotations:
+          summary: "Root filesystem ≥75% full"
+
+      - uid: host-disk-temp-high
+        title: Disk temperature high
+        condition: B
+        for: 30m
+        noDataState: OK
+        execErrState: OK
+        data:
+          - refId: A
+            relativeTimeRange: { from: 1800, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: smartctl_device_temperature{job="smartctl-exporter"}
+              queryType: instant
+          - refId: B
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [55] }
+        labels:
+          severity: info
+          component: disk
+        annotations:
+          summary: "Disk {{ $labels.device }} > 55°C"
+
+      - uid: host-memory-pressure
+        title: Available memory <5%
+        condition: B
+        for: 30m
+        noDataState: OK
+        execErrState: OK
+        data:
+          - refId: A
+            relativeTimeRange: { from: 1800, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: node_memory_MemAvailable_bytes{job="node-exporter"} / node_memory_MemTotal_bytes{job="node-exporter"}
+              queryType: instant
+          - refId: B
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: lt, params: [0.05] }
+        labels:
+          severity: info
+          component: host
+        annotations:
+          summary: "Available memory <5% on {{ $labels.instance }}"
+
+      - uid: host-swap-used
+        title: Swap >50% used
+        condition: B
+        for: 1h
+        noDataState: OK
+        execErrState: OK
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: |
+                (node_memory_SwapTotal_bytes{job="node-exporter"} - node_memory_SwapFree_bytes{job="node-exporter"})
+                / (node_memory_SwapTotal_bytes{job="node-exporter"} > 0)
+              queryType: instant
+          - refId: B
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0.5] }
+        labels:
+          severity: info
+          component: host
+        annotations:
+          summary: "Swap >50% used on {{ $labels.instance }}"
+
+      - uid: host-oom-kill
+        title: OOM kill occurred
+        condition: B
+        for: 0s
+        noDataState: OK
+        execErrState: OK
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: increase(node_vmstat_oom_kill{job="node-exporter"}[10m])
+              queryType: instant
+          - refId: B
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+        labels:
+          severity: info
+          component: host
+        annotations:
+          summary: "OOM kill recorded in the last 10m"
+
+      - uid: host-network-errs
+        title: Network interface RX/TX errors
+        condition: B
+        for: 10m
+        noDataState: OK
+        execErrState: OK
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: |
+                rate(node_network_receive_errs_total{job="node-exporter"}[5m])
+                + rate(node_network_transmit_errs_total{job="node-exporter"}[5m])
+              queryType: instant
+          - refId: B
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+        labels:
+          severity: info
+          component: network
+        annotations:
+          summary: "Network errors on {{ $labels.device }}"
+
+      - uid: host-network-drops
+        title: Network interface RX/TX drops
+        condition: B
+        for: 10m
+        noDataState: OK
+        execErrState: OK
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: |
+                rate(node_network_receive_drop_total{job="node-exporter"}[5m])
+                + rate(node_network_transmit_drop_total{job="node-exporter"}[5m])
+              queryType: instant
+          - refId: B
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+        labels:
+          severity: info
+          component: network
+        annotations:
+          summary: "Network drops on {{ $labels.device }}"
