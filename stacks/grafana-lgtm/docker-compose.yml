@@ -257,7 +257,11 @@ services:
     security_opt:
       - apparmor:unconfined
     volumes:
-      - /dev:/dev:ro
+      # /dev must be rw, not :ro. smartctl opens devices with O_RDWR before
+      # issuing the (read-only) SMART ioctl, and a :ro mount blocks the
+      # open() call with EPERM. The kernel still enforces that SMART ioctls
+      # don't modify data, so this isn't actually elevated risk.
+      - /dev:/dev
     labels:
       com.centurylinklabs.watchtower.enable: "true"
 
