@@ -551,7 +551,7 @@ groups:
             datasourceUid: loki
             model:
               refId: A
-              expr: sum(rate({service_namespace="peep-bot"} |= "ERROR" [5m]))
+              expr: sum(rate({service_name=~"peepbot-backend|peepbot-staging-backend"} |= "ERROR" [5m]))
               queryType: instant
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
@@ -570,7 +570,7 @@ groups:
           description: |
             Background tasks or listeners that swallow exceptions won't show
             in http_server_requests metrics. Drill in via Loki:
-              {service_namespace="peep-bot"} |= "ERROR"
+              {service_name=~"peepbot-backend|peepbot-staging-backend"} |= "ERROR"
 
       - uid: peepbot-listener-failure-rate
         title: Lifecycle listener failure ratio >5%
