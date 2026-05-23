@@ -120,6 +120,11 @@ tasks:
     cmds:
       - stacks/grafana-lgtm/scripts/smoke-dashboards.sh
 
+  grafana:smoke-alerts:
+    desc: "Smoke-test PromQL/LogQL in alert-rule YAML (requires GRAFANA_TOKEN)"
+    cmds:
+      - stacks/grafana-lgtm/scripts/smoke-alerts.sh
+
   setup:
     desc: First-time setup
     deps: [hook]
