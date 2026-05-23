@@ -61,7 +61,7 @@ groups:
             datasourceUid: prometheus
             model:
               refId: A
-              expr: max by (zpool) (node_zfs_zpool_state{job="node-exporter",state=~"degraded|faulted|unavail|suspended|removed"}) > 0
+              expr: max by (zpool) (node_zfs_zpool_state{job="node-exporter",state=~"degraded|faulted|unavail|suspended|removed"})
               queryType: instant
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
@@ -71,7 +71,7 @@ groups:
               type: threshold
               expression: A
               conditions:
-                - evaluator: { type: gt, params: [-1] }
+                - evaluator: { type: gt, params: [0] }
         labels:
           severity: critical
           component: zfs
@@ -161,8 +161,8 @@ groups:
             model:
               refId: A
               expr: |
-                (node_filesystem_avail_bytes{job="node-exporter",mountpoint=~"/|/hdd|/ssd"}
-                / node_filesystem_size_bytes{job="node-exporter",mountpoint=~"/|/hdd|/ssd"}) < 0.02
+                node_filesystem_avail_bytes{job="node-exporter",mountpoint=~"/|/hdd|/ssd"}
+                / node_filesystem_size_bytes{job="node-exporter",mountpoint=~"/|/hdd|/ssd"}
               queryType: instant
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
@@ -172,7 +172,7 @@ groups:
               type: threshold
               expression: A
               conditions:
-                - evaluator: { type: gt, params: [-1] }
+                - evaluator: { type: lt, params: [0.02] }
         labels:
           severity: critical
           component: disk
@@ -202,8 +202,8 @@ groups:
             model:
               refId: A
               expr: |
-                (node_filesystem_avail_bytes{job="node-exporter",mountpoint=~"/|/hdd|/ssd"}
-                / node_filesystem_size_bytes{job="node-exporter",mountpoint=~"/|/hdd|/ssd"}) < 0.10
+                node_filesystem_avail_bytes{job="node-exporter",mountpoint=~"/|/hdd|/ssd"}
+                / node_filesystem_size_bytes{job="node-exporter",mountpoint=~"/|/hdd|/ssd"}
               queryType: instant
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
@@ -213,7 +213,7 @@ groups:
               type: threshold
               expression: A
               conditions:
-                - evaluator: { type: gt, params: [-1] }
+                - evaluator: { type: lt, params: [0.10] }
         labels:
           severity: warning
           component: disk
@@ -240,7 +240,7 @@ groups:
                   job="smartctl-exporter",
                   attribute_name=~"Reallocated_Sector_Ct|Current_Pending_Sector",
                   attribute_value_type="raw"
-                }[24h]) > 0
+                }[24h])
               queryType: instant
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
@@ -250,7 +250,7 @@ groups:
               type: threshold
               expression: A
               conditions:
-                - evaluator: { type: gt, params: [-1] }
+                - evaluator: { type: gt, params: [0] }
         labels:
           severity: warning
           component: disk
@@ -273,7 +273,7 @@ groups:
             datasourceUid: prometheus
             model:
               refId: A
-              expr: smartctl_device_percentage_used_total{job="smartctl-exporter"} > 80
+              expr: smartctl_device_percentage_used_total{job="smartctl-exporter"}
               queryType: instant
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
@@ -283,7 +283,7 @@ groups:
               type: threshold
               expression: A
               conditions:
-                - evaluator: { type: gt, params: [-1] }
+                - evaluator: { type: gt, params: [80] }
         labels:
           severity: warning
           component: disk
