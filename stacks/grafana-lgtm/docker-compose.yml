@@ -255,6 +255,12 @@ services:
     # Renovate will pin digests on the next run.
     image: quay.io/prometheuscommunity/smartctl-exporter:v0.14.0@sha256:cfe22c36d7d2fac48ebf619707305acb65eb0fb670656eb80f356e606d782bc1
     container_name: smartctl-exporter
+    # Image defaults USER to `nobody` for HTTP-serving safety; combined with
+    # the host's /dev/sd* being mode 0660 root:disk that means EACCES on open.
+    # Run as root (numeric — image is scratch-ish, no name resolution).
+    # Privileged is needed to bypass Docker's seccomp gate on SG_IO ioctls
+    # (cap_add alone wasn't enough).
+    user: "0:0"
     privileged: true
     volumes:
       - /dev:/dev
