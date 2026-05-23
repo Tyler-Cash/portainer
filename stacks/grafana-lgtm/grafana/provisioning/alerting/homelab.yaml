@@ -1,0 +1,185 @@
+apiVersion: 1
+
+# Alert rules for the homelab host itself.
+#
+# Rules are grouped by severity. Selectors restrict to known scrape jobs so a
+# future second host doesn't accidentally mask alerts via aggregation. PromQL
+# validated via scripts/smoke-alerts.sh (uses GRAFANA_TOKEN like the
+# dashboards smoke test).
+#
+# Filesystem rules deliberately match pool-root mountpoints only. ZFS datasets
+# share pool space and per-dataset avail/size ratios are misleading.
+
+groups:
+  - orgId: 1
+    name: homelab-critical
+    folder: Homelab
+    interval: 1m
+    rules:
+      - uid: host-down
+        title: Scrape target down ≥5m
+        condition: B
+        for: 5m
+        noDataState: Alerting
+        execErrState: Error
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: up == 0
+              queryType: instant
+          - refId: B
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+        labels:
+          severity: critical
+          component: host
+        annotations:
+          summary: "Scrape target {{ $labels.job }}/{{ $labels.instance }} down ≥5m"
+          description: |
+            Prometheus has been unable to scrape this target for at least 5 minutes.
+            If the target is node-exporter itself, all other host alerts are
+            effectively silenced until it recovers.
+
+      - uid: host-zfs-pool-not-online
+        title: ZFS pool not ONLINE
+        condition: B
+        for: 2m
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            relativeTimeRange: { from: 120, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: max by (zpool) (node_zfs_zpool_state{job="node-exporter",state=~"degraded|faulted|unavail|suspended|removed"})
+              queryType: instant
+          - refId: B
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+        labels:
+          severity: critical
+          component: zfs
+        annotations:
+          summary: "ZFS pool {{ $labels.zpool }} is not ONLINE"
+          description: |
+            Pool state has dropped out of ONLINE. Run `zpool status` on the host
+            to identify the failing vdev/device. Recovery requires manual
+            intervention (resilver, replace, import).
+
+      - uid: host-smart-failed
+        title: SMART overall-health failed
+        condition: B
+        for: 5m
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: smartctl_device_smart_status{job="smartctl-exporter"} == 0
+              queryType: instant
+          - refId: B
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [-1] }
+        labels:
+          severity: critical
+          component: disk
+        annotations:
+          summary: "Disk {{ $labels.device }} reports SMART FAIL"
+          description: |
+            The drive's own SMART self-assessment reports failure. Replace
+            ASAP — once a drive flips this flag it has very limited remaining
+            life.
+
+      - uid: host-nvme-critical-warning
+        title: NVMe critical warning flag
+        condition: B
+        for: 5m
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: smartctl_device_critical_warning_total{job="smartctl-exporter"} > 0
+              queryType: instant
+          - refId: B
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [-1] }
+        labels:
+          severity: critical
+          component: disk
+        annotations:
+          summary: "NVMe {{ $labels.device }} reports critical warning"
+          description: |
+            The NVMe firmware has raised a critical warning (spare exhausted,
+            thermal, media error, or read-only). Inspect with
+            `smartctl -a /dev/{{ $labels.device }}` to identify which.
+
+      - uid: host-fs-full
+        title: Pool root filesystem ≥98% full
+        condition: B
+        for: 15m
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            relativeTimeRange: { from: 900, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: |
+                node_filesystem_avail_bytes{job="node-exporter",mountpoint=~"/|/hdd|/ssd"}
+                / node_filesystem_size_bytes{job="node-exporter",mountpoint=~"/|/hdd|/ssd"}
+              queryType: instant
+          - refId: B
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: lt, params: [0.02] }
+        labels:
+          severity: critical
+          component: disk
+        annotations:
+          summary: "Pool root {{ $labels.mountpoint }} ≥98% full"
+          description: |
+            Pool root is nearly full. ZFS dataset-level ratios will show 100%
+            once the pool fills — this alert checks the pool root, which is
+            the truthful signal. Free space immediately (delete, prune
+            snapshots, expand).

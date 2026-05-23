@@ -127,11 +127,11 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
       GF_SERVER_ROOT_URL: https://grafana.tylercash.dev
       # Anonymous OTLP/Grafana access disabled — auth via Grafana login.
-      # Home dashboard: load the peep-bot Overview JSON as the org home
-      # dashboard instead of the bundled "Welcome to Grafana" landing.
-      # Grafana wants a file PATH (not a UID); points at the file from the
-      # bind mount of stacks/grafana-lgtm/grafana/dashboards/peepbot/.
-      GF_USERS_DEFAULT_HOME_DASHBOARD_PATH: /etc/grafana/provisioning/peepbot/overview.json
+      # Home dashboard is set via the org preferences API (one-time PATCH to
+      # /api/org/preferences with {"homeDashboardUID":"peepbot-overview"}).
+      # The value persists in Grafana's sqlite under /data/grafana so it
+      # survives recreates. GF_USERS_DEFAULT_HOME_DASHBOARD_PATH was tried
+      # here and silently ignored in this Grafana 13 build, so it's not set.
       # Discord webhook for Grafana Alerting. The contact-points.yaml
       # provisioning file references $GRAFANA_DISCORD_ALERT_WEBHOOK; Grafana
       # expands that at provisioning load time. The value lives in
@@ -154,6 +154,7 @@ services:
       - ./grafana/provisioning/alerting/peepbot.yaml:/otel-lgtm/grafana/conf/provisioning/alerting/peepbot.yaml:ro
       - ./grafana/provisioning/alerting/contact-points.yaml:/otel-lgtm/grafana/conf/provisioning/alerting/contact-points.yaml:ro
       - ./grafana/provisioning/alerting/notification-policies.yaml:/otel-lgtm/grafana/conf/provisioning/alerting/notification-policies.yaml:ro
+      - ./grafana/provisioning/alerting/homelab.yaml:/otel-lgtm/grafana/conf/provisioning/alerting/homelab.yaml:ro
     # v0.28.0 ships its own healthcheck (/otel-lgtm/docker/healthcheck.sh) that
     # waits for Grafana + Loki + Tempo + Mimir + Pyroscope to all report ready.
     # Default 3×30s = 90s is too tight on a cold start; otel-agent's
