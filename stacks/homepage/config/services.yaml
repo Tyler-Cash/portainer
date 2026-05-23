@@ -106,6 +106,10 @@
         icon: mdi-robot
 
 - Infrastructure:
+    - Portainer:
+        href: https://portainer.tylercash.dev
+        description: Container management
+        icon: portainer.png
     - Traefik:
         href: https://traefik.tylercash.dev
         description: Reverse proxy

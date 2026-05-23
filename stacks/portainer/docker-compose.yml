@@ -1,0 +1,57 @@
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "50m"
+      max-file: "3"
+      labels: "com.docker.compose.service,com.docker.compose.project"
+
+services:
+  portainer:
+    <<: *logging
+    image: portainer/portainer-ce:lts
+    container_name: portainer
+    command: -H unix:///var/run/docker.sock
+    restart: always
+    networks:
+      - homelab_default
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+      - ssd_fast_storage:/ssd/fast_storage
+    labels:
+      # Frontend
+      - traefik.enable=true
+      - traefik.http.routers.frontend.rule=Host(`portainer.tylercash.dev`) && (ClientIP(`10.0.0.0/8`) || ClientIP(`172.19.0.0/24`))
+      - traefik.http.routers.frontend.entrypoints=websecure
+      - traefik.http.services.frontend.loadbalancer.server.port=9000
+      - traefik.http.routers.frontend.service=frontend
+      - traefik.http.routers.frontend.tls.certresolver=leresolver
+
+      # Edge
+      - traefik.http.routers.edge.rule=Host(`portainer-edge.tylercash.dev`) && (ClientIP(`10.0.0.0/8`) || ClientIP(`172.19.0.0/24`))
+      - traefik.http.routers.edge.entrypoints=websecure
+      - traefik.http.services.edge.loadbalancer.server.port=8000
+      - traefik.http.routers.edge.service=edge
+      - traefik.http.routers.edge.tls.certresolver=leresolver
+
+      - com.centurylinklabs.watchtower.enable=true
+
+networks:
+  homelab_default:
+    external: true
+
+volumes:
+  # Reusing the volume from the old ~/homelab compose project so the
+  # existing Portainer state carries over. Drop the external/name lines
+  # to let compose manage it normally (portainer_portainer_data) once
+  # the data has been migrated off this name.
+  portainer_data:
+    external: true
+    name: homelab_portainer_data
+  ssd_fast_storage:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /ssd/fast_storage/docker/
