@@ -310,7 +310,7 @@ groups:
             datasourceUid: prometheus
             model:
               refId: A
-              expr: node_load5{job="node-exporter"} / count by (instance) (node_cpu_seconds_total{job="node-exporter",mode="idle"})
+              expr: node_load5{job="node-exporter"} / on(instance) count by (instance) (node_cpu_seconds_total{job="node-exporter",mode="idle"})
               queryType: instant
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
