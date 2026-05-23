@@ -11,7 +11,7 @@ x-logging: &logging
 services:
   open-webui:
     <<: *logging
-    image: ghcr.io/open-webui/open-webui:main@sha256:74093dadc9c6aabc23987a74fd8c2fb8d995b1a5b22e83b0036fb9d6af590e8c
+    image: ghcr.io/open-webui/open-webui:v0.9.5
     container_name: open-webui
     restart: unless-stopped
     environment:
@@ -32,7 +32,7 @@ services:
 
   ollama:
     <<: *logging
-    image: ollama/ollama:latest@sha256:a6149234667efc71d37766d61c1a16f24c33e4cd7a0bf4125c44a7e47e2419c4
+    image: ollama/ollama:0.24.0
     container_name: ollama
     restart: unless-stopped
     volumes:
