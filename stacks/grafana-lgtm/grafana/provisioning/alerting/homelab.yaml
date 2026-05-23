@@ -20,7 +20,7 @@ groups:
         title: Scrape target down ≥5m
         condition: B
         for: 5m
-        noDataState: Alerting
+        noDataState: OK
         execErrState: Error
         data:
           - refId: A

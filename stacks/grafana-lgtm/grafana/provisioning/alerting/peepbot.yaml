@@ -480,7 +480,7 @@ groups:
         title: Peep Bot metric stream absent ≥5m
         condition: B
         for: 5m
-        noDataState: Alerting
+        noDataState: OK
         execErrState: OK
         data:
           - refId: A
@@ -611,7 +611,7 @@ groups:
         title: OTel collector down ≥5m
         condition: B
         for: 5m
-        noDataState: Alerting
+        noDataState: OK
         execErrState: OK
         data:
           - refId: A
