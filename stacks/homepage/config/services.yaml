@@ -106,6 +106,10 @@
         icon: mdi-robot
 
 - Infrastructure:
+    - Traefik:
+        href: https://traefik.tylercash.dev
+        description: Reverse proxy
+        icon: traefik.png
     - Unifi:
         href: https://unifi.tylercash.dev
         description: Network management
