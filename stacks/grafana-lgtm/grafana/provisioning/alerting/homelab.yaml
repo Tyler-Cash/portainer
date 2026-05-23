@@ -29,7 +29,7 @@ groups:
             model:
               refId: A
               expr: up == 0
-              queryType: instant
+              instant: true
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__
@@ -62,7 +62,7 @@ groups:
             model:
               refId: A
               expr: max by (zpool) (node_zfs_zpool_state{job="node-exporter",state=~"degraded|faulted|unavail|suspended|removed"})
-              queryType: instant
+              instant: true
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__
@@ -95,7 +95,7 @@ groups:
             model:
               refId: A
               expr: smartctl_device_smart_status{job="smartctl-exporter"} == 0
-              queryType: instant
+              instant: true
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__
@@ -128,7 +128,7 @@ groups:
             model:
               refId: A
               expr: smartctl_device_critical_warning_total{job="smartctl-exporter"} > 0
-              queryType: instant
+              instant: true
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__
@@ -163,7 +163,7 @@ groups:
               expr: |
                 node_filesystem_avail_bytes{job="node-exporter",mountpoint=~"/|/hdd|/ssd"}
                 / node_filesystem_size_bytes{job="node-exporter",mountpoint=~"/|/hdd|/ssd"}
-              queryType: instant
+              instant: true
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__
@@ -204,7 +204,7 @@ groups:
               expr: |
                 node_filesystem_avail_bytes{job="node-exporter",mountpoint=~"/|/hdd|/ssd"}
                 / node_filesystem_size_bytes{job="node-exporter",mountpoint=~"/|/hdd|/ssd"}
-              queryType: instant
+              instant: true
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__
@@ -241,7 +241,7 @@ groups:
                   attribute_name=~"Reallocated_Sector_Ct|Current_Pending_Sector",
                   attribute_value_type="raw"
                 }[24h])
-              queryType: instant
+              instant: true
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__
@@ -274,7 +274,7 @@ groups:
             model:
               refId: A
               expr: smartctl_device_percentage_used_total{job="smartctl-exporter"}
-              queryType: instant
+              instant: true
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__
@@ -311,7 +311,7 @@ groups:
             model:
               refId: A
               expr: node_load5{job="node-exporter"} / on(instance) count by (instance) (node_cpu_seconds_total{job="node-exporter",mode="idle"})
-              queryType: instant
+              instant: true
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__
@@ -340,7 +340,7 @@ groups:
             model:
               refId: A
               expr: avg by (instance) (rate(node_cpu_seconds_total{job="node-exporter",mode="iowait"}[5m]))
-              queryType: instant
+              instant: true
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__
@@ -369,7 +369,7 @@ groups:
             model:
               refId: A
               expr: node_hwmon_temp_celsius{job="node-exporter"}
-              queryType: instant
+              instant: true
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__
@@ -400,7 +400,7 @@ groups:
               expr: |
                 node_filesystem_avail_bytes{job="node-exporter",mountpoint="/"}
                 / node_filesystem_size_bytes{job="node-exporter",mountpoint="/"}
-              queryType: instant
+              instant: true
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__
@@ -429,7 +429,7 @@ groups:
             model:
               refId: A
               expr: smartctl_device_temperature{job="smartctl-exporter"}
-              queryType: instant
+              instant: true
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__
@@ -458,7 +458,7 @@ groups:
             model:
               refId: A
               expr: node_memory_MemAvailable_bytes{job="node-exporter"} / node_memory_MemTotal_bytes{job="node-exporter"}
-              queryType: instant
+              instant: true
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__
@@ -489,7 +489,7 @@ groups:
               expr: |
                 (node_memory_SwapTotal_bytes{job="node-exporter"} - node_memory_SwapFree_bytes{job="node-exporter"})
                 / (node_memory_SwapTotal_bytes{job="node-exporter"} > 0)
-              queryType: instant
+              instant: true
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__
@@ -518,7 +518,7 @@ groups:
             model:
               refId: A
               expr: increase(node_vmstat_oom_kill{job="node-exporter"}[10m])
-              queryType: instant
+              instant: true
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__
@@ -549,7 +549,7 @@ groups:
               expr: |
                 rate(node_network_receive_errs_total{job="node-exporter"}[5m])
                 + rate(node_network_transmit_errs_total{job="node-exporter"}[5m])
-              queryType: instant
+              instant: true
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__
@@ -580,7 +580,7 @@ groups:
               expr: |
                 rate(node_network_receive_drop_total{job="node-exporter"}[5m])
                 + rate(node_network_transmit_drop_total{job="node-exporter"}[5m])
-              queryType: instant
+              instant: true
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__

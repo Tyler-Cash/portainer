@@ -489,7 +489,7 @@ groups:
             model:
               refId: A
               expr: absent_over_time(application_ready_time_milliseconds{service_namespace="peep-bot"}[5m])
-              queryType: instant
+              instant: true
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__
@@ -523,7 +523,7 @@ groups:
             model:
               refId: A
               expr: changes(process_start_time_milliseconds{service_namespace="peep-bot"}[1h])
-              queryType: instant
+              instant: true
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__
@@ -587,7 +587,7 @@ groups:
               expr: |
                 sum(rate(lifecycle_listener_invoke_milliseconds_count{service_namespace="peep-bot",error!="none"}[10m]))
                 / sum(rate(lifecycle_listener_invoke_milliseconds_count{service_namespace="peep-bot"}[10m]))
-              queryType: instant
+              instant: true
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__
@@ -620,7 +620,7 @@ groups:
             model:
               refId: A
               expr: up{job="otelcol-contrib"} == 0
-              queryType: instant
+              instant: true
           - refId: B
             relativeTimeRange: { from: 0, to: 0 }
             datasourceUid: __expr__
