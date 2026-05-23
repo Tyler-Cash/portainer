@@ -130,6 +130,11 @@ services:
       # Home dashboard: redirect / and the Home nav button to the peep-bot
       # Overview instead of the bundled "Welcome to Grafana" landing.
       GF_USERS_DEFAULT_HOME_DASHBOARD_UID: peepbot-overview
+      # Discord webhook for Grafana Alerting. The contact-points.yaml
+      # provisioning file references $GRAFANA_DISCORD_ALERT_WEBHOOK; Grafana
+      # expands that at provisioning load time. The value lives in
+      # stacks/grafana-lgtm/.env.secret (edit via `task edit STACK=grafana-lgtm`).
+      GRAFANA_DISCORD_ALERT_WEBHOOK: ${GRAFANA_DISCORD_ALERT_WEBHOOK}
       # Ansible replaces this with a 12-char hash of the synced stack tree
       # so any change under stacks/grafana-lgtm/ (dashboard JSON, provisioning
       # yaml, etc.) forces a container recreate. Without this, compose sees
@@ -142,6 +147,11 @@ services:
       - ./grafana/provisioning/dashboards/peepbot.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/peepbot.yaml:ro
       - ./grafana/dashboards/homelab:/etc/grafana/provisioning/homelab:ro
       - ./grafana/provisioning/dashboards/homelab.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/homelab.yaml:ro
+      # Alert rules. File mount (not dir) so the sibling HANDOVER.md / TODO.md
+      # aren't exposed inside the container or parsed as YAML.
+      - ./grafana/provisioning/alerting/peepbot.yaml:/otel-lgtm/grafana/conf/provisioning/alerting/peepbot.yaml:ro
+      - ./grafana/provisioning/alerting/contact-points.yaml:/otel-lgtm/grafana/conf/provisioning/alerting/contact-points.yaml:ro
+      - ./grafana/provisioning/alerting/notification-policies.yaml:/otel-lgtm/grafana/conf/provisioning/alerting/notification-policies.yaml:ro
     # v0.28.0 ships its own healthcheck (/otel-lgtm/docker/healthcheck.sh) that
     # waits for Grafana + Loki + Tempo + Mimir + Pyroscope to all report ready.
     # Default 3×30s = 90s is too tight on a cold start; otel-agent's

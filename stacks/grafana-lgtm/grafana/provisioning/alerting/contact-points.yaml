@@ -1,0 +1,30 @@
+apiVersion: 1
+
+# Discord webhook contact point for Peep Bot alerts.
+#
+# Webhook URL is sourced from $GRAFANA_DISCORD_ALERT_WEBHOOK at container
+# startup. Grafana's expanded-secrets feature resolves $VAR references in
+# provisioning files at load time. Add the secret to
+# stacks/grafana-lgtm/.env.secret via `task edit STACK=grafana-lgtm`; never
+# inline it here.
+#
+# Grafana's native Discord contact point handles message formatting,
+# threading by alertname, and severity coloring. No template needed.
+
+contactPoints:
+  - orgId: 1
+    name: peepbot-discord
+    receivers:
+      - uid: peepbot-discord-receiver
+        type: discord
+        settings:
+          url: $GRAFANA_DISCORD_ALERT_WEBHOOK
+          # Tag a role/user in critical messages — leave empty for now;
+          # set DISCORD_ALERT_MENTION env var to "<@&ROLE_ID>" later if wanted.
+          message_content: |
+            **{{ .CommonLabels.severity | toUpper }}** · {{ len .Alerts.Firing }} firing · {{ len .Alerts.Resolved }} resolved
+            {{ range .Alerts.Firing }}
+            • **{{ .Labels.alertname }}** — {{ .Annotations.summary }}
+            {{ end }}
+          use_discord_username: true
+          avatar_url: ""
