@@ -102,6 +102,11 @@ services:
       # path, doubling every counter/histogram. Pin it off.
       OTEL_METRICS_EXPORTER: none
       SPRING_PROFILES_ACTIVE: prod
+      # ONE-SHOT: re-classify every event whose category was assigned before this cutoff
+      # under the new v2 prompt + mistral-nemo model (peep-bot v3.53.x). Runs once per
+      # container start at 1 event/sec. Cutoff is comfortably past the expected deploy of
+      # the v3.53.x release. UNSET this var on the next image bump to disable the runner.
+      PEEPBOT_CLASSIFIER_BACKFILL_RUN_BEFORE: "2026-05-26T00:00:00+10:00"
     labels:
       <<: *backend-labels
       traefik.http.routers.peepbot-backend.entrypoints: *entrypoint
