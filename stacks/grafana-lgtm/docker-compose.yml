@@ -177,11 +177,28 @@ services:
       traefik.http.routers.grafana.entrypoints: websecure
       traefik.http.routers.grafana.tls.certresolver: leresolver
       traefik.http.services.grafana.loadbalancer.server.port: "3000"
-      # OTLP HTTP — used by browser RUM and any external pusher
-      traefik.http.routers.grafana-otel.service: grafana-otel
-      traefik.http.routers.grafana-otel.rule: "Host(`otel.tylercash.dev`)"
-      traefik.http.routers.grafana-otel.entrypoints: websecure
-      traefik.http.routers.grafana-otel.tls.certresolver: leresolver
+      # OTLP HTTP (:4318). Split by source so an unauthenticated Tempo never
+      # faces the internet:
+      #   - internal clients (LAN + docker net, same pattern as the grafana
+      #     router) get full, unauthenticated access on all paths;
+      #   - external clients reach ONLY the /v1/traces ingest path, behind
+      #     basicauth. Any other external path matches no router → 404.
+      # Internal: full access, no auth.
+      traefik.http.routers.grafana-otel-internal.service: grafana-otel
+      traefik.http.routers.grafana-otel-internal.rule: "Host(`otel.tylercash.dev`) && (ClientIP(`10.0.0.0/8`) || ClientIP(`172.19.0.0/24`))"
+      traefik.http.routers.grafana-otel-internal.priority: "100"
+      traefik.http.routers.grafana-otel-internal.entrypoints: websecure
+      traefik.http.routers.grafana-otel-internal.tls.certresolver: leresolver
+      # External: ingest path only, basicauth required. Users list (htpasswd
+      # bcrypt entries, comma-separated) is sourced from .env.secret so the
+      # hashes stay out of the plaintext compose file.
+      traefik.http.routers.grafana-otel-external.service: grafana-otel
+      traefik.http.routers.grafana-otel-external.rule: "Host(`otel.tylercash.dev`) && PathPrefix(`/v1/traces`)"
+      traefik.http.routers.grafana-otel-external.priority: "50"
+      traefik.http.routers.grafana-otel-external.entrypoints: websecure
+      traefik.http.routers.grafana-otel-external.tls.certresolver: leresolver
+      traefik.http.routers.grafana-otel-external.middlewares: otel-basicauth
+      traefik.http.middlewares.otel-basicauth.basicauth.users: "${OTEL_BASICAUTH_USERS}"
       traefik.http.services.grafana-otel.loadbalancer.server.port: "4318"
       com.centurylinklabs.watchtower.enable: "true"
 
