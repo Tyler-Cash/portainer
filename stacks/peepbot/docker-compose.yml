@@ -20,6 +20,11 @@ x-backend-defaults: &backend-defaults
   depends_on:
     peepbot-postgres:
       condition: service_healthy
+    # Block backend start until the Pyroscope agent jar is present in the shared volume —
+    # -javaagent on a missing file aborts JVM startup. The init is idempotent + cached, so
+    # this only does real work (download) on the first deploy.
+    peepbot-pyroscope-init:
+      condition: service_completed_successfully
   healthcheck:
     # Bash /dev/tcp probe — works on any Paketo run image (full, base, or tiny)
     # without depending on curl/wget being installed. Inspects the response body
@@ -64,6 +69,31 @@ x-frontend-defaults: &frontend-defaults
     com.centurylinklabs.watchtower.enable: true
 
 services:
+  # Downloads the pinned Pyroscope async-profiler agent jar once into the shared
+  # pyroscope-agent volume. Idempotent: skips the download (and the apk/network access) when
+  # the jar is already cached, so backend restarts don't depend on internet egress.
+  peepbot-pyroscope-init:
+    image: alpine:3.23@sha256:5b10f432ef3da1b8d4c7eb6c487f2f5a8f096bc91145e68878dd4a5019afde11
+    container_name: peepbot-pyroscope-init
+    restart: "no"
+    networks:
+      - homelab_default
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        if [ ! -s /agent/pyroscope.jar ]; then
+          apk add --no-cache wget ca-certificates >/dev/null
+          wget -qO /agent/pyroscope.jar \
+            "https://github.com/grafana/pyroscope-java/releases/download/v2.5.2/pyroscope.jar"
+        fi
+        # Sanity-check the jar landed (>100KB) so a bad download fails the init loudly
+        # instead of producing a JVM that aborts on a truncated -javaagent. $$ escapes the
+        # $ from docker-compose interpolation so the container shell sees $(stat ...).
+        [ "$$(stat -c%s /agent/pyroscope.jar)" -gt 100000 ]
+    volumes:
+      - pyroscope-agent:/agent
+
   peepbot-postgres:
     image: pgvector/pgvector:pg18@sha256:42e7f6b4e1eceb02ff14e3e6bc6108bbe259abbe83879dc1845d0da1ddeb555d
     container_name: peepbot-postgres
@@ -95,6 +125,7 @@ services:
     container_name: peepbot-backend
     volumes:
       - peepbot-djl-cache:/root/.djl.ai
+      - pyroscope-agent:/agent:ro
     env_file:
       - .env
     environment:
@@ -102,6 +133,22 @@ services:
       # OTLP endpoints for all three signals (metrics/traces/logs) default to
       # http://grafana-lgtm:4318 in the backend's application.yaml, so no env-var
       # wiring is needed here.
+      #
+      # Continuous profiling — the Pyroscope async-profiler agent (jar provided by
+      # peepbot-pyroscope-init in the shared volume) ships CPU + allocation + lock flame
+      # graphs to the Pyroscope server bundled in grafana-lgtm. APPLICATION_NAME matches
+      # resource.service.name so Grafana can link traces -> profiles. itimer is the
+      # container-safe profiler event (no perf_event_paranoid / CAP_PERFMON needed). Paketo's
+      # launch helpers append the memory-calculator flags to JAVA_TOOL_OPTIONS, so the agent
+      # + diagnostic flags coexist with the buildpack's JVM tuning.
+      JAVA_TOOL_OPTIONS: "-javaagent:/agent/pyroscope.jar -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints"
+      PYROSCOPE_APPLICATION_NAME: peepbot-backend
+      PYROSCOPE_SERVER_ADDRESS: http://grafana-lgtm:4040
+      PYROSCOPE_FORMAT: jfr
+      PYROSCOPE_PROFILER_EVENT: itimer
+      PYROSCOPE_PROFILER_ALLOC: 512k
+      PYROSCOPE_PROFILER_LOCK: 10ms
+      PYROSCOPE_LABELS: "namespace=peep-bot,env=production"
       SPRING_PROFILES_ACTIVE: prod
       # ONE-SHOT: re-classify every event whose category was assigned before this cutoff
       # under the new v2 prompt + mistral-nemo model (peep-bot v3.53.x). Runs once per
@@ -158,6 +205,9 @@ services:
 
 volumes:
   peepbot-djl-cache:
+  # Holds the Pyroscope agent jar, populated by peepbot-pyroscope-init and mounted read-only
+  # into peepbot-backend. Persists across restarts so the jar is downloaded only once.
+  pyroscope-agent:
 
 networks:
   homelab_default:
