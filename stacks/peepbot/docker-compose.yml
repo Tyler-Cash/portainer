@@ -138,10 +138,14 @@ services:
       # peepbot-pyroscope-init in the shared volume) ships CPU + allocation + lock flame
       # graphs to the Pyroscope server bundled in grafana-lgtm. APPLICATION_NAME matches
       # resource.service.name so Grafana can link traces -> profiles. itimer is the
-      # container-safe profiler event (no perf_event_paranoid / CAP_PERFMON needed). Paketo's
-      # launch helpers append the memory-calculator flags to JAVA_TOOL_OPTIONS, so the agent
-      # + diagnostic flags coexist with the buildpack's JVM tuning.
-      JAVA_TOOL_OPTIONS: "-javaagent:/agent/pyroscope.jar -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints"
+      # container-safe profiler event (no perf_event_paranoid / CAP_PERFMON needed).
+      #
+      # Use _JAVA_OPTIONS, NOT JAVA_TOOL_OPTIONS: Paketo's launch helpers OVERWRITE
+      # JAVA_TOOL_OPTIONS with their computed memory/NMT flags, silently dropping a
+      # user-supplied -javaagent (verified by running the image locally). The JVM also honors
+      # _JAVA_OPTIONS, which Paketo leaves untouched, so the agent attaches and coexists with
+      # the buildpack's JAVA_TOOL_OPTIONS memory tuning.
+      _JAVA_OPTIONS: "-javaagent:/agent/pyroscope.jar -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints"
       PYROSCOPE_APPLICATION_NAME: peepbot-backend
       PYROSCOPE_SERVER_ADDRESS: http://grafana-lgtm:4040
       PYROSCOPE_FORMAT: jfr
