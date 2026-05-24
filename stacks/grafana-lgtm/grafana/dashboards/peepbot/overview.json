@@ -378,6 +378,28 @@
           "links": [{ "title": "Open Deps dashboard", "url": "/d/peepbot-deps", "targetBlank": false }]
         }
       }
+    },
+    {
+      "id": 16,
+      "type": "table",
+      "title": "API requests — HTTP server spans (live)",
+      "description": "Inbound Spring HTTP server spans with their real route names (e.g. 'http post /event/{id}/rsvp'), newest first. kind=server excludes traefik's method-only root spans and outbound client calls; actuator health is filtered out. Each row is a span, so the route name is shown instead of the meaningless traefik 'GET'/'POST' trace root.",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 25 },
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "traceql",
+          "query": "{ resource.service.name =~ \"peepbot.*\" && kind = server && name =~ \"http .*\" && name !~ \"http get /actuator.*\" } | select(span.status, span.outcome)",
+          "tableType": "spans",
+          "limit": 100,
+          "spss": 10,
+          "filters": []
+        }
+      ],
+      "options": { "showHeader": true, "sortBy": [{ "displayName": "Start time", "desc": true }] },
+      "fieldConfig": { "defaults": { "custom": { "filterable": true } }, "overrides": [] }
     }
   ]
 }
