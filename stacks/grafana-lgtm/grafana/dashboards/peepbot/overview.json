@@ -239,19 +239,18 @@
     {
       "id": 9,
       "type": "stat",
-      "title": "Frontend",
+      "title": "Frontend (RUM)",
       "gridPos": { "h": 3, "w": 6, "x": 18, "y": 12 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "refId": "A", "expr": "vector(0)" }],
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "targets": [{ "refId": "A", "expr": "sum(rate(traces_spanmetrics_calls_total{service=~\"peepbot.*frontend\"}[5m]))" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
       "fieldConfig": {
         "defaults": {
-          "mappings": [
-            { "type": "value", "options": { "0": { "text": "Not yet wired", "color": "blue" } } }
-          ]
+          "unit": "ops",
+          "links": [{ "title": "Open Frontend (RUM) dashboard", "url": "/d/peepbot-frontend", "targetBlank": false }]
         }
       },
-      "description": "Placeholder until Next.js RUM is instrumented."
+      "description": "Browser RUM span rate. Empty until NEXT_PUBLIC_OTEL_BROWSER_ENABLED=1 in Vercel. Click to open the Frontend dashboard."
     },
     {
       "id": 10,

@@ -1,0 +1,271 @@
+{
+  "uid": "peepbot-frontend",
+  "title": "Peep Bot — Frontend (RUM)",
+  "tags": ["peepbot", "frontend", "rum"],
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "timezone": "browser",
+  "editable": false,
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": { "text": "Prometheus", "value": "prometheus" },
+        "hide": 0
+      },
+      {
+        "name": "service",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(traces_spanmetrics_calls_total{service=~\"peepbot.*frontend\"}, service)",
+        "refresh": 1,
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "peepbot-frontend", "value": "peepbot-frontend" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 99,
+      "type": "text",
+      "title": "",
+      "gridPos": { "h": 2, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "mode": "markdown",
+        "content": "Browser RUM from the Next.js frontend, derived from Tempo span metrics (`traces_spanmetrics_*`). Empty until `NEXT_PUBLIC_OTEL_BROWSER_ENABLED=1` is set in Vercel. Spans of kind **client** are browser→backend API calls (they carry the shared trace id); **internal** are document-load and click spans. Latency is in seconds."
+      }
+    },
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Span rate by operation",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 2 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(10, sum by (span_name) (rate(traces_spanmetrics_calls_total{service=~\"$service\"}[5m])))",
+          "legendFormat": "{{span_name}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ops" } }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Error % by operation",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 2 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(10, 100 * sum by (span_name) (rate(traces_spanmetrics_calls_total{service=~\"$service\", status_code=\"STATUS_CODE_ERROR\"}[5m])) / clamp_min(sum by (span_name) (rate(traces_spanmetrics_calls_total{service=~\"$service\"}[5m])), 1))",
+          "legendFormat": "{{span_name}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percent" } }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "p95 latency by operation",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 2 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(10, histogram_quantile(0.95, sum by (le, span_name) (rate(traces_spanmetrics_latency_bucket{service=~\"$service\"}[5m]))))",
+          "legendFormat": "{{span_name}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 4,
+      "type": "table",
+      "title": "Per-operation RED",
+      "gridPos": { "h": 10, "w": 16, "x": 0, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (span_name) (rate(traces_spanmetrics_calls_total{service=~\"$service\"}[5m]))",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "expr": "100 * sum by (span_name) (rate(traces_spanmetrics_calls_total{service=~\"$service\", status_code=\"STATUS_CODE_ERROR\"}[5m])) / clamp_min(sum by (span_name) (rate(traces_spanmetrics_calls_total{service=~\"$service\"}[5m])), 1)",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.50, sum by (le, span_name) (rate(traces_spanmetrics_latency_bucket{service=~\"$service\"}[5m])))",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "refId": "D",
+          "expr": "histogram_quantile(0.95, sum by (le, span_name) (rate(traces_spanmetrics_latency_bucket{service=~\"$service\"}[5m])))",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "refId": "E",
+          "expr": "histogram_quantile(0.99, sum by (le, span_name) (rate(traces_spanmetrics_latency_bucket{service=~\"$service\"}[5m])))",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        { "id": "joinByField", "options": { "byField": "span_name", "mode": "outer" } },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time 1": true,
+              "Time 2": true,
+              "Time 3": true,
+              "Time 4": true,
+              "Time 5": true
+            },
+            "renameByName": {
+              "span_name": "Operation",
+              "Value #A": "req/s",
+              "Value #B": "err %",
+              "Value #C": "p50",
+              "Value #D": "p95",
+              "Value #E": "p99"
+            }
+          }
+        },
+        { "id": "sortBy", "options": { "fields": {}, "sort": [{ "field": "err %", "desc": true }] } }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "req/s" }, "properties": [{ "id": "unit", "value": "ops" }] },
+          { "matcher": { "id": "byName", "options": "err %" }, "properties": [{ "id": "unit", "value": "percent" }] },
+          { "matcher": { "id": "byName", "options": "p50" }, "properties": [{ "id": "unit", "value": "s" }] },
+          { "matcher": { "id": "byName", "options": "p95" }, "properties": [{ "id": "unit", "value": "s" }] },
+          { "matcher": { "id": "byName", "options": "p99" }, "properties": [{ "id": "unit", "value": "s" }] }
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Status mix",
+      "gridPos": { "h": 10, "w": 8, "x": 16, "y": 10 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (status_code) (rate(traces_spanmetrics_calls_total{service=~\"$service\"}[5m]))",
+          "legendFormat": "{{status_code}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": { "drawStyle": "line", "fillOpacity": 50, "stacking": { "mode": "normal", "group": "A" } }
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Throughput by span kind",
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (span_kind) (rate(traces_spanmetrics_calls_total{service=~\"$service\"}[5m]))",
+          "legendFormat": "{{span_kind}}"
+        }
+      ],
+      "description": "client = browser→backend fetches (carry the shared trace id); internal = document-load + click spans.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": { "drawStyle": "line", "fillOpacity": 40, "stacking": { "mode": "normal", "group": "A" } }
+        }
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Browser → backend call latency (client spans)",
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(traces_spanmetrics_latency_bucket{service=~\"$service\", span_kind=\"SPAN_KIND_CLIENT\"}[5m])))",
+          "legendFormat": "p50"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(traces_spanmetrics_latency_bucket{service=~\"$service\", span_kind=\"SPAN_KIND_CLIENT\"}[5m])))",
+          "legendFormat": "p95"
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(traces_spanmetrics_latency_bucket{service=~\"$service\", span_kind=\"SPAN_KIND_CLIENT\"}[5m])))",
+          "legendFormat": "p99"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 8,
+      "type": "bargauge",
+      "title": "Top failing operations",
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 20 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(5, sum by (span_name) (rate(traces_spanmetrics_calls_total{service=~\"$service\", status_code=\"STATUS_CODE_ERROR\"}[5m])))",
+          "legendFormat": "{{span_name}}",
+          "instant": true
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "values": false },
+        "orientation": "horizontal",
+        "displayMode": "gradient"
+      },
+      "fieldConfig": { "defaults": { "unit": "ops" } }
+    },
+    {
+      "id": 9,
+      "type": "table",
+      "title": "Recent browser → backend calls (client spans, newest first)",
+      "description": "Live frontend client spans (fetch to the backend), which carry the W3C traceparent. Click a row's trace id to open the full frontend→backend→DB trace.",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 27 },
+      "datasource": { "type": "tempo", "uid": "tempo" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "tempo", "uid": "tempo" },
+          "queryType": "traceql",
+          "query": "{ resource.service.name =~ \"peepbot.*frontend\" && kind = client } | select(span.http.url, span.http.status_code)",
+          "tableType": "spans",
+          "limit": 100,
+          "spss": 10,
+          "filters": []
+        }
+      ],
+      "options": { "showHeader": true, "sortBy": [{ "displayName": "Start time", "desc": true }] },
+      "fieldConfig": { "defaults": { "custom": { "filterable": true } }, "overrides": [] }
+    }
+  ]
+}
