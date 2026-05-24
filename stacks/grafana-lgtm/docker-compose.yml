@@ -149,6 +149,10 @@ services:
       - ./grafana/provisioning/dashboards/peepbot.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/peepbot.yaml:ro
       - ./grafana/dashboards/homelab:/etc/grafana/provisioning/homelab:ro
       - ./grafana/provisioning/dashboards/homelab.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/homelab.yaml:ro
+      # Override otel-lgtm's built-in datasources file (same in-image path = clean override, no
+      # duplicate-uid conflict) with a faithful copy that adds Tempo's tracesToProfiles link to
+      # Pyroscope. Covered by STACK_CONTENT_HASH so edits force a grafana recreate + re-provision.
+      - ./grafana/provisioning/datasources/grafana-datasources.yaml:/otel-lgtm/grafana/conf/provisioning/datasources/grafana-datasources.yaml:ro
       # Alert rules. File mount (not dir) so the sibling HANDOVER.md / TODO.md
       # aren't exposed inside the container or parsed as YAML.
       - ./grafana/provisioning/alerting/peepbot.yaml:/otel-lgtm/grafana/conf/provisioning/alerting/peepbot.yaml:ro

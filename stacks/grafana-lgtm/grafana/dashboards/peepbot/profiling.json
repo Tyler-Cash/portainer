@@ -1,0 +1,57 @@
+{
+  "uid": "peepbot-profiling",
+  "title": "Peep Bot — Profiling",
+  "tags": ["peepbot", "profiling"],
+  "schemaVersion": 39,
+  "editable": true,
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "30s",
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "",
+      "gridPos": { "h": 3, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "mode": "markdown",
+        "content": "Continuous profiling for **peepbot-backend** via the Pyroscope async-profiler agent. CPU + allocation flame graphs below; jump here from any trace span via the Tempo **Profiles for this span** link (Tempo datasource `tracesToProfiles`)."
+      }
+    },
+    {
+      "id": 2,
+      "type": "flamegraph",
+      "title": "peepbot-backend — CPU flame graph",
+      "gridPos": { "h": 18, "w": 12, "x": 0, "y": 3 },
+      "datasource": { "type": "grafana-pyroscope-datasource", "uid": "pyroscope" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-pyroscope-datasource", "uid": "pyroscope" },
+          "queryType": "profile",
+          "profileTypeId": "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
+          "labelSelector": "{service_name=\"peepbot-backend\"}",
+          "groupBy": []
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "flamegraph",
+      "title": "peepbot-backend — allocation flame graph",
+      "gridPos": { "h": 18, "w": 12, "x": 12, "y": 3 },
+      "datasource": { "type": "grafana-pyroscope-datasource", "uid": "pyroscope" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "grafana-pyroscope-datasource", "uid": "pyroscope" },
+          "queryType": "profile",
+          "profileTypeId": "memory:alloc_in_new_tlab_bytes:bytes:space:bytes",
+          "labelSelector": "{service_name=\"peepbot-backend\"}",
+          "groupBy": []
+        }
+      ]
+    }
+  ]
+}
