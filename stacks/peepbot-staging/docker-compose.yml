@@ -35,7 +35,7 @@ services:
       psql -h peepbot-postgres -c 'CREATE DATABASE peepbot_staging;'"
 
   peepbot-staging-backend:
-    image: ghcr.io/tyler-cash/peep-bot-backend:3.58.1@sha256:e7adeb80802e94a8c3dd4ce52b6b5ff39ead2745a0644354cfb106c6a0c85619
+    image: ghcr.io/tyler-cash/peep-bot-backend:3.59.0@sha256:745eb02e93531985e0a9f449093d37d4730319a3db4846cd02732769164e8dd3
     container_name: peepbot-staging-backend
     restart: always
     networks:
