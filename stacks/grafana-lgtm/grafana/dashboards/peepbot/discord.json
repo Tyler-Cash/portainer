@@ -45,7 +45,7 @@
       "type": "stat",
       "title": "% over 3s budget",
       "description": "Gated on spec Prereq A. Flat until lifecycle.listener.invoke SLO buckets are added.",
-      "gridPos": { "h": 5, "w": 8, "x": 0, "y": 0 },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
@@ -201,7 +201,7 @@
       "type": "timeseries",
       "title": "UNKNOWN_INTERACTION (10062) errors",
       "description": "Loki-derived until spec Prereq C lands the discord_interaction_error_total counter.",
-      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 13 },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 12 },
       "datasource": { "type": "loki", "uid": "loki" },
       "targets": [
         {
@@ -216,7 +216,7 @@
       "id": 8,
       "type": "timeseries",
       "title": "Discord HTTP p50/p95/p99",
-      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 13 },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 12 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
@@ -241,7 +241,7 @@
       "id": 9,
       "type": "timeseries",
       "title": "Discord HTTP rate",
-      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 19 },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 18 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
@@ -256,7 +256,7 @@
       "id": 10,
       "type": "timeseries",
       "title": "Button + Modal interaction p95",
-      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 19 },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 18 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
@@ -276,7 +276,7 @@
       "id": 11,
       "type": "table",
       "title": "Per-operation Discord RED",
-      "gridPos": { "h": 10, "w": 18, "x": 0, "y": 25 },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 24 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
@@ -332,27 +332,6 @@
           { "matcher": { "id": "byName", "options": "p95 (ms)" }, "properties": [{ "id": "unit", "value": "ms" }] },
           { "matcher": { "id": "byName", "options": "err/s" }, "properties": [{ "id": "unit", "value": "reqps" }] }
         ]
-      }
-    },
-    {
-      "id": 12,
-      "type": "stat",
-      "title": "JDA gateway",
-      "description": "Gated on spec Prereq D. Placeholder until JdaGatewayMetricsBinder is wired.",
-      "gridPos": { "h": 5, "w": 6, "x": 18, "y": 25 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "refId": "A", "expr": "vector(0)" }],
-      "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] },
-        "colorMode": "background",
-        "graphMode": "none"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [
-            { "type": "value", "options": { "0": { "text": "Not yet wired", "color": "blue" } } }
-          ]
-        }
       }
     }
   ]

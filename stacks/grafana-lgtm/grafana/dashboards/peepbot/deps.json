@@ -137,7 +137,7 @@
       "id": 4,
       "type": "timeseries",
       "title": "TfNSW polls",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 18 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
@@ -157,27 +157,6 @@
           "custom": { "stacking": { "mode": "normal", "group": "A" } }
         }
       }
-    },
-    {
-      "id": 5,
-      "type": "stat",
-      "title": "TfNSW circuit",
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 18 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "refId": "A", "expr": "vector(0)" }],
-      "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] },
-        "colorMode": "background",
-        "graphMode": "none"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [
-            { "type": "value", "options": { "0": { "text": "Not yet wired", "color": "blue" } } }
-          ]
-        }
-      },
-      "description": "Gated on spec Prereq H — needs resilience4j-micrometer dep."
     },
     {
       "id": 6,

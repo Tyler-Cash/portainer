@@ -83,7 +83,7 @@
       "id": 2,
       "type": "stat",
       "title": "Heap utilization",
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 8 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
@@ -115,7 +115,7 @@
       "id": 3,
       "type": "stat",
       "title": "GC overhead",
-      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 8 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
@@ -147,7 +147,7 @@
       "id": 4,
       "type": "timeseries",
       "title": "Non-heap by region (stacked)",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
@@ -171,7 +171,7 @@
       "id": 5,
       "type": "timeseries",
       "title": "GC pause p99 + rate",
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
@@ -202,7 +202,7 @@
       "id": 6,
       "type": "timeseries",
       "title": "Allocation rate",
-      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 16 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
@@ -217,7 +217,7 @@
       "id": 7,
       "type": "timeseries",
       "title": "Thread states (stacked)",
-      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 16 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
@@ -241,7 +241,7 @@
       "id": 8,
       "type": "stat",
       "title": "Live threads",
-      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 22 },
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 28 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
@@ -260,7 +260,7 @@
       "id": 9,
       "type": "stat",
       "title": "Daemon threads",
-      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 22 },
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 28 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
@@ -279,7 +279,7 @@
       "id": 10,
       "type": "stat",
       "title": "Peak threads",
-      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 22 },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 28 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
@@ -298,7 +298,7 @@
       "id": 11,
       "type": "timeseries",
       "title": "File descriptors",
-      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 26 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
@@ -318,7 +318,7 @@
       "id": 12,
       "type": "stat",
       "title": "Uptime",
-      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 26 },
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 8 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
@@ -337,7 +337,7 @@
       "id": 13,
       "type": "stat",
       "title": "Load avg 1m",
-      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 26 },
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 8 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
@@ -356,33 +356,33 @@
       "id": 14,
       "type": "timeseries",
       "title": "Container CPU",
-      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 26 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
           "refId": "A",
-          "expr": "container_cpu_utilization{container_name=~\".*peepbot-backend.*\"}",
+          "expr": "container_cpu_utilization_ratio{container_name=~\".*peepbot-backend.*\"}",
           "legendFormat": "{{container_name}}"
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "percentunit" } },
-      "description": "No container_* metrics are currently scraped — the otel-agent docker_stats receiver is not yet wired (or uses a different metric name). Targets the most plausible name; update once the receiver lands."
+      "fieldConfig": { "defaults": { "unit": "percent" } },
+      "description": "From the otel-agent docker_stats receiver. Matched by container_name (prod + staging backend)."
     },
     {
       "id": 15,
       "type": "timeseries",
       "title": "Container memory",
-      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 32 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
           "refId": "A",
-          "expr": "container_memory_usage{container_name=~\".*peepbot-backend.*\"}",
+          "expr": "container_memory_usage_total_bytes{container_name=~\".*peepbot-backend.*\"}",
           "legendFormat": "{{container_name}}"
         }
       ],
       "fieldConfig": { "defaults": { "unit": "bytes" } },
-      "description": "No container_* metrics are currently scraped — the otel-agent docker_stats receiver is not yet wired (or uses a different metric name). Targets the most plausible name; update once the receiver lands."
+      "description": "From the otel-agent docker_stats receiver. Matched by container_name (prod + staging backend)."
     }
   ]
 }

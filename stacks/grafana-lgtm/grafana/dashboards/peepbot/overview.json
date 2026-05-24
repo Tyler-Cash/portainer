@@ -43,14 +43,46 @@
     {
       "id": 1,
       "type": "alertlist",
-      "title": "Firing alerts",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "title": "🔴 Critical — firing",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
       "options": {
         "showOptions": "current",
-        "maxItems": 20,
+        "maxItems": 100,
+        "sortOrder": 3,
         "alertName": "",
+        "dashboardAlerts": false,
         "stateFilter": { "firing": true, "pending": false, "noData": false, "normal": false, "error": true },
-        "alertInstanceLabelFilter": "{service_namespace=\"peep-bot\"}"
+        "alertInstanceLabelFilter": "{severity=\"critical\"}"
+      }
+    },
+    {
+      "id": 17,
+      "type": "alertlist",
+      "title": "🟠 Warning — firing",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+      "options": {
+        "showOptions": "current",
+        "maxItems": 100,
+        "sortOrder": 3,
+        "alertName": "",
+        "dashboardAlerts": false,
+        "stateFilter": { "firing": true, "pending": false, "noData": false, "normal": false, "error": true },
+        "alertInstanceLabelFilter": "{severity=\"warning\"}"
+      }
+    },
+    {
+      "id": 18,
+      "type": "alertlist",
+      "title": "🔵 Info — firing",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+      "options": {
+        "showOptions": "current",
+        "maxItems": 100,
+        "sortOrder": 3,
+        "alertName": "",
+        "dashboardAlerts": false,
+        "stateFilter": { "firing": true, "pending": false, "noData": false, "normal": false, "error": true },
+        "alertInstanceLabelFilter": "{severity=\"info\"}"
       }
     },
     {
@@ -224,7 +256,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "count(otelcol_process_uptime_seconds_total or otelcol_process_uptime_seconds) > bool 0"
+          "expr": "count(otelcol_process_uptime_total) > bool 0"
         }
       ],
       "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },

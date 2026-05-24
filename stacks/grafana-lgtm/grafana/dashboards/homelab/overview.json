@@ -109,7 +109,7 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "count(count by (container_id) (container_cpu_utilization{service_namespace=\"grafana-lgtm\"} or container_cpu_utilization))"
+          "expr": "count(container_cpu_utilization_ratio)"
         }
       ],
       "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "none" }

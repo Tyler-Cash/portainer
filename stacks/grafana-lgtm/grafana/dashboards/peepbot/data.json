@@ -334,31 +334,10 @@
       }
     },
     {
-      "id": 10,
-      "type": "stat",
-      "title": "Anonymous-session skip rate (placeholder)",
-      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 26 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "targets": [{ "refId": "A", "expr": "vector(0)" }],
-      "options": {
-        "reduceOptions": { "calcs": ["lastNotNull"] },
-        "colorMode": "background",
-        "graphMode": "none"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "mappings": [
-            { "type": "value", "options": { "0": { "text": "Not yet wired", "color": "blue" } } }
-          ]
-        }
-      },
-      "description": "Gated on spec Prereq G — adds session.anonymous_skip counter."
-    },
-    {
       "id": 11,
       "type": "text",
       "title": "Postgres (server-side) — gated on Prereq F",
-      "gridPos": { "h": 4, "w": 16, "x": 8, "y": 26 },
+      "gridPos": { "h": 4, "w": 24, "x": 0, "y": 26 },
       "options": {
         "mode": "markdown",
         "content": "**Postgres server-side metrics are gated on spec Prereq F.**\n\nThe OTel collector's `postgres` receiver is configured but not currently emitting metrics (e.g. `postgresql_backends`, `postgresql_commits`, `postgresql_rollbacks`, `postgresql_db_size`, `postgresql_bgwriter_*`). Until that is fixed, database health is observed indirectly through HikariCP (connection pool) and `datasource-micrometer` (JDBC commits/rollbacks/queries) panels on this dashboard.\n\nWhen Prereq F lands, add panels for:\n- `postgresql_backends` (active connections, server-side)\n- `rate(postgresql_commits[5m])` vs `rate(postgresql_rollbacks[5m])`\n- `postgresql_db_size` per database\n- `rate(postgresql_bgwriter_buffers_writes[5m])` by source\n- Cache hit ratio: `postgresql_blocks_read{source=\"heap_hit\"} / (heap_hit + heap_read)`"
