@@ -403,6 +403,53 @@ groups:
             and check the Discord dashboard for REST queue depth around the spike.
 
       # ──────────────────────────────────────────────────────────────────────
+      # Sustained Discord REST request storm — the direct, outbound-side signal
+      # the 429 rule can miss. JDA self-throttles to avoid 429s, so a storm
+      # shows up first as an elevated outbound call rate (and growing queue
+      # waits), not as 429s. Steady-state for this bot is ~0 req/s; the
+      # channel-sort regression ran a flat ~0.17 req/s. Fire on >0.1 req/s for
+      # 10m — well above the short bursts from event create/archive, and it
+      # trips long before peepbot-discord-429 would.
+      # ──────────────────────────────────────────────────────────────────────
+      - uid: peepbot-discord-rest-storm
+        title: Discord REST request rate elevated (possible request storm)
+        condition: B
+        for: 10m
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: sum(rate(discord_http_milliseconds_count{service_namespace="peep-bot"}[10m]))
+              instant: true
+          - refId: B
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0.1] }
+        labels:
+          severity: warning
+          component: discord
+        annotations:
+          summary: "Discord REST call rate > 0.1 req/s for 10m"
+          description: |
+            Sustained outbound Discord API traffic well above this bot's
+            near-zero baseline — usually an over-eager scheduler or loop
+            issuing per-entity calls (the channel-sort regression ran a flat
+            ~0.17 req/s). JDA self-throttles to avoid 429s, so this trips well
+            before peepbot-discord-429 would.
+
+            Break down by route to find the culprit:
+              topk(5, sum by (url_route, http_method) (rate(discord_http_milliseconds_count[10m])))
+
+      # ──────────────────────────────────────────────────────────────────────
       # HTTP p99 latency on non-actuator endpoints.
       # ──────────────────────────────────────────────────────────────────────
       - uid: peepbot-http-p99
