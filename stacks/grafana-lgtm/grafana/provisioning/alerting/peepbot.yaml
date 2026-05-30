@@ -356,6 +356,53 @@ groups:
             Inspect the slowest interactions on the Discord dashboard.
 
       # ──────────────────────────────────────────────────────────────────────
+      # Discord API returned a 429 (rate limited) at all in the last 3h.
+      # JDA pre-emptively waits to stay under Discord's bucket limits, so an
+      # actual 429 means a limit was genuinely breached — the canary for
+      # request-storm regressions (e.g. an over-eager scheduler issuing one
+      # call per entity). Rare in normal operation (~3/90d), so any occurrence
+      # is worth surfacing.
+      # ──────────────────────────────────────────────────────────────────────
+      - uid: peepbot-discord-429
+        title: Discord API returned 429 (rate limited)
+        condition: B
+        for: 0m
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            relativeTimeRange: { from: 10800, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: sum(increase(discord_http_milliseconds_count{service_namespace="peep-bot", http_status_code="429"}[3h]))
+              instant: true
+          - refId: B
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+        labels:
+          severity: warning
+          component: discord
+        annotations:
+          summary: "Discord returned 429 (rate limited) — {{ $value }} in the last 3h"
+          description: |
+            JDA normally self-throttles to stay under Discord's rate limits, so
+            a real 429 means a bucket limit was genuinely exceeded — usually a
+            request storm (an over-eager scheduler or loop issuing per-entity
+            calls). This is the early-warning the channel-sort storm should have
+            tripped.
+
+            Identify the limited route:
+              sum by (url_route) (increase(discord_http_milliseconds_count{http_status_code="429"}[3h]))
+            and check the Discord dashboard for REST queue depth around the spike.
+
+      # ──────────────────────────────────────────────────────────────────────
       # HTTP p99 latency on non-actuator endpoints.
       # ──────────────────────────────────────────────────────────────────────
       - uid: peepbot-http-p99
