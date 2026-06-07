@@ -21,7 +21,28 @@ services:
       - --entrypoints.websecure.forwardedHeaders.trustedIPs=127.0.0.1/32,10.0.0.0/8,192.168.0.0/16,172.16.0.0/12
       - --providers.docker=true
       - --providers.docker.exposedByDefault=false
+      # Logs + access logs are exported to the LGTM bundle via OTLP (same path
+      # as metrics/tracing below). OTLP log records embed the active trace/span
+      # IDs, so Loki ingests them as the `trace_id` structured-metadata field
+      # that the Loki datasource's derived field + Tempo tracesToLogsV2 expect —
+      # giving working log<->trace correlation and proper Grafana level
+      # detection (OTLP severity -> level). The OTLP logs integration is still
+      # experimental, hence the feature gate.
+      - --experimental.otlpLogs=true
       - --log.level=INFO
+      - --log.otlp=true
+      - --log.otlp.grpc.endpoint=grafana-lgtm:4317
+      - --log.otlp.grpc.insecure=true
+      - --log.otlp.serviceName=traefik
+      - --accesslog=true
+      - --accesslog.otlp=true
+      - --accesslog.otlp.grpc.endpoint=grafana-lgtm:4317
+      - --accesslog.otlp.grpc.insecure=true
+      - --accesslog.otlp.serviceName=traefik
+      # Keep human-readable access logs on stdout too (for `docker logs`); the
+      # stdout copy is NOT shipped to Loki — Alloy drops this container via the
+      # loki.shipping=false label below — so there's no duplicate, untraced copy.
+      - --accesslog.dualOutput=true
       - --api=true
       - --api.dashboard=true
       - --serversTransport.insecureSkipVerify=true
@@ -47,6 +68,10 @@ services:
       - /ssd/services/traefik/acme.json:/acme.json
     labels:
       - traefik.enable=true
+      # Traefik ships its own logs to Loki via OTLP (trace-correlated). Drop the
+      # container stdout copy here so Alloy doesn't double-ship an untraced,
+      # lower-fidelity duplicate — same rationale as peep-bot's OTLP log path.
+      - loki.shipping=false
       - traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)
       - traefik.http.routers.http-catchall.entrypoints=web
       - traefik.http.routers.http-catchall.middlewares=redirect-to-https
