@@ -123,6 +123,12 @@ services:
     <<: *backend-defaults
     image: ghcr.io/tyler-cash/peep-bot-backend:3.65.0@sha256:414baec498fc694c889bbb84c47ab2f91728396c28029a301967ce02c01a7404
     container_name: peepbot-backend
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
     volumes:
       - peepbot-djl-cache:/root/.djl.ai
       - pyroscope-agent:/agent:ro
@@ -145,7 +151,7 @@ services:
       # user-supplied -javaagent (verified by running the image locally). The JVM also honors
       # _JAVA_OPTIONS, which Paketo leaves untouched, so the agent attaches and coexists with
       # the buildpack's JAVA_TOOL_OPTIONS memory tuning.
-      _JAVA_OPTIONS: "-javaagent:/agent/pyroscope.jar -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints"
+      _JAVA_OPTIONS: "-javaagent:/agent/pyroscope.jar -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:MaxDirectMemorySize=256m -XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp"
       PYROSCOPE_APPLICATION_NAME: peepbot-backend
       PYROSCOPE_SERVER_ADDRESS: http://grafana-lgtm:4040
       PYROSCOPE_FORMAT: jfr
