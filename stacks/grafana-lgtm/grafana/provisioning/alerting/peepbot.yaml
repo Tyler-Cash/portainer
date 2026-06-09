@@ -565,6 +565,45 @@ groups:
             Check the JVM dashboard for GC pause times and old-gen growth.
             A slow leak shows as a sawtooth that never returns to baseline.
 
+      # ──────────────────────────────────────────────────────────────────────
+      # Container memory near its Docker limit. cAdvisor-style ratio is a
+      # 0-100 percentage of the container's memory limit (not host). Catches
+      # off-heap growth (JDA/Netty direct buffers, DJL native, Pyroscope agent)
+      # that the heap rule above cannot see, before a cgroup OOM kill.
+      # ──────────────────────────────────────────────────────────────────────
+      - uid: peepbot-container-mem
+        title: Backend container memory near limit (OOM risk)
+        condition: B
+        for: 5m
+        noDataState: OK
+        execErrState: Error
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              expr: max(container_memory_percent_ratio{container_name="peepbot-backend"})
+              instant: true
+          - refId: B
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [90] }
+        labels:
+          severity: warning
+          component: container
+        annotations:
+          summary: "peepbot-backend container memory at {{ $value }}% of its limit"
+          description: |
+            The backend container is near its Docker memory limit and at risk
+            of a cgroup OOM kill (exit 137). Check off-heap growth on the JVM
+            dashboard and raise the container limit or -XX:MaxDirectMemorySize.
+
   - orgId: 1
     name: peepbot-info
     folder: Peep Bot
@@ -626,7 +665,7 @@ groups:
               type: threshold
               expression: A
               conditions:
-                - evaluator: { type: gt, params: [2] }
+                - evaluator: { type: gt, params: [1] }
         labels:
           severity: info
           component: lifecycle
