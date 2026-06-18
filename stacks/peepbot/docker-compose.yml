@@ -95,7 +95,7 @@ services:
       - pyroscope-agent:/agent
 
   peepbot-postgres:
-    image: pgvector/pgvector:pg18@sha256:42e7f6b4e1eceb02ff14e3e6bc6108bbe259abbe83879dc1845d0da1ddeb555d
+    image: pgvector/pgvector:pg18@sha256:c8a919765f2ef63681329fa21021b830cd4d79d1165bdca730dd016014e4da84
     container_name: peepbot-postgres
     restart: always
     shm_size: 128mb
