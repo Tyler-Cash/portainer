@@ -151,15 +151,26 @@ services:
       # user-supplied -javaagent (verified by running the image locally). The JVM also honors
       # _JAVA_OPTIONS, which Paketo leaves untouched, so the agent attaches and coexists with
       # the buildpack's JAVA_TOOL_OPTIONS memory tuning.
-      _JAVA_OPTIONS: "-javaagent:/agent/pyroscope.jar -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:MaxDirectMemorySize=256m -XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp"
+      DEV_TYLERCASH_BOTADMINS: ${DEV_TYLERCASH_BOTADMINS}
+      DEV_TYLERCASH_DISCORD_GUILD_ID: ${DEV_TYLERCASH_DISCORD_GUILD_ID}
+      DEV_TYLERCASH_DISCORD_TOKEN: ${DEV_TYLERCASH_DISCORD_TOKEN}
+      DEV_TYLERCASH_IMMICH_API_KEY: ${DEV_TYLERCASH_IMMICH_API_KEY}
+      DEV_TYLERCASH_IMMICH_BASE_URL: ${DEV_TYLERCASH_IMMICH_BASE_URL}
+      DEV_TYLERCASH_IMMICH_ENABLED: ${DEV_TYLERCASH_IMMICH_ENABLED}
+      DEV_TYLERCASH_PLACES_API_KEY: ${DEV_TYLERCASH_PLACES_API_KEY}
+      MANAGEMENT_HEALTH_DISKSPACE_ENABLED: false
+      MANAGEMENT_OTLP_METRICS_EXPORT_URL: http://signoz-otel-collector:4318/v1/metrics
+      MANAGEMENT_OTLP_TRACING_ENDPOINT: http://signoz-otel-collector:4318/v1/traces
+      MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "1.0"
       PYROSCOPE_APPLICATION_NAME: peepbot-backend
-      PYROSCOPE_SERVER_ADDRESS: http://grafana-lgtm:4040
       PYROSCOPE_FORMAT: jfr
-      PYROSCOPE_PROFILER_EVENT: itimer
-      PYROSCOPE_PROFILER_ALLOC: 512k
-      PYROSCOPE_PROFILER_LOCK: 10ms
       PYROSCOPE_LABELS: "namespace=peep-bot,env=production"
+      PYROSCOPE_PROFILER_ALLOC: 512k
+      PYROSCOPE_PROFILER_EVENT: itimer
+      PYROSCOPE_PROFILER_LOCK: 10ms
+      PYROSCOPE_SERVER_ADDRESS: http://grafana-lgtm:4040
       SPRING_PROFILES_ACTIVE: prod
+      _JAVA_OPTIONS: "-javaagent:/agent/pyroscope.jar -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:MaxDirectMemorySize=256m -XX:+ExitOnOutOfMemoryError -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp"
       # ONE-SHOT: re-classify every event whose category was assigned before this cutoff
       # under the new v2 prompt + mistral-nemo model (peep-bot v3.53.x). Runs once per
       # container start at 1 event/sec. Cutoff is comfortably past the expected deploy of
