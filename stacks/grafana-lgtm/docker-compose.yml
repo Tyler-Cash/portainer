@@ -75,9 +75,9 @@ services:
                         - smartctl-exporter:9633
         processors:
           batch:
-            send_batch_size: 10000
-            send_batch_max_size: 11000
-            timeout: 10s
+            send_batch_size: 1000000
+            send_batch_max_size: 1100000
+            timeout: 60s
           resource/postgres:
             attributes:
               - key: service.name
