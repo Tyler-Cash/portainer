@@ -1,8 +1,9 @@
 import { createReadStream } from 'node:fs';
-import { stat } from 'node:fs/promises';
+import { stat, unlink } from 'node:fs/promises';
 import { Readable } from 'node:stream';
 import { NextRequest, NextResponse } from 'next/server';
 import { findSourceFile, isValidId, mimeTypeFor } from '@/lib/paths';
+import { resolveRange } from '@/lib/range';
 
 export const runtime = 'nodejs';
 
@@ -19,7 +20,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   const { size } = await stat(filePath);
   const contentType = mimeTypeFor(filePath);
-  const range = request.headers.get('range');
+  const range = resolveRange(request.headers.get('range'), size);
+
+  if (range === 'unsatisfiable') {
+    return new NextResponse(null, { status: 416, headers: { 'content-range': `bytes */${size}` } });
+  }
 
   if (!range) {
     const stream = Readable.toWeb(createReadStream(filePath)) as ReadableStream;
@@ -33,13 +38,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     });
   }
 
-  const match = /^bytes=(\d+)-(\d*)$/.exec(range);
-  if (!match) {
-    return new NextResponse(null, { status: 416, headers: { 'content-range': `bytes */${size}` } });
-  }
-
-  const start = Number(match[1]);
-  const end = match[2] ? Number(match[2]) : size - 1;
+  const { start, end } = range;
   const stream = Readable.toWeb(createReadStream(filePath, { start, end })) as ReadableStream;
 
   return new NextResponse(stream, {
@@ -51,4 +50,18 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       'accept-ranges': 'bytes',
     },
   });
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  if (!isValidId(id)) {
+    return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
+  }
+
+  const filePath = await findSourceFile(id);
+  if (filePath) {
+    await unlink(filePath);
+  }
+
+  return NextResponse.json({ ok: true });
 }
