@@ -24,8 +24,83 @@ body {
   cursor: pointer;
 }
 
+.dropzone.dropzone-active {
+  border-color: #4c8dff;
+  background: rgba(76, 141, 255, 0.08);
+}
+
 .dropzone input {
   display: none;
+}
+
+.timeline {
+  margin-top: 0.75rem;
+}
+
+.timeline-track {
+  position: relative;
+  height: 12px;
+  background: #333;
+  border-radius: 6px;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.timeline-range {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: #4c8dff;
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+.timeline-playhead {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  background: #fff;
+  pointer-events: none;
+}
+
+.timeline-handle {
+  position: absolute;
+  top: -4px;
+  width: 14px;
+  height: 20px;
+  margin-left: -7px;
+  background: #fff;
+  border-radius: 3px;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.queue {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.queue-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #333;
+  border-radius: 6px;
+}
+
+.queue-item-done {
+  border-color: #2e7d32;
+}
+
+.queue-item-error {
+  border-color: #c62828;
 }
 
 .preview {

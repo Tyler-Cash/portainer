@@ -1,14 +1,25 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Timeline from './timeline';
 
-type UploadState =
+type SourceState =
   | { status: 'idle' }
   | { status: 'uploading' }
   | { status: 'ready'; id: string; isTs: boolean }
-  | { status: 'clipping'; id: string; isTs: boolean }
-  | { status: 'done'; url: string }
-  | { status: 'error'; message: string; id?: string; isTs?: boolean };
+  | { status: 'error'; message: string };
+
+interface QueuedClip {
+  clipId: string;
+  start: number;
+  end: number;
+  removeAudio: boolean;
+  status: 'pending' | 'processing' | 'fast-ready' | 'done' | 'error';
+  url?: string;
+  error?: string;
+}
+
+const DEFAULT_CLIP_SECONDS = 20;
 
 function isTsFile(filename: string): boolean {
   const lower = filename.toLowerCase();
@@ -16,37 +27,40 @@ function isTsFile(filename: string): boolean {
 }
 
 function formatTime(seconds: number): string {
-  if (!Number.isFinite(seconds)) return '0:00';
+  if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 export default function Home() {
-  const [state, setState] = useState<UploadState>({ status: 'idle' });
+  const [source, setSource] = useState<SourceState>({ status: 'idle' });
+  const [dragActive, setDragActive] = useState(false);
   const [duration, setDuration] = useState(0);
-  const [start, setStart] = useState(0);
-  const [end, setEnd] = useState(0);
-  const [removeAudio, setRemoveAudio] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [draftStart, setDraftStart] = useState(0);
+  const [draftEnd, setDraftEnd] = useState(0);
+  const [draftRemoveAudio, setDraftRemoveAudio] = useState(false);
+  const [clips, setClips] = useState<QueuedClip[]>([]);
+  const [processingQueue, setProcessingQueue] = useState(false);
+  const [fastPreviewEnabled, setFastPreviewEnabled] = useState(true);
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const playerRef = useRef<{ destroy: () => void } | null>(null);
 
-  const editingId =
-    state.status === 'ready' || state.status === 'clipping'
-      ? state.id
-      : state.status === 'error'
-        ? state.id
-        : undefined;
-  const editingIsTs =
-    state.status === 'ready' || state.status === 'clipping'
-      ? state.isTs
-      : state.status === 'error'
-        ? state.isTs
-        : undefined;
-  const editing = editingId !== undefined;
+  const sourceId = source.status === 'ready' ? source.id : undefined;
+  const sourceIsTs = source.status === 'ready' ? source.isTs : undefined;
+
+  useEffect(() => {
+    fetch('/api/config')
+      .then((res) => res.json())
+      .then((json) => setFastPreviewEnabled(Boolean(json.fastPreviewEnabled)))
+      .catch(() => setFastPreviewEnabled(true));
+  }, []);
 
   async function handleFile(file: File) {
-    setState({ status: 'uploading' });
+    setSource({ status: 'uploading' });
+    setClips([]);
     try {
       const res = await fetch('/api/upload', {
         method: 'POST',
@@ -55,22 +69,38 @@ export default function Home() {
       });
       const json = await res.json();
       if (!res.ok) {
-        setState({ status: 'error', message: json.error ?? 'Upload failed' });
+        setSource({ status: 'error', message: json.error ?? 'Upload failed' });
         return;
       }
-      setState({ status: 'ready', id: json.id, isTs: isTsFile(file.name) });
+      setSource({ status: 'ready', id: json.id, isTs: isTsFile(file.name) });
     } catch (err) {
-      setState({ status: 'error', message: (err as Error).message });
+      setSource({ status: 'error', message: (err as Error).message });
     }
   }
 
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    setDragActive(true);
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault();
+    setDragActive(false);
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragActive(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFile(file);
+  }
+
   useEffect(() => {
-    if (!editingId || !videoRef.current) return;
-
+    if (!sourceId || !videoRef.current) return;
     const video = videoRef.current;
-    const src = `/api/upload/${editingId}`;
+    const src = `/api/upload/${sourceId}`;
 
-    if (editingIsTs) {
+    if (sourceIsTs) {
       let cancelled = false;
       import('mpegts.js').then((mod) => {
         if (cancelled) return;
@@ -93,52 +123,160 @@ export default function Home() {
       video.load();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingId, editingIsTs]);
+  }, [sourceId, sourceIsTs]);
 
   function onLoadedMetadata() {
     const video = videoRef.current;
     if (!video) return;
     setDuration(video.duration);
-    setEnd(video.duration);
+    setDraftStart(0);
+    setDraftEnd(Math.min(DEFAULT_CLIP_SECONDS, video.duration));
   }
 
-  async function handleClip() {
-    if (!editingId) return;
-    const id = editingId;
-    const isTs = editingIsTs ?? false;
+  function onTimeUpdate() {
+    const video = videoRef.current;
+    if (video) setCurrentTime(video.currentTime);
+  }
 
-    setState({ status: 'clipping', id, isTs });
+  function seekTo(time: number) {
+    const video = videoRef.current;
+    if (video) video.currentTime = time;
+    setCurrentTime(time);
+  }
+
+  function startClipHere() {
+    const time = videoRef.current?.currentTime ?? 0;
+    setDraftStart(time);
+    setDraftEnd(Math.min(time + DEFAULT_CLIP_SECONDS, duration));
+  }
+
+  function stopClipHere() {
+    const time = videoRef.current?.currentTime ?? duration;
+    setDraftEnd(Math.max(time, draftStart + 0.5));
+  }
+
+  function addToQueue() {
+    if (draftEnd <= draftStart) return;
+    setClips((prev) => [
+      ...prev,
+      {
+        clipId: crypto.randomUUID(),
+        start: draftStart,
+        end: draftEnd,
+        removeAudio: draftRemoveAudio,
+        status: 'pending',
+      },
+    ]);
+    const nextStart = draftEnd;
+    setDraftStart(nextStart);
+    setDraftEnd(Math.min(nextStart + DEFAULT_CLIP_SECONDS, duration));
+  }
+
+  function removeFromQueue(clipId: string) {
+    setClips((prev) => prev.filter((c) => c.clipId !== clipId));
+  }
+
+  async function processClip(clip: QueuedClip) {
+    if (!sourceId) return;
+    setClips((prev) =>
+      prev.map((c) => (c.clipId === clip.clipId ? { ...c, status: 'processing', error: undefined } : c)),
+    );
+
+    let fastZiplineId: string | undefined;
+
+    if (fastPreviewEnabled) {
+      try {
+        const res = await fetch('/api/clip', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            id: sourceId,
+            start: clip.start,
+            end: clip.end,
+            removeAudio: clip.removeAudio,
+            mode: 'fast',
+          }),
+        });
+        const json = await res.json();
+        if (res.ok) {
+          fastZiplineId = json.ziplineId;
+          setClips((prev) =>
+            prev.map((c) => (c.clipId === clip.clipId ? { ...c, status: 'fast-ready', url: json.url } : c)),
+          );
+        }
+      } catch {
+        // Fast preview is a nice-to-have — fall through to the full-quality pass either way.
+      }
+    }
+
     try {
       const res = await fetch('/api/clip', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ id, start, end, removeAudio }),
+        body: JSON.stringify({
+          id: sourceId,
+          start: clip.start,
+          end: clip.end,
+          removeAudio: clip.removeAudio,
+          mode: 'full',
+          supersedesZiplineId: fastZiplineId,
+        }),
       });
       const json = await res.json();
       if (!res.ok) {
-        setState({ status: 'error', message: json.error ?? 'Clip failed', id, isTs });
+        setClips((prev) =>
+          prev.map((c) => (c.clipId === clip.clipId ? { ...c, status: 'error', error: json.error } : c)),
+        );
         return;
       }
-      setState({ status: 'done', url: json.url });
+      setClips((prev) =>
+        prev.map((c) => (c.clipId === clip.clipId ? { ...c, status: 'done', url: json.url } : c)),
+      );
     } catch (err) {
-      setState({ status: 'error', message: (err as Error).message, id, isTs });
+      setClips((prev) =>
+        prev.map((c) =>
+          c.clipId === clip.clipId ? { ...c, status: 'error', error: (err as Error).message } : c,
+        ),
+      );
     }
   }
 
-  function reset() {
-    setState({ status: 'idle' });
-    setDuration(0);
-    setStart(0);
-    setEnd(0);
-    setRemoveAudio(false);
+  async function processQueue() {
+    setProcessingQueue(true);
+    const pending = clips.filter((c) => c.status === 'pending' || c.status === 'error');
+    for (const clip of pending) {
+      await processClip(clip);
+    }
+    setProcessingQueue(false);
   }
+
+  async function finish() {
+    if (sourceId) {
+      await fetch(`/api/upload/${sourceId}`, { method: 'DELETE' }).catch(() => {});
+    }
+    setSource({ status: 'idle' });
+    setClips([]);
+    setDuration(0);
+    setCurrentTime(0);
+    setDraftStart(0);
+    setDraftEnd(0);
+    setDraftRemoveAudio(false);
+  }
+
+  const hasActiveClips = clips.some((c) => c.status === 'pending' || c.status === 'processing');
+  const pendingCount = clips.filter((c) => c.status === 'pending' || c.status === 'error').length;
 
   return (
     <main className="page">
       <h1>ts-clipper</h1>
 
-      {state.status === 'idle' && (
-        <label className="dropzone">
+      {source.status === 'idle' && (
+        <label
+          className={`dropzone${dragActive ? ' dropzone-active' : ''}`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
           <input
             type="file"
             accept=".ts,.m2ts,.mp4,.webm,.m4v"
@@ -151,69 +289,103 @@ export default function Home() {
         </label>
       )}
 
-      {state.status === 'uploading' && <p>Uploading&hellip;</p>}
+      {source.status === 'uploading' && <p>Uploading&hellip;</p>}
+      {source.status === 'error' && <p className="error">{source.message}</p>}
 
-      {editing && (
+      {source.status === 'ready' && (
         <div className="editor">
-          <video ref={videoRef} controls onLoadedMetadata={onLoadedMetadata} className="preview" />
+          <video
+            ref={videoRef}
+            controls
+            onLoadedMetadata={onLoadedMetadata}
+            onTimeUpdate={onTimeUpdate}
+            className="preview"
+          />
+
+          <Timeline
+            duration={duration}
+            currentTime={currentTime}
+            start={draftStart}
+            end={draftEnd}
+            onSeek={seekTo}
+            onChangeStart={setDraftStart}
+            onChangeEnd={setDraftEnd}
+          />
+
+          <p>
+            Clip: {formatTime(draftStart)}&ndash;{formatTime(draftEnd)} (
+            {formatTime(draftEnd - draftStart)})
+          </p>
 
           <div className="controls">
-            <label>
-              In: {formatTime(start)}
-              <input
-                type="range"
-                min={0}
-                max={duration || 0}
-                step={0.1}
-                value={start}
-                onChange={(e) => setStart(Math.min(Number(e.target.value), end))}
-              />
-            </label>
-            <label>
-              Out: {formatTime(end)}
-              <input
-                type="range"
-                min={0}
-                max={duration || 0}
-                step={0.1}
-                value={end}
-                onChange={(e) => setEnd(Math.max(Number(e.target.value), start))}
-              />
-            </label>
-            <button type="button" onClick={() => setStart(videoRef.current?.currentTime ?? 0)}>
-              Set in to current time
+            <button type="button" onClick={startClipHere}>
+              Start clip here (~{DEFAULT_CLIP_SECONDS}s)
             </button>
-            <button type="button" onClick={() => setEnd(videoRef.current?.currentTime ?? duration)}>
-              Set out to current time
+            <button type="button" onClick={stopClipHere}>
+              Stop clip here
             </button>
             <label>
               <input
                 type="checkbox"
-                checked={removeAudio}
-                onChange={(e) => setRemoveAudio(e.target.checked)}
+                checked={draftRemoveAudio}
+                onChange={(e) => setDraftRemoveAudio(e.target.checked)}
               />
               Remove audio
             </label>
-            <button type="button" disabled={state.status === 'clipping'} onClick={handleClip}>
-              {state.status === 'clipping' ? 'Clipping…' : 'Clip & Upload'}
+            <button type="button" onClick={addToQueue}>
+              Add clip to queue
             </button>
           </div>
-        </div>
-      )}
 
-      {state.status === 'error' && <p className="error">{state.message}</p>}
+          {clips.length > 0 && (
+            <ul className="queue">
+              {clips.map((clip) => (
+                <li key={clip.clipId} className={`queue-item queue-item-${clip.status}`}>
+                  <span>
+                    {formatTime(clip.start)}&ndash;{formatTime(clip.end)}
+                    {clip.removeAudio ? ' (no audio)' : ''}
+                  </span>
+                  {clip.status === 'pending' && (
+                    <button type="button" onClick={() => removeFromQueue(clip.clipId)}>
+                      Remove
+                    </button>
+                  )}
+                  {clip.status === 'processing' && <span>Uploading&hellip;</span>}
+                  {clip.status === 'fast-ready' && clip.url && (
+                    <>
+                      <a href={clip.url}>{clip.url}</a>
+                      <span>(quick preview &mdash; upgrading to full quality&hellip;)</span>
+                    </>
+                  )}
+                  {clip.status === 'done' && clip.url && (
+                    <>
+                      <a href={clip.url}>{clip.url}</a>
+                      <button type="button" onClick={() => navigator.clipboard.writeText(clip.url!)}>
+                        Copy
+                      </button>
+                    </>
+                  )}
+                  {clip.status === 'error' && (
+                    <>
+                      <span className="error">{clip.error}</span>
+                      <button type="button" onClick={() => processClip(clip)}>
+                        Retry
+                      </button>
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
 
-      {state.status === 'done' && (
-        <div className="result">
-          <p>
-            Uploaded: <a href={state.url}>{state.url}</a>
-          </p>
-          <button type="button" onClick={() => navigator.clipboard.writeText(state.url)}>
-            Copy link
-          </button>
-          <button type="button" onClick={reset}>
-            Clip another
-          </button>
+          <div className="controls">
+            <button type="button" disabled={processingQueue || pendingCount === 0} onClick={processQueue}>
+              {processingQueue ? 'Uploading queue…' : `Upload ${pendingCount} queued clip(s)`}
+            </button>
+            <button type="button" disabled={hasActiveClips} onClick={finish}>
+              Finish &amp; clip another video
+            </button>
+          </div>
         </div>
       )}
     </main>
