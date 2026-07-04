@@ -9,7 +9,7 @@ x-logging: &logging
 services:
   zipline:
     <<: *logging
-    image: ghcr.io/diced/zipline:3.7.9@sha256:87fa82763f4cb9362d23d58234b494a455e9045c865dd63c4eb4ec5a8300bae2
+    image: ghcr.io/diced/zipline:3.7.13@sha256:f0209223b159be9460bf1454b1908417877fef6a1f3a31d5e682885fb9431f30
     container_name: zipline
     restart: unless-stopped
     networks:
