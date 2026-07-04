@@ -1,8 +1,8 @@
 # ts-clipper Design Spec
 
-**Goal:** A self-hosted, single-page Next.js app (`clip.tylercash.dev`) that replaces the current manual flow for sharing FPV DVR footage (raw `.ts` files off HDZero Goggles 2, currently: convert to mp4 → clip in VLC → upload with ShareX). The app lets you drag-drop a video, preview and scrub it in the browser, cut a clip, and get back a Zipline share link — all in one page, with no files retained afterward.
+**Goal:** A self-hosted, single-page Next.js app (`upload.tylercash.dev`) that replaces the current manual flow for sharing FPV DVR footage (raw `.ts` files off HDZero Goggles 2, currently: convert to mp4 → clip in VLC → upload with ShareX). The app lets you drag-drop a video, preview and scrub it in the browser, cut a clip, and get back a Zipline share link — all in one page, with no files retained afterward.
 
-**Scope for v1:** Browser upload only (no watched-folder/network-share ingestion path). Accepts raw `.ts`/`.m2ts` (the DVR case this was built for) as well as standard container types that already work as ordinary shared clips: `.mp4`, `.webm`, `.m4v`. Single clip per upload, no batching, no thumbnails/waveform. No auth beyond being on the LAN, matching every other stack in this repo.
+**Scope for v1:** Browser upload only (no watched-folder/network-share ingestion path). Accepts raw `.ts`/`.m2ts` (the DVR case this was built for) as well as standard container types that already work as ordinary shared clips: `.mp4`, `.webm`, `.m4v`. Single clip per upload, no batching, no thumbnails/waveform. No app-level auth — access is restricted to the LAN at the Traefik layer, the same way `stacks/vaultwarden` restricts the password manager (`ClientIP` matching only, no public exposure).
 
 **Format handling note:** `.ts`/`.m2ts` aren't natively playable by `<video>` — those go through the `mpegts.js` demux path described below. `.mp4`/`.webm`/`.m4v` play natively, so the frontend skips `mpegts.js` for those and points `<video>` straight at `/api/upload/[id]`. `.mov`/`.mkv`/`.avi` are deliberately excluded from v1: ffmpeg could technically trim them, but browser preview support for those containers is inconsistent enough that "drag it in and it just plays" wouldn't reliably hold, which defeats the point of the tool. The upload route rejects any extension outside `{.ts, .m2ts, .mp4, .webm, .m4v}` with a clear error.
 
@@ -80,7 +80,7 @@ Using this fast local volume (rather than `/hdd` or `/ssd/services/...`) matters
 
 `node:22-bookworm-slim` base, multi-stage build per the standard Next.js standalone Dockerfile pattern, with `apt-get install -y ffmpeg` added in the runner stage. No `/dev/dri` VAAPI passthrough needed — the re-encode fallback path is software (`libx264`) since it's a rare edge case and doesn't justify the extra device-passthrough complexity here.
 
-Compose service joins `homelab_default`, Traefik host `clip.tylercash.dev`, standard `x-logging` anchor and Traefik/watchtower labels matching every other stack in this repo (see `stacks/zipline/docker-compose.yml` for the exact label block to copy).
+Compose service joins `homelab_default`, Traefik host `upload.tylercash.dev` restricted to the LAN via `ClientIP(\`10.0.0.0/8\`)` (matching `stacks/vaultwarden/docker-compose.yml:25`, not the wider `172.19.0.0/24`-inclusive pattern most other stacks use), standard `x-logging` anchor and Traefik labels matching every other stack in this repo (see `stacks/zipline/docker-compose.yml` for the exact label block to copy).
 
 ## Homepage integration
 

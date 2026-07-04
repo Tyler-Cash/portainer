@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build and deploy `ts-clipper`, a self-hosted Next.js app at `clip.tylercash.dev` that lets you drag-drop a video (raw `.ts`/`.m2ts` DVR footage or a standard `.mp4`/`.webm`/`.m4v`), scrub to pick in/out points, optionally strip audio, and get back a Zipline share link — with both the raw upload and the trimmed clip deleted from local storage the moment the Zipline upload succeeds.
+**Goal:** Build and deploy `ts-clipper`, a self-hosted Next.js app at `upload.tylercash.dev` that lets you drag-drop a video (raw `.ts`/`.m2ts` DVR footage or a standard `.mp4`/`.webm`/`.m4v`), scrub to pick in/out points, optionally strip audio, and get back a Zipline share link — with both the raw upload and the trimmed clip deleted from local storage the moment the Zipline upload succeeds.
 
 **Architecture:** One Next.js 16 App Router project (`stacks/ts-clipper/web/`) with Route Handlers doing all the work server-side: streaming the raw upload to a scratch disk, serving it back with Range support for browser preview, running `ffmpeg` to trim it (stream-copy first, software re-encode as fallback), and forwarding the result to Zipline's upload API. No database — state is just files on disk plus request/response round-trips. Deployed as its own Docker Compose stack (`stacks/ts-clipper/docker-compose.yml`) following this repo's existing conventions (see `stacks/zipline/docker-compose.yml` for the label/logging patterns being copied).
 
@@ -30,6 +30,7 @@
   ```
   Note: `com.centurylinklabs.watchtower.enable=true` is **omitted** here — this repo's convention (confirmed on both `stacks/github-runner` and `stacks/zipline`'s `zipline-transcoder`) is that `build:`-based services (no pulled image tag) don't carry the Watchtower label, since Watchtower has nothing to pull.
 - Zipline v4 upload API (confirmed from `zipline.diced.sh/docs`): `POST /api/upload` with header `authorization: <token>` (no `Bearer` prefix) and a multipart field named `file`. Response JSON is `{ files: [{ url, ... }], ... }`.
+- LAN-only access: per the user's explicit request, this router is restricted the same way `stacks/vaultwarden/docker-compose.yml:25` restricts the password manager — `ClientIP(\`10.0.0.0/8\`)` only, no `172.19.0.0/24` fallback (that second range, used by most other stacks in this repo, covers the Docker bridge network for container-to-container Traefik access; Vaultwarden and this app both deliberately omit it to stay LAN-only).
 - Per `/home/tcash/code/portainer/CLAUDE.md`: any new service with a Traefik hostname must be added to `stacks/homepage/config/services.yaml`.
 - Scratch disk convention: this repo already uses `/mnt/lvm_striped/download/<app>` as a per-app subfolder on the striped-SSD volume used for torrenting scratch I/O — see `stacks/music/docker-compose.yml:84` (`/mnt/lvm_striped/download/slskd`). This plan uses `/mnt/lvm_striped/download/ts-clipper` the same way, per the user's explicit choice.
 - **No local Docker, ffmpeg, or reachable Zipline instance in this development sandbox.** Compose YAML is validated with `npx -y js-yaml <file>`. The Next.js app itself builds and type-checks locally (Node is available via nvm — source it first: `export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"`). Anything requiring ffmpeg, a real Docker build, or a real Zipline server is called out explicitly as "run on the docker host."
@@ -1469,7 +1470,7 @@ services:
     labels:
       - traefik.enable=true
       - traefik.http.routers.ts-clipper.service=ts-clipper
-      - traefik.http.routers.ts-clipper.rule=Host(`clip.tylercash.dev`)
+      - traefik.http.routers.ts-clipper.rule=Host(`upload.tylercash.dev`) && ClientIP(`10.0.0.0/8`)
       - traefik.http.routers.ts-clipper.entrypoints=websecure
       - traefik.http.services.ts-clipper.loadbalancer.server.scheme=http
       - traefik.http.services.ts-clipper.loadbalancer.server.port=3000
@@ -1500,7 +1501,7 @@ In `stacks/homepage/config/services.yaml`, add a `ts-clipper` entry to the exist
         description: ShareX-compatible file/video sharing
         icon: mdi-share-variant
     - ts-clipper:
-        href: https://clip.tylercash.dev
+        href: https://upload.tylercash.dev
         description: Clip videos and share via Zipline
         icon: mdi-content-cut
 ```
@@ -1570,7 +1571,7 @@ Expected: `ts-clipper` listed with status `Up` (healthy).
 
 - [ ] **Step 6: End-to-end test — standard format, audio kept**
 
-1. Visit `https://clip.tylercash.dev`.
+1. Visit `https://upload.tylercash.dev`.
 2. Drag in a short `.mp4` test clip.
 3. Confirm it plays natively in the preview player.
 4. Set in/out points narrower than the full clip, leave "Remove audio" unchecked, click "Clip & Upload".
