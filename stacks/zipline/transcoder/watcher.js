@@ -47,20 +47,28 @@ async function transcode(filePath) {
   const dir = path.dirname(filePath);
   const tmpPath = path.join(dir, path.basename(filePath) + TMP_SUFFIX);
 
-  await execFileAsync('ffmpeg', [
-    '-y',
-    '-hwaccel', 'vaapi',
-    '-hwaccel_device', VAAPI_DEVICE,
-    '-hwaccel_output_format', 'vaapi',
-    '-i', filePath,
-    '-vf', 'scale_vaapi=format=nv12',
-    '-c:v', 'h264_vaapi',
-    '-b:v', TARGET_BITRATE,
-    '-maxrate', MAX_BITRATE,
-    '-bufsize', BUF_SIZE,
-    '-c:a', 'copy',
-    tmpPath,
-  ]);
+  try {
+    await execFileAsync('ffmpeg', [
+      '-y',
+      '-loglevel', 'error',
+      '-hide_banner',
+      '-nostats',
+      '-hwaccel', 'vaapi',
+      '-hwaccel_device', VAAPI_DEVICE,
+      '-hwaccel_output_format', 'vaapi',
+      '-i', filePath,
+      '-vf', 'scale_vaapi=format=nv12',
+      '-c:v', 'h264_vaapi',
+      '-b:v', TARGET_BITRATE,
+      '-maxrate', MAX_BITRATE,
+      '-bufsize', BUF_SIZE,
+      '-c:a', 'copy',
+      tmpPath,
+    ]);
+  } catch (err) {
+    fs.rm(tmpPath, { force: true }, () => {});
+    throw err;
+  }
 
   fs.renameSync(tmpPath, filePath);
 }
