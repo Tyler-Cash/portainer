@@ -1,0 +1,68 @@
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "50m"
+      max-file: "3"
+      labels: "com.docker.compose.service,com.docker.compose.project"
+
+services:
+  zipline:
+    <<: *logging
+    image: ghcr.io/diced/zipline:3.7.9@sha256:87fa82763f4cb9362d23d58234b494a455e9045c865dd63c4eb4ec5a8300bae2
+    container_name: zipline
+    restart: unless-stopped
+    networks:
+      - homelab_default
+    volumes:
+      - /hdd/media/zipline:/zipline/uploads
+    environment:
+      - CORE_RETURN_HTTPS=true
+      - CORE_SECRET=${CORE_SECRET}
+      - CORE_HOST=0.0.0.0
+      - CORE_PORT=3000
+      - CORE_DATABASE_URL=postgres://zipline:${DB_PASSWORD}@zipline-postgres:5432/zipline
+      - DATASOURCE_TYPE=local
+      - DATASOURCE_LOCAL_DIRECTORY=/zipline/uploads
+    depends_on:
+      zipline-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.zipline.service=zipline
+      - traefik.http.routers.zipline.rule=Host(`video.tylercash.dev`)
+      - traefik.http.routers.zipline.entrypoints=websecure
+      - traefik.http.services.zipline.loadbalancer.server.scheme=http
+      - traefik.http.services.zipline.loadbalancer.server.port=3000
+      - traefik.http.routers.zipline.tls.certresolver=leresolver
+      - com.centurylinklabs.watchtower.enable=true
+
+  zipline-postgres:
+    <<: *logging
+    image: postgres:16-alpine@sha256:e013e867e712fec275706a6c51c966f0bb0c93cfa8f51000f85a15f9865a28cb
+    container_name: zipline-postgres
+    restart: unless-stopped
+    networks:
+      - homelab_default
+    environment:
+      - POSTGRES_USER=zipline
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=zipline
+    volumes:
+      - /ssd/databases/zipline-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zipline"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+networks:
+  homelab_default:
+    external: true
