@@ -9,26 +9,32 @@ x-logging: &logging
 services:
   zipline:
     <<: *logging
-    image: ghcr.io/diced/zipline:3.7.13@sha256:f0209223b159be9460bf1454b1908417877fef6a1f3a31d5e682885fb9431f30
+    # No stable v4 release tag exists yet (v4 only ships rolling commit-tagged
+    # builds). Pinned to the digest the floating "v4" tag resolved to on
+    # 2026-07-04 (built from commit 1c8adf4) — the tag label is just for
+    # readability, the digest is what actually gets pulled.
+    image: ghcr.io/diced/zipline:v4@sha256:4e623c110b0746640180287b40885c63ffb67fd94a74ed4e1532494954a09f94
     container_name: zipline
     restart: unless-stopped
     networks:
       - homelab_default
     volumes:
       - /hdd/media/zipline:/zipline/uploads
+      - /ssd/services/zipline/public:/zipline/public
+      - /ssd/services/zipline/themes:/zipline/themes
     environment:
-      - CORE_RETURN_HTTPS=true
+      - CORE_RETURN_HTTPS_URLS=true
       - CORE_SECRET=${CORE_SECRET}
-      - CORE_HOST=0.0.0.0
+      - CORE_HOSTNAME=0.0.0.0
       - CORE_PORT=3000
-      - CORE_DATABASE_URL=postgres://zipline:${DB_PASSWORD}@zipline-postgres:5432/zipline
+      - DATABASE_URL=postgres://zipline:${DB_PASSWORD}@zipline-postgres:5432/zipline
       - DATASOURCE_TYPE=local
       - DATASOURCE_LOCAL_DIRECTORY=/zipline/uploads
     depends_on:
       zipline-postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:3000/ || exit 1"]
+      test: ["CMD-SHELL", "wget --spider -q http://127.0.0.1:3000/api/healthcheck || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
