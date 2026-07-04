@@ -32,3 +32,5 @@ terraform/.terraform.lock.hcl
 
 # Node dependencies
 stacks/zipline/transcoder/node_modules/
+stacks/ts-clipper/web/node_modules/
+stacks/ts-clipper/web/.next/
