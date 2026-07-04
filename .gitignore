@@ -29,3 +29,6 @@ terraform/*.tfstate
 terraform/*.tfstate.backup
 terraform/*.tfvars
 terraform/.terraform.lock.hcl
+
+# Node dependencies
+stacks/zipline/transcoder/node_modules/

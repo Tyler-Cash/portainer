@@ -1,0 +1,9 @@
+{
+  "name": "zipline-transcoder",
+  "version": "1.0.0",
+  "private": true,
+  "main": "watcher.js",
+  "dependencies": {
+    "chokidar": "^3.6.0"
+  }
+}
