@@ -81,6 +81,12 @@
         description: ROM collection manager
         icon: mdi-controller
 
+- Sharing:
+    - Zipline:
+        href: https://video.tylercash.dev
+        description: ShareX-compatible file/video sharing
+        icon: mdi-share-variant
+
 - Home:
     - Home Assistant:
         href: https://hassio.tylercash.dev
