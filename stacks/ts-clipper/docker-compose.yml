@@ -1,0 +1,40 @@
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "50m"
+      max-file: "3"
+      labels: "com.docker.compose.service,com.docker.compose.project"
+
+services:
+  ts-clipper:
+    <<: *logging
+    build: ./web
+    container_name: ts-clipper
+    restart: unless-stopped
+    networks:
+      - homelab_default
+    volumes:
+      - /mnt/lvm_striped/download/ts-clipper:/app/scratch
+    environment:
+      - SCRATCH_DIR=/app/scratch
+      - ZIPLINE_URL=https://video.tylercash.dev
+      - ZIPLINE_TOKEN=${ZIPLINE_TOKEN}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.ts-clipper.service=ts-clipper
+      - traefik.http.routers.ts-clipper.rule=Host(`upload.tylercash.dev`) && ClientIP(`10.0.0.0/8`)
+      - traefik.http.routers.ts-clipper.entrypoints=websecure
+      - traefik.http.services.ts-clipper.loadbalancer.server.scheme=http
+      - traefik.http.services.ts-clipper.loadbalancer.server.port=3000
+      - traefik.http.routers.ts-clipper.tls.certresolver=leresolver
+
+networks:
+  homelab_default:
+    external: true

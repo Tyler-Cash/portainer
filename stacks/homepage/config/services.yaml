@@ -86,6 +86,10 @@
         href: https://video.tylercash.dev
         description: ShareX-compatible file/video sharing
         icon: mdi-share-variant
+    - ts-clipper:
+        href: https://upload.tylercash.dev
+        description: Clip videos and share via Zipline
+        icon: mdi-content-cut
 
 - Home:
     - Home Assistant:
