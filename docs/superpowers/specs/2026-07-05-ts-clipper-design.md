@@ -1,8 +1,10 @@
 # ts-clipper Design Spec
 
-**Goal:** A self-hosted, single-page Next.js app (`clip.tylercash.dev`) that replaces the current manual flow for sharing FPV DVR footage (raw `.ts` files off HDZero Goggles 2, currently: convert to mp4 → clip in VLC → upload with ShareX). The app lets you drag-drop a raw `.ts`, preview and scrub it in the browser, cut a clip, and get back a Zipline share link — all in one page, with no files retained afterward.
+**Goal:** A self-hosted, single-page Next.js app (`clip.tylercash.dev`) that replaces the current manual flow for sharing FPV DVR footage (raw `.ts` files off HDZero Goggles 2, currently: convert to mp4 → clip in VLC → upload with ShareX). The app lets you drag-drop a video, preview and scrub it in the browser, cut a clip, and get back a Zipline share link — all in one page, with no files retained afterward.
 
-**Scope for v1:** Browser upload only (no watched-folder/network-share ingestion path). Single clip per upload, no batching, no thumbnails/waveform. No auth beyond being on the LAN, matching every other stack in this repo.
+**Scope for v1:** Browser upload only (no watched-folder/network-share ingestion path). Accepts raw `.ts`/`.m2ts` (the DVR case this was built for) as well as standard container types that already work as ordinary shared clips: `.mp4`, `.webm`, `.m4v`. Single clip per upload, no batching, no thumbnails/waveform. No auth beyond being on the LAN, matching every other stack in this repo.
+
+**Format handling note:** `.ts`/`.m2ts` aren't natively playable by `<video>` — those go through the `mpegts.js` demux path described below. `.mp4`/`.webm`/`.m4v` play natively, so the frontend skips `mpegts.js` for those and points `<video>` straight at `/api/upload/[id]`. `.mov`/`.mkv`/`.avi` are deliberately excluded from v1: ffmpeg could technically trim them, but browser preview support for those containers is inconsistent enough that "drag it in and it just plays" wouldn't reliably hold, which defeats the point of the tool. The upload route rejects any extension outside `{.ts, .m2ts, .mp4, .webm, .m4v}` with a clear error.
 
 ---
 
@@ -21,8 +23,8 @@ GET /api/upload/[id]  (Range-aware) ──► browser mpegts.js player reads raw
    │
    │  user sets in/out points, clicks "Clip & Upload"
    ▼
-POST /api/clip { id, start, end }
-   │  ffmpeg -ss -to -c copy (fallback: re-encode)  ──► scratch/<uuid>-clip.mp4
+POST /api/clip { id, start, end, removeAudio }
+   │  ffmpeg -ss -to -c copy [-an] (fallback: re-encode)  ──► scratch/<uuid>-clip.mp4
    │  POST to Zipline /api/upload (Authorization: token)
    │  on success: delete scratch/<uuid>.ts and scratch/<uuid>-clip.mp4
    ▼
@@ -36,7 +38,8 @@ POST /api/clip { id, start, end }
 - On file selection: `fetch('/api/upload', { method: 'POST', body: file, headers: { 'x-filename': file.name } })`. The raw `File` is sent as the request body (not multipart `FormData`) so the browser streams it and the server never has to buffer a multi-hundred-MB blob before it can start writing to disk.
 - Once `{ id }` comes back, points an `mpegts.js` player at `/api/upload/[id]` for preview/scrub (plain `<video>` can't demux MPEG-TS directly, which is the likely cause of VLC's clip/export flow being unreliable on these files today).
 - A dual-handle range control tied to the player's current time sets in/out points; "set in"/"set out" buttons snap to the current playhead.
-- "Clip & Upload" POSTs `{ id, start, end }` to `/api/clip`, shows a spinner, then displays the returned Zipline URL with a copy button — or an error with a "retry" action (see Error Handling).
+- A "Remove audio" checkbox/toggle next to the clip controls.
+- "Clip & Upload" POSTs `{ id, start, end, removeAudio }` to `/api/clip`, shows a spinner, then displays the returned Zipline URL with a copy button — or an error with a "retry" action (see Error Handling).
 
 **`app/api/upload/route.ts` (POST)**
 - Generates a `uuid`, pipes `request.body` (a `ReadableStream`) directly to `scratch/<uuid>.ts` via `fs.createWriteStream` + `Readable.fromWeb` + `stream/promises.pipeline` — no in-memory buffering regardless of file size.
@@ -48,8 +51,8 @@ POST /api/clip { id, start, end }
 
 **`app/api/clip/route.ts` (POST)**
 - Validates `id` exists and `0 <= start < end`.
-- Runs `ffmpeg -y -ss <start> -to <end> -i scratch/<id>.ts -c copy scratch/<id>-clip.mp4` via `execFile` (not `exec`, to avoid shell interpolation of user-controlled values).
-- If that exits non-zero (common when the trim boundary isn't on a keyframe and stream-copy can't cut there cleanly), retries once with a software re-encode: `-c:v libx264 -preset veryfast -c:a aac`.
+- Runs `ffmpeg -y -ss <start> -to <end> -i scratch/<id>.ts -c:v copy [-an | -c:a copy] scratch/<id>-clip.mp4` via `execFile` (not `exec`, to avoid shell interpolation of user-controlled values). When `removeAudio` is true this is just `-an` in place of an audio codec flag — still a pure stream-copy on the video track, so it's just as fast as the normal trim.
+- If that exits non-zero (common when the trim boundary isn't on a keyframe and stream-copy can't cut there cleanly), retries once with a software re-encode: `-c:v libx264 -preset veryfast` plus either `-an` or `-c:a aac` depending on `removeAudio`.
 - On successful trim: POSTs the resulting file to `${ZIPLINE_URL}/api/upload` as multipart `FormData` (field name `file`) with header `Authorization: ${ZIPLINE_TOKEN}`.
 - On a successful Zipline response: deletes both `scratch/<id>.ts` and `scratch/<id>-clip.mp4`, returns `{ url: json.files[0].url }`.
 - On any failure (ffmpeg or the Zipline request): **does not delete anything**, returns `{ error }` with the original `id` still valid, so the frontend can retry `/api/clip` with new in/out points or the same ones without re-uploading the source file from the browser.
