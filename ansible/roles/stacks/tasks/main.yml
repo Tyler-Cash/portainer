@@ -72,6 +72,73 @@
   when: item not in stacks_skip and stacks[item] | length > 0
   no_log: true
 
+# docker compose up never rebuilds a build:-based service's image on its own —
+# it only builds when the image doesn't exist yet. Without this, stacks like
+# ts-clipper or zipline-transcoder would keep running their first-ever build
+# forever. Gate an explicit `docker compose build` on the same content hash
+# computed above so it only runs (and only costs deploy time) for stacks that
+# actually changed. Markers live under /opt/build-hashes/, not
+# /opt/stacks/<name>/, because the "Sync stack files" rsync above deletes
+# anything in the latter that isn't tracked in the repo.
+- name: Ensure the build-hash marker directory exists
+  ansible.builtin.file:
+    path: /opt/build-hashes
+    state: directory
+    mode: "0755"
+
+- name: Read the previous build hash for each stack, if any
+  ansible.builtin.slurp:
+    src: "/opt/build-hashes/{{ item }}.hash"
+  loop: "{{ stacks | list }}"
+  loop_control:
+    label: "{{ item }}"
+  when: item not in stacks_skip
+  register: previous_build_hash_slurp
+  ignore_errors: true
+
+- name: Map each stack to its previous build hash
+  ansible.builtin.set_fact:
+    stack_previous_hashes: "{{ stack_previous_hashes | default({}) | combine({item.item: (item.content | b64decode if item.content is defined else '')}) }}"
+  loop: "{{ previous_build_hash_slurp.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Build images only for stacks whose content changed since the last deploy
+  ansible.builtin.command:
+    cmd: docker compose build
+    chdir: "/opt/stacks/{{ item }}"
+  loop: "{{ stacks | list }}"
+  loop_control:
+    label: "{{ item }}"
+  when: >-
+    item not in stacks_skip and
+    stack_previous_hashes.get(item, '') != stack_content_hashes[item]
+  register: build_result
+  ignore_errors: true
+
+- name: Report docker compose build failures
+  ansible.builtin.debug:
+    msg: "docker compose build failed for stack '{{ item.item }}' with rc={{ item.rc }}"
+  loop: "{{ build_result.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.rc is defined and item.rc != 0
+
+- name: Fail if any docker compose build failed
+  ansible.builtin.fail:
+    msg: "One or more stacks failed to build"
+  when: build_result.results | selectattr('rc', 'defined') | selectattr('rc', 'ne', 0) | list | length > 0
+
+- name: Record the new build hash for stacks that were rebuilt
+  ansible.builtin.copy:
+    content: "{{ stack_content_hashes[item.item] }}"
+    dest: "/opt/build-hashes/{{ item.item }}.hash"
+    mode: "0644"
+  loop: "{{ build_result.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.rc is defined and item.rc == 0
+
 - name: Run docker compose up
   ansible.builtin.command:
     cmd: docker compose up -d --remove-orphans --pull always
