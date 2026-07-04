@@ -6,7 +6,15 @@ function requireEnv(name: string): string {
   return value;
 }
 
-export async function uploadToZipline(filePath: string, filename: string): Promise<string> {
+export interface ZiplineUploadResult {
+  url: string;
+  id: string;
+}
+
+export async function uploadToZipline(
+  filePath: string,
+  filename: string,
+): Promise<ZiplineUploadResult> {
   const token = requireEnv('ZIPLINE_TOKEN');
   const baseUrl = requireEnv('ZIPLINE_URL');
 
@@ -24,10 +32,24 @@ export async function uploadToZipline(filePath: string, filename: string): Promi
     throw new Error(`Zipline upload failed: ${res.status} ${await res.text()}`);
   }
 
-  const json = (await res.json()) as { files?: { url: string }[] };
-  const url = json.files?.[0]?.url;
-  if (!url) {
-    throw new Error('Zipline response missing file url');
+  const json = (await res.json()) as { files?: { url: string; id: string }[] };
+  const file = json.files?.[0];
+  if (!file?.url || !file?.id) {
+    throw new Error('Zipline response missing file url/id');
   }
-  return url;
+  return { url: file.url, id: file.id };
+}
+
+export async function deleteFromZipline(fileId: string): Promise<void> {
+  const token = requireEnv('ZIPLINE_TOKEN');
+  const baseUrl = requireEnv('ZIPLINE_URL');
+
+  const res = await fetch(`${baseUrl}/api/user/files/${fileId}`, {
+    method: 'DELETE',
+    headers: { authorization: token },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Zipline delete failed: ${res.status} ${await res.text()}`);
+  }
 }

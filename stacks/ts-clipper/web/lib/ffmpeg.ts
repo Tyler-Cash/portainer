@@ -13,11 +13,21 @@ export function buildFfmpegArgs(
   sourcePath: string,
   outputPath: string,
   { start, end, removeAudio }: ClipOptions,
-  mode: 'copy' | 'reencode',
+  mode: 'copy' | 'reencode' | 'fast',
 ): string[] {
   const videoArgs =
-    mode === 'copy' ? ['-c:v', 'copy'] : ['-c:v', 'libx264', '-preset', 'veryfast'];
-  const audioArgs = removeAudio ? ['-an'] : mode === 'copy' ? ['-c:a', 'copy'] : ['-c:a', 'aac'];
+    mode === 'copy'
+      ? ['-c:v', 'copy']
+      : mode === 'fast'
+        ? ['-vf', 'scale=-2:480', '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '32']
+        : ['-c:v', 'libx264', '-preset', 'veryfast'];
+  const audioArgs = removeAudio
+    ? ['-an']
+    : mode === 'copy'
+      ? ['-c:a', 'copy']
+      : mode === 'fast'
+        ? ['-c:a', 'aac', '-b:a', '64k']
+        : ['-c:a', 'aac'];
 
   return [
     '-y',
@@ -40,4 +50,12 @@ export async function runClip(
   } catch {
     await execFileAsync('ffmpeg', buildFfmpegArgs(sourcePath, outputPath, options, 'reencode'));
   }
+}
+
+export async function runFastClip(
+  sourcePath: string,
+  outputPath: string,
+  options: ClipOptions,
+): Promise<void> {
+  await execFileAsync('ffmpeg', buildFfmpegArgs(sourcePath, outputPath, options, 'fast'));
 }

@@ -53,4 +53,32 @@ describe('buildFfmpegArgs', () => {
       '-c:v', 'libx264', '-preset', 'veryfast', '-an', '/scratch/out.mp4',
     ]);
   });
+
+  it('downscales and uses the fastest preset in fast mode, with audio', () => {
+    const args = buildFfmpegArgs(
+      '/scratch/in.ts',
+      '/scratch/out.mp4',
+      { start: 0, end: 10, removeAudio: false },
+      'fast',
+    );
+    expect(args).toEqual([
+      '-y', '-ss', '0', '-to', '10', '-i', '/scratch/in.ts',
+      '-vf', 'scale=-2:480', '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '32',
+      '-c:a', 'aac', '-b:a', '64k', '/scratch/out.mp4',
+    ]);
+  });
+
+  it('drops audio in fast mode when removeAudio is set', () => {
+    const args = buildFfmpegArgs(
+      '/scratch/in.ts',
+      '/scratch/out.mp4',
+      { start: 0, end: 10, removeAudio: true },
+      'fast',
+    );
+    expect(args).toEqual([
+      '-y', '-ss', '0', '-to', '10', '-i', '/scratch/in.ts',
+      '-vf', 'scale=-2:480', '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '32',
+      '-an', '/scratch/out.mp4',
+    ]);
+  });
 });

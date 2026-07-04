@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { uploadToZipline } from './zipline';
+import { deleteFromZipline, uploadToZipline } from './zipline';
 
 describe('uploadToZipline', () => {
   let dir: string;
@@ -23,16 +23,16 @@ describe('uploadToZipline', () => {
     vi.unstubAllGlobals();
   });
 
-  it('posts the file to Zipline and returns the share url', async () => {
+  it('posts the file to Zipline and returns the share url and file id', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ files: [{ url: 'https://video.example.com/u/abc' }] }),
+      json: async () => ({ files: [{ id: 'file-123', url: 'https://video.example.com/u/abc' }] }),
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const url = await uploadToZipline(filePath, 'clip.mp4');
+    const result = await uploadToZipline(filePath, 'clip.mp4');
 
-    expect(url).toBe('https://video.example.com/u/abc');
+    expect(result).toEqual({ url: 'https://video.example.com/u/abc', id: 'file-123' });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [calledUrl, init] = fetchMock.mock.calls[0];
     expect(calledUrl).toBe('https://video.example.com/api/upload');
@@ -49,7 +49,7 @@ describe('uploadToZipline', () => {
     await expect(uploadToZipline(filePath, 'clip.mp4')).rejects.toThrow('Zipline upload failed');
   });
 
-  it('throws when the response has no usable file url', async () => {
+  it('throws when the response has no usable file url/id', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({ ok: true, json: async () => ({ files: [] }) }),
@@ -66,5 +66,39 @@ describe('uploadToZipline', () => {
   it('throws when ZIPLINE_URL is missing', async () => {
     delete process.env.ZIPLINE_URL;
     await expect(uploadToZipline(filePath, 'clip.mp4')).rejects.toThrow('ZIPLINE_URL');
+  });
+});
+
+describe('deleteFromZipline', () => {
+  beforeEach(() => {
+    process.env.ZIPLINE_TOKEN = 'test-token';
+    process.env.ZIPLINE_URL = 'https://video.example.com';
+  });
+
+  afterEach(() => {
+    delete process.env.ZIPLINE_TOKEN;
+    delete process.env.ZIPLINE_URL;
+    vi.unstubAllGlobals();
+  });
+
+  it('sends a DELETE request for the given file id', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await deleteFromZipline('file-123');
+
+    expect(fetchMock).toHaveBeenCalledWith('https://video.example.com/api/user/files/file-123', {
+      method: 'DELETE',
+      headers: { authorization: 'test-token' },
+    });
+  });
+
+  it('throws when the delete request fails', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: false, status: 404, text: async () => 'not found' }),
+    );
+
+    await expect(deleteFromZipline('file-123')).rejects.toThrow('Zipline delete failed');
   });
 });
