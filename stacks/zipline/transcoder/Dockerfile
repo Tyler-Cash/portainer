@@ -1,6 +1,9 @@
 FROM node:22-bookworm-slim
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# node:22-bookworm-slim only enables the "main" apt component by default;
+# intel-media-va-driver-non-free lives in "non-free".
+RUN sed -i 's/Components: main/Components: main contrib non-free non-free-firmware/' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     intel-media-va-driver-non-free \
     vainfo \
