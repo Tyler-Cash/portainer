@@ -1,6 +1,8 @@
 # ts-clipper Design Spec
 
-**Goal:** A self-hosted, single-page Next.js app (`upload.tylercash.dev`) that replaces a manual clip-sharing flow (convert to mp4 → clip in VLC → upload with ShareX). The app lets you drag-drop a video, preview and scrub it in the browser, cut a clip, and get back a Zipline share link — all in one page, with no files retained afterward.
+> Branded "Splice" in the UI/URL (`splice.tylercash.dev`) — the stack directory, container, and internal Traefik/service names stay `ts-clipper`, only the user-facing title and hostname changed.
+
+**Goal:** A self-hosted, single-page Next.js app (`splice.tylercash.dev`) that replaces a manual clip-sharing flow (convert to mp4 → clip in VLC → upload with ShareX). The app lets you drag-drop a video, preview and scrub it in the browser, cut a clip, and get back a Zipline share link — all in one page, with no files retained afterward.
 
 **Scope for v1:** Browser upload only (no watched-folder/network-share ingestion path). Accepts raw `.ts`/`.m2ts` as well as standard container types that already work as ordinary shared clips: `.mp4`, `.webm`, `.m4v`. Single clip per upload, no batching, no thumbnails/waveform. No app-level auth — access is restricted to the LAN at the Traefik layer, the same way `stacks/vaultwarden` restricts the password manager (`ClientIP` matching only, no public exposure).
 
@@ -80,7 +82,7 @@ Using this fast local volume (rather than `/hdd` or `/ssd/services/...`) matters
 
 `node:22-bookworm-slim` base, multi-stage build per the standard Next.js standalone Dockerfile pattern. **Superseded in v1.1:** re-encoding (both the `reencode` and `fast` modes) now uses VAAPI (Intel Quick Sync) via `/dev/dri/renderD128` passthrough and `h264_vaapi`, the same pattern as `zipline-transcoder`'s Dockerfile/`devices:` block — software `libx264` turned out not to be a rare fallback in practice: raw `.ts` sources almost never satisfy the stream-copy path (irregular timestamps), and the fast-preview pass always re-encodes by design, so CPU load from software encoding was real, not edge-case. The runner stage runs as root (no dedicated non-root user) so it has unconditional access to the render device regardless of the host's render-group GID, again matching `zipline-transcoder`.
 
-Compose service joins `homelab_default`, Traefik host `upload.tylercash.dev` restricted to the LAN via `ClientIP(\`10.0.0.0/8\`)` (matching `stacks/vaultwarden/docker-compose.yml:25`, not the wider `172.19.0.0/24`-inclusive pattern most other stacks use), standard `x-logging` anchor and Traefik labels matching every other stack in this repo (see `stacks/zipline/docker-compose.yml` for the exact label block to copy).
+Compose service joins `homelab_default`, Traefik host `splice.tylercash.dev` restricted to the LAN via `ClientIP(\`10.0.0.0/8\`)` (matching `stacks/vaultwarden/docker-compose.yml:25`, not the wider `172.19.0.0/24`-inclusive pattern most other stacks use), standard `x-logging` anchor and Traefik labels matching every other stack in this repo (see `stacks/zipline/docker-compose.yml` for the exact label block to copy).
 
 ## Homepage integration
 

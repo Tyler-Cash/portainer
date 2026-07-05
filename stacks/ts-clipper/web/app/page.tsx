@@ -370,7 +370,7 @@ export default function Home() {
     <main className="page">
       <header className="app-header">
         <span className={`tally-light${isPlaying ? ' tally-light-live' : ''}`} />
-        <h1>ts-clipper</h1>
+        <h1>Splice</h1>
       </header>
 
       {source.status === 'idle' && (

@@ -9,7 +9,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: 'ts-clipper',
+  title: 'Splice',
   description: 'Clip and share videos',
 };
 

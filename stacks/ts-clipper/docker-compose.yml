@@ -33,7 +33,7 @@ services:
     labels:
       - traefik.enable=true
       - traefik.http.routers.ts-clipper.service=ts-clipper
-      - traefik.http.routers.ts-clipper.rule=Host(`upload.tylercash.dev`) && ClientIP(`10.0.0.0/8`)
+      - traefik.http.routers.ts-clipper.rule=Host(`splice.tylercash.dev`) && ClientIP(`10.0.0.0/8`)
       - traefik.http.routers.ts-clipper.entrypoints=websecure
       - traefik.http.services.ts-clipper.loadbalancer.server.scheme=http
       - traefik.http.services.ts-clipper.loadbalancer.server.port=3000

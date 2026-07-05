@@ -6,7 +6,7 @@ export default defineConfig({
   fullyParallel: false,
   reporter: [['list']],
   use: {
-    baseURL: process.env.BASE_URL ?? 'https://upload.tylercash.dev',
+    baseURL: process.env.BASE_URL ?? 'https://splice.tylercash.dev',
     trace: 'retain-on-failure',
     video: 'retain-on-failure',
   },
