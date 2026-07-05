@@ -164,6 +164,12 @@ export default function Home() {
     setDraftEnd(draftStart);
   }
 
+  function previewClip(clip: QueuedClip) {
+    setDraftStart(clip.start);
+    setDraftEnd(clip.end);
+    seekTo(clip.start);
+  }
+
   function thumbnailUrl(time: number): string {
     if (!sourceId) return '';
     return `/api/upload/${sourceId}/thumbnail?t=${Math.round(time)}`;
@@ -309,105 +315,130 @@ export default function Home() {
       {source.status === 'error' && <p className="error">{source.message}</p>}
 
       {source.status === 'ready' && (
-        <div className="editor">
-          <video
-            ref={videoRef}
-            onTimeUpdate={onTimeUpdate}
-            onPlay={() => setIsPlaying(true)}
-            onPause={() => setIsPlaying(false)}
-            className="preview"
-          />
+        <div className="editor-layout">
+          <div className="editor-main">
+            <video
+              ref={videoRef}
+              onTimeUpdate={onTimeUpdate}
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+              className="preview"
+            />
 
-          <Playbar
-            duration={duration}
-            currentTime={currentTime}
-            isPlaying={isPlaying}
-            muted={muted}
-            start={draftStart}
-            end={draftEnd}
-            thumbnailUrl={thumbnailUrl}
-            onPlayPause={togglePlayPause}
-            onToggleMute={toggleMute}
-            onSeek={seekTo}
-            onChangeStart={setDraftStart}
-            onChangeEnd={setDraftEnd}
-            onDeleteClip={deleteDraftClip}
-          />
+            <Playbar
+              duration={duration}
+              currentTime={currentTime}
+              isPlaying={isPlaying}
+              muted={muted}
+              start={draftStart}
+              end={draftEnd}
+              thumbnailUrl={thumbnailUrl}
+              onPlayPause={togglePlayPause}
+              onToggleMute={toggleMute}
+              onSeek={seekTo}
+              onChangeStart={setDraftStart}
+              onChangeEnd={setDraftEnd}
+              onDeleteClip={deleteDraftClip}
+            />
 
-          <p>
-            Clip: {formatTime(draftStart)}&ndash;{formatTime(draftEnd)} (
-            {formatTime(draftEnd - draftStart)})
-          </p>
+            <p>
+              Clip: {formatTime(draftStart)}&ndash;{formatTime(draftEnd)} (
+              {formatTime(draftEnd - draftStart)})
+            </p>
 
-          <div className="controls">
-            <button type="button" onClick={startClipHere}>
-              Start clip here (~{DEFAULT_CLIP_SECONDS}s)
-            </button>
-            <button type="button" onClick={stopClipHere}>
-              Stop clip here
-            </button>
-            <label>
-              <input
-                type="checkbox"
-                checked={draftRemoveAudio}
-                onChange={(e) => setDraftRemoveAudio(e.target.checked)}
-              />
-              Remove audio
-            </label>
-            <button type="button" onClick={addToQueue}>
-              Add clip to queue
-            </button>
+            <div className="controls">
+              <button type="button" onClick={startClipHere}>
+                Start clip here (~{DEFAULT_CLIP_SECONDS}s)
+              </button>
+              <button type="button" onClick={stopClipHere}>
+                Stop clip here
+              </button>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={draftRemoveAudio}
+                  onChange={(e) => setDraftRemoveAudio(e.target.checked)}
+                />
+                Remove audio
+              </label>
+              <button type="button" onClick={addToQueue}>
+                Add clip to queue
+              </button>
+            </div>
           </div>
 
-          {clips.length > 0 && (
-            <ul className="queue">
-              {clips.map((clip) => (
-                <li key={clip.clipId} className={`queue-item queue-item-${clip.status}`}>
-                  <span>
-                    {formatTime(clip.start)}&ndash;{formatTime(clip.end)}
-                    {clip.removeAudio ? ' (no audio)' : ''}
-                  </span>
-                  {clip.status === 'pending' && (
-                    <button type="button" onClick={() => removeFromQueue(clip.clipId)}>
-                      Remove
+          <aside className="editor-sidebar">
+            <h2>Queue</h2>
+
+            {clips.length === 0 && <p className="sidebar-empty">No clips queued yet.</p>}
+
+            {clips.length > 0 && (
+              <ul className="queue">
+                {clips.map((clip) => (
+                  <li key={clip.clipId} className={`queue-item queue-item-${clip.status}`}>
+                    <button
+                      type="button"
+                      className="queue-thumb"
+                      onClick={() => previewClip(clip)}
+                      title="Preview this clip"
+                    >
+                      <img src={thumbnailUrl(clip.start)} alt="" />
                     </button>
-                  )}
-                  {clip.status === 'processing' && <span>Uploading&hellip;</span>}
-                  {clip.status === 'fast-ready' && clip.url && (
-                    <>
-                      <a href={clip.url}>{clip.url}</a>
-                      <span>(quick preview &mdash; upgrading to full quality&hellip;)</span>
-                    </>
-                  )}
-                  {clip.status === 'done' && clip.url && (
-                    <>
-                      <a href={clip.url}>{clip.url}</a>
-                      <button type="button" onClick={() => navigator.clipboard.writeText(clip.url!)}>
-                        Copy
-                      </button>
-                    </>
-                  )}
-                  {clip.status === 'error' && (
-                    <>
-                      <span className="error">{clip.error}</span>
-                      <button type="button" onClick={() => processClip(clip)}>
-                        Retry
-                      </button>
-                    </>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
+                    <div className="queue-info">
+                      <span className="queue-time">
+                        {formatTime(clip.start)}&ndash;{formatTime(clip.end)}
+                        {clip.removeAudio ? ' (no audio)' : ''}
+                      </span>
+                      {clip.status === 'pending' && (
+                        <button type="button" onClick={() => removeFromQueue(clip.clipId)}>
+                          Remove
+                        </button>
+                      )}
+                      {clip.status === 'processing' && <span>Uploading&hellip;</span>}
+                      {clip.status === 'fast-ready' && clip.url && (
+                        <>
+                          <a href={clip.url}>{clip.url}</a>
+                          <span>(quick preview &mdash; upgrading&hellip;)</span>
+                        </>
+                      )}
+                      {clip.status === 'done' && clip.url && (
+                        <>
+                          <a href={clip.url}>{clip.url}</a>
+                          <button
+                            type="button"
+                            onClick={() => navigator.clipboard.writeText(clip.url!)}
+                          >
+                            Copy
+                          </button>
+                        </>
+                      )}
+                      {clip.status === 'error' && (
+                        <>
+                          <span className="error">{clip.error}</span>
+                          <button type="button" onClick={() => processClip(clip)}>
+                            Retry
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
 
-          <div className="controls">
-            <button type="button" disabled={processingQueue || pendingCount === 0} onClick={processQueue}>
-              {processingQueue ? 'Uploading queue…' : `Upload ${pendingCount} queued clip(s)`}
-            </button>
-            <button type="button" disabled={hasActiveClips} onClick={finish}>
-              Finish &amp; clip another video
-            </button>
-          </div>
+            <div className="controls">
+              <button
+                type="button"
+                disabled={processingQueue || pendingCount === 0}
+                onClick={processQueue}
+              >
+                {processingQueue ? 'Uploading queue…' : `Upload ${pendingCount} queued clip(s)`}
+              </button>
+              <button type="button" disabled={hasActiveClips} onClick={finish}>
+                Finish &amp; clip another video
+              </button>
+            </div>
+          </aside>
         </div>
       )}
     </main>
