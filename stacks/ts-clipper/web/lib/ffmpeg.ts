@@ -15,28 +15,16 @@ export function buildFfmpegArgs(
   sourcePath: string,
   outputPath: string,
   { start, end, removeAudio }: ClipOptions,
-  mode: 'copy' | 'reencode' | 'fast',
+  mode: 'reencode' | 'fast',
   vaapiDevice: string = VAAPI_DEVICE,
 ): string[] {
-  const audioArgs = removeAudio ? ['-an'] : ['-c:a', mode === 'copy' ? 'copy' : 'aac'];
+  const audioArgs = removeAudio ? ['-an'] : ['-c:a', 'aac'];
 
-  if (mode === 'copy') {
-    return [
-      '-y',
-      '-ss', String(start),
-      '-to', String(end),
-      '-i', sourcePath,
-      '-c:v', 'copy',
-      ...audioArgs,
-      outputPath,
-    ];
-  }
-
-  // Both non-copy modes decode and re-encode on the iGPU via VAAPI (Quick
-  // Sync) instead of libx264 on CPU — stream-copy often fails on sources
-  // with irregular timestamps, so this is the common case, not a rare
-  // fallback, and the fast-preview pass always re-encodes by design (it
-  // has to downscale).
+  // Always decode and re-encode on the iGPU via VAAPI (Quick Sync) instead
+  // of stream-copying. Stream-copy can only cut at keyframes, so the
+  // exported clip's start would silently drift from whatever boundary the
+  // user actually picked in the UI — re-encoding is what makes the export
+  // match the frame the user selected.
   const videoArgs =
     mode === 'fast'
       ? ['-vf', 'scale_vaapi=w=-2:h=480:format=nv12', '-c:v', 'h264_vaapi', '-qp', '32']
@@ -62,7 +50,7 @@ export function formatTimingLog(mode: string, clipSeconds: number, wallSeconds: 
 }
 
 async function runFfmpeg(
-  mode: 'copy' | 'reencode' | 'fast',
+  mode: 'reencode' | 'fast',
   sourcePath: string,
   outputPath: string,
   options: ClipOptions,
@@ -77,11 +65,7 @@ export async function runClip(
   outputPath: string,
   options: ClipOptions,
 ): Promise<void> {
-  try {
-    await runFfmpeg('copy', sourcePath, outputPath, options);
-  } catch {
-    await runFfmpeg('reencode', sourcePath, outputPath, options);
-  }
+  await runFfmpeg('reencode', sourcePath, outputPath, options);
 }
 
 export async function runFastClip(
