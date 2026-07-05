@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildFfmpegArgs } from './ffmpeg';
+import { buildFfmpegArgs, formatTimingLog } from './ffmpeg';
 
 describe('buildFfmpegArgs', () => {
   it('builds a stream-copy trim that keeps audio, with no hwaccel flags needed', () => {
@@ -102,5 +102,19 @@ describe('buildFfmpegArgs', () => {
       'reencode',
     );
     expect(args).toContain('/dev/dri/renderD128');
+  });
+});
+
+describe('formatTimingLog', () => {
+  it('computes the speed multiplier from clip length and wall time', () => {
+    expect(formatTimingLog('fast', 20, 2)).toBe('[ffmpeg:fast] clip=20.0s wall=2.0s speed=10.0x');
+  });
+
+  it('reports slower-than-realtime as a speed below 1x', () => {
+    expect(formatTimingLog('reencode', 10, 12)).toBe('[ffmpeg:reencode] clip=10.0s wall=12.0s speed=0.8x');
+  });
+
+  it('does not divide by zero for near-instant wall time', () => {
+    expect(formatTimingLog('copy', 20, 0)).toBe('[ffmpeg:copy] clip=20.0s wall=0.0s speed=Infinityx');
   });
 });

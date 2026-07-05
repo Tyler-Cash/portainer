@@ -56,15 +56,31 @@ export function buildFfmpegArgs(
   ];
 }
 
+export function formatTimingLog(mode: string, clipSeconds: number, wallSeconds: number): string {
+  const speed = wallSeconds > 0 ? clipSeconds / wallSeconds : Infinity;
+  return `[ffmpeg:${mode}] clip=${clipSeconds.toFixed(1)}s wall=${wallSeconds.toFixed(1)}s speed=${speed.toFixed(1)}x`;
+}
+
+async function runFfmpeg(
+  mode: 'copy' | 'reencode' | 'fast',
+  sourcePath: string,
+  outputPath: string,
+  options: ClipOptions,
+): Promise<void> {
+  const wallStart = Date.now();
+  await execFileAsync('ffmpeg', buildFfmpegArgs(sourcePath, outputPath, options, mode));
+  console.log(formatTimingLog(mode, options.end - options.start, (Date.now() - wallStart) / 1000));
+}
+
 export async function runClip(
   sourcePath: string,
   outputPath: string,
   options: ClipOptions,
 ): Promise<void> {
   try {
-    await execFileAsync('ffmpeg', buildFfmpegArgs(sourcePath, outputPath, options, 'copy'));
+    await runFfmpeg('copy', sourcePath, outputPath, options);
   } catch {
-    await execFileAsync('ffmpeg', buildFfmpegArgs(sourcePath, outputPath, options, 'reencode'));
+    await runFfmpeg('reencode', sourcePath, outputPath, options);
   }
 }
 
@@ -73,5 +89,5 @@ export async function runFastClip(
   outputPath: string,
   options: ClipOptions,
 ): Promise<void> {
-  await execFileAsync('ffmpeg', buildFfmpegArgs(sourcePath, outputPath, options, 'fast'));
+  await runFfmpeg('fast', sourcePath, outputPath, options);
 }
