@@ -6,7 +6,7 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { NextRequest, NextResponse } from 'next/server';
 import { ACCEPTED_EXTENSIONS, SCRATCH_DIR, isAcceptedExtension } from '@/lib/paths';
-import { getDuration } from '@/lib/ffprobe';
+import { getMetadata } from '@/lib/ffprobe';
 
 export const runtime = 'nodejs';
 
@@ -38,9 +38,9 @@ export async function POST(request: NextRequest) {
   }
 
   // A file ffprobe can't read metadata for is still saved and clippable —
-  // don't fail the whole upload over it, just fall back to an unknown (0)
-  // duration.
-  const duration = await getDuration(destPath).catch(() => 0);
+  // don't fail the whole upload over it, just fall back to unknown (0)
+  // duration/fps.
+  const { duration, fps } = await getMetadata(destPath).catch(() => ({ duration: 0, fps: 0 }));
 
-  return NextResponse.json({ id, duration });
+  return NextResponse.json({ id, duration, fps });
 }

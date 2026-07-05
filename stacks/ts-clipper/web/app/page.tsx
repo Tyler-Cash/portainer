@@ -32,6 +32,7 @@ export default function Home() {
   const [source, setSource] = useState<SourceState>({ status: 'idle' });
   const [dragActive, setDragActive] = useState(false);
   const [duration, setDuration] = useState(0);
+  const [fps, setFps] = useState(0);
   const [streamOffset, setStreamOffset] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -87,8 +88,11 @@ export default function Home() {
       }
       const videoDuration = typeof json.duration === 'number' ? json.duration : 0;
       setDuration(videoDuration);
+      setFps(typeof json.fps === 'number' ? json.fps : 0);
+      // No default clip selection — the timeline starts empty until the user
+      // explicitly defines a range (Start clip here / dragging a handle).
       setDraftStart(0);
-      setDraftEnd(Math.min(DEFAULT_CLIP_SECONDS, videoDuration || DEFAULT_CLIP_SECONDS));
+      setDraftEnd(0);
       setSource({ status: 'ready', id: json.id });
     } catch (err) {
       setSource({ status: 'error', message: (err as Error).message });
@@ -201,14 +205,24 @@ export default function Home() {
     return streamOffset + (activeVideo()?.currentTime ?? 0);
   }
 
+  // The timeline maps pixel position to a raw float time with no relation
+  // to the video's actual frame boundaries, so a click/drag can land between
+  // frames — the resulting clip cut point is then whatever ffmpeg happens to
+  // round to, not something the user actually chose. Snapping every
+  // pixel-derived time to the nearest real frame makes selection exact and
+  // reproducible instead.
+  function snapToFrame(time: number): number {
+    return fps > 0 ? Math.round(time * fps) / fps : time;
+  }
+
   function startClipHere() {
-    const time = effectiveTime();
+    const time = snapToFrame(effectiveTime());
     setDraftStart(time);
     setDraftEnd(Math.min(time + DEFAULT_CLIP_SECONDS, duration || time + DEFAULT_CLIP_SECONDS));
   }
 
   function stopClipHere() {
-    const time = effectiveTime() || duration;
+    const time = snapToFrame(effectiveTime() || duration);
     setDraftEnd(Math.max(time, draftStart + 0.5));
   }
 
@@ -413,9 +427,9 @@ export default function Home() {
               thumbnailUrl={thumbnailUrl}
               onPlayPause={togglePlayPause}
               onToggleMute={toggleMute}
-              onSeek={seekTo}
-              onChangeStart={setDraftStart}
-              onChangeEnd={setDraftEnd}
+              onSeek={(time) => seekTo(snapToFrame(time))}
+              onChangeStart={(time) => setDraftStart(snapToFrame(time))}
+              onChangeEnd={(time) => setDraftEnd(snapToFrame(time))}
               onDeleteClip={deleteDraftClip}
             />
 
