@@ -55,3 +55,14 @@ export async function getMetadata(filePath: string): Promise<VideoMetadata> {
   ]);
   return parseMetadataOutput(stdout);
 }
+
+export async function hasAudioStream(filePath: string): Promise<boolean> {
+  const { stdout } = await execFileAsync('ffprobe', [
+    '-v', 'error',
+    '-select_streams', 'a',
+    '-show_entries', 'stream=index',
+    '-of', 'csv=p=0',
+    filePath,
+  ]);
+  return stdout.trim().length > 0;
+}

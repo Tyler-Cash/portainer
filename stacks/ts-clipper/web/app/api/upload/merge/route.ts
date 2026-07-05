@@ -5,7 +5,7 @@ import path from 'node:path';
 import { promisify } from 'node:util';
 import { NextRequest, NextResponse } from 'next/server';
 import { buildConcatArgs } from '@/lib/concat';
-import { getMetadata } from '@/lib/ffprobe';
+import { getMetadata, hasAudioStream } from '@/lib/ffprobe';
 import { findSourceFile, isValidId, SCRATCH_DIR } from '@/lib/paths';
 
 const execFileAsync = promisify(execFile);
@@ -43,7 +43,15 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
-    inputs.push({ path: source, width: meta.width, height: meta.height, fps: meta.fps });
+    const hasAudio = await hasAudioStream(source).catch(() => false);
+    inputs.push({
+      path: source,
+      width: meta.width,
+      height: meta.height,
+      fps: meta.fps,
+      duration: meta.duration,
+      hasAudio,
+    });
   }
 
   const mergedId = randomUUID();

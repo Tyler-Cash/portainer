@@ -5,8 +5,8 @@ describe('buildConcatArgs', () => {
   it('joins two same-sized inputs in order, video-then-video, audio-then-audio', () => {
     const args = buildConcatArgs(
       [
-        { path: '/scratch/a.mp4', width: 1920, height: 1080, fps: 30 },
-        { path: '/scratch/b.mp4', width: 1920, height: 1080, fps: 30 },
+        { path: '/scratch/a.mp4', width: 1920, height: 1080, fps: 30, duration: 10, hasAudio: true },
+        { path: '/scratch/b.mp4', width: 1920, height: 1080, fps: 30, duration: 10, hasAudio: true },
       ],
       '/scratch/out.mp4',
       '/dev/dri/renderD128',
@@ -32,8 +32,8 @@ describe('buildConcatArgs', () => {
   it('normalizes later inputs to the first input dimensions and frame rate', () => {
     const args = buildConcatArgs(
       [
-        { path: '/scratch/a.mp4', width: 1280, height: 720, fps: 25 },
-        { path: '/scratch/b.mp4', width: 1920, height: 1080, fps: 60 },
+        { path: '/scratch/a.mp4', width: 1280, height: 720, fps: 25, duration: 10, hasAudio: true },
+        { path: '/scratch/b.mp4', width: 1920, height: 1080, fps: 60, duration: 10, hasAudio: true },
       ],
       '/scratch/out.mp4',
     );
@@ -46,8 +46,8 @@ describe('buildConcatArgs', () => {
   it('falls back to 30fps when the first input reports an unknown frame rate', () => {
     const args = buildConcatArgs(
       [
-        { path: '/scratch/a.mp4', width: 640, height: 480, fps: 0 },
-        { path: '/scratch/b.mp4', width: 640, height: 480, fps: 0 },
+        { path: '/scratch/a.mp4', width: 640, height: 480, fps: 0, duration: 10, hasAudio: true },
+        { path: '/scratch/b.mp4', width: 640, height: 480, fps: 0, duration: 10, hasAudio: true },
       ],
       '/scratch/out.mp4',
     );
@@ -59,9 +59,9 @@ describe('buildConcatArgs', () => {
   it('handles three or more inputs, concatenating them in the given order', () => {
     const args = buildConcatArgs(
       [
-        { path: '/scratch/a.mp4', width: 640, height: 480, fps: 30 },
-        { path: '/scratch/b.mp4', width: 640, height: 480, fps: 30 },
-        { path: '/scratch/c.mp4', width: 640, height: 480, fps: 30 },
+        { path: '/scratch/a.mp4', width: 640, height: 480, fps: 30, duration: 5, hasAudio: true },
+        { path: '/scratch/b.mp4', width: 640, height: 480, fps: 30, duration: 5, hasAudio: true },
+        { path: '/scratch/c.mp4', width: 640, height: 480, fps: 30, duration: 5, hasAudio: true },
       ],
       '/scratch/out.mp4',
     );
@@ -71,11 +71,40 @@ describe('buildConcatArgs', () => {
     expect(filterComplex).toContain('[v0][0:a][v1][1:a][v2][2:a]concat=n=3:v=1:a=1[vcat][acat]');
   });
 
+  it('synthesizes silence for an input with no audio track, trimmed to its duration', () => {
+    const args = buildConcatArgs(
+      [
+        { path: '/scratch/a.mp4', width: 640, height: 480, fps: 30, duration: 12.5, hasAudio: false },
+        { path: '/scratch/b.mp4', width: 640, height: 480, fps: 30, duration: 5, hasAudio: true },
+      ],
+      '/scratch/out.mp4',
+    );
+
+    const filterComplex = args[args.indexOf('-filter_complex') + 1];
+    expect(filterComplex).toContain('anullsrc=channel_layout=stereo:sample_rate=48000,atrim=duration=12.5[sil0]');
+    expect(filterComplex).toContain('[v0][sil0][v1][1:a]concat=n=2:v=1:a=1[vcat][acat]');
+  });
+
+  it('synthesizes silence for every input when none have an audio track', () => {
+    const args = buildConcatArgs(
+      [
+        { path: '/scratch/a.mp4', width: 640, height: 480, fps: 30, duration: 8, hasAudio: false },
+        { path: '/scratch/b.mp4', width: 640, height: 480, fps: 30, duration: 6, hasAudio: false },
+      ],
+      '/scratch/out.mp4',
+    );
+
+    const filterComplex = args[args.indexOf('-filter_complex') + 1];
+    expect(filterComplex).toContain('anullsrc=channel_layout=stereo:sample_rate=48000,atrim=duration=8[sil0]');
+    expect(filterComplex).toContain('anullsrc=channel_layout=stereo:sample_rate=48000,atrim=duration=6[sil1]');
+    expect(filterComplex).toContain('[v0][sil0][v1][sil1]concat=n=2:v=1:a=1[vcat][acat]');
+  });
+
   it('defaults the VAAPI device to /dev/dri/renderD128 when not specified', () => {
     const args = buildConcatArgs(
       [
-        { path: '/scratch/a.mp4', width: 640, height: 480, fps: 30 },
-        { path: '/scratch/b.mp4', width: 640, height: 480, fps: 30 },
+        { path: '/scratch/a.mp4', width: 640, height: 480, fps: 30, duration: 5, hasAudio: true },
+        { path: '/scratch/b.mp4', width: 640, height: 480, fps: 30, duration: 5, hasAudio: true },
       ],
       '/scratch/out.mp4',
     );
