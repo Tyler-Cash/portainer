@@ -48,13 +48,31 @@ export async function ensureThumbnail(
   seconds: number,
   scratchDir: string = SCRATCH_DIR,
 ): Promise<string> {
-  const rounded = roundToThumbnailSecond(seconds);
+  return generateOrCached(sourcePath, id, roundToThumbnailSecond(seconds), scratchDir);
+}
+
+// Seeking to (or past) the exact end of the file leaves ffmpeg with no frame
+// to grab — e.g. the filmstrip's last tile lands exactly on the video's
+// duration. Step back a second and retry before giving up.
+async function generateOrCached(
+  sourcePath: string,
+  id: string,
+  rounded: number,
+  scratchDir: string,
+): Promise<string> {
   const output = thumbnailPath(id, rounded, scratchDir);
   if (await fileExists(output)) {
     return output;
   }
-  await execFileAsync('ffmpeg', buildThumbnailArgs(sourcePath, rounded, output));
-  return output;
+  try {
+    await execFileAsync('ffmpeg', buildThumbnailArgs(sourcePath, rounded, output));
+    return output;
+  } catch (err) {
+    if (rounded > 0) {
+      return generateOrCached(sourcePath, id, rounded - 1, scratchDir);
+    }
+    throw err;
+  }
 }
 
 export async function removeThumbnails(id: string, scratchDir: string = SCRATCH_DIR): Promise<void> {

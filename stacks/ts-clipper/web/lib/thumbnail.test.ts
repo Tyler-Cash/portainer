@@ -1,14 +1,20 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import {
+
+const execFileMock = vi.fn();
+vi.mock('node:child_process', () => ({
+  execFile: (...args: unknown[]) => (execFileMock as any)(...args),
+}));
+
+const {
   buildThumbnailArgs,
   ensureThumbnail,
   removeThumbnails,
   roundToThumbnailSecond,
   thumbnailPath,
-} from './thumbnail';
+} = await import('./thumbnail');
 
 describe('roundToThumbnailSecond', () => {
   it('rounds to the nearest whole second', () => {
@@ -47,6 +53,10 @@ describe('ensureThumbnail', () => {
 
   beforeEach(async () => {
     dir = await mkdtemp(path.join(tmpdir(), 'ts-clipper-thumb-'));
+    execFileMock.mockReset();
+    execFileMock.mockImplementation((_file: string, _args: string[], callback: (err: Error | null) => void) => {
+      callback(null);
+    });
   });
 
   afterEach(async () => {
@@ -60,6 +70,34 @@ describe('ensureThumbnail', () => {
     const result = await ensureThumbnail('/does/not/exist.ts', 'abc', 10, dir);
 
     expect(result).toBe(cached);
+    expect(execFileMock).not.toHaveBeenCalled();
+  });
+
+  it('steps back a second and retries when ffmpeg fails at the requested second', async () => {
+    execFileMock.mockImplementation((_file: string, args: string[], callback: (err: Error | null) => void) => {
+      const requestedSecond = args[args.indexOf('-ss') + 1];
+      if (requestedSecond === '10') {
+        callback(new Error('ffmpeg: could not find a usable frame'));
+      } else {
+        callback(null);
+      }
+    });
+
+    const result = await ensureThumbnail('/some/source.ts', 'abc', 10, dir);
+
+    expect(result).toBe(thumbnailPath('abc', 9, dir));
+    expect(execFileMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('throws the last error once retries reach second 0', async () => {
+    execFileMock.mockImplementation((_file: string, _args: string[], callback: (err: Error | null) => void) => {
+      callback(new Error('ffmpeg: no frame anywhere in this file'));
+    });
+
+    await expect(ensureThumbnail('/some/source.ts', 'abc', 1, dir)).rejects.toThrow(
+      'no frame anywhere in this file',
+    );
+    expect(execFileMock).toHaveBeenCalledTimes(2);
   });
 });
 
