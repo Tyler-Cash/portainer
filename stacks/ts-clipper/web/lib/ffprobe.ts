@@ -6,6 +6,8 @@ const execFileAsync = promisify(execFile);
 export interface VideoMetadata {
   duration: number;
   fps: number;
+  width: number;
+  height: number;
 }
 
 function parseFrameRate(value: string): number {
@@ -25,19 +27,21 @@ export function parseMetadataOutput(stdout: string): VideoMetadata {
   try {
     const json = JSON.parse(stdout) as {
       format?: { duration?: string };
-      streams?: { r_frame_rate?: string }[];
+      streams?: { r_frame_rate?: string; width?: number; height?: number }[];
     };
 
     const durationStr = json.format?.duration;
     const parsedDuration = durationStr ? parseFloat(durationStr) : NaN;
     const duration = Number.isFinite(parsedDuration) ? parsedDuration : 0;
 
-    const frameRateStr = json.streams?.[0]?.r_frame_rate;
-    const fps = frameRateStr ? parseFrameRate(frameRateStr) : 0;
+    const stream = json.streams?.[0];
+    const fps = stream?.r_frame_rate ? parseFrameRate(stream.r_frame_rate) : 0;
+    const width = Number.isFinite(stream?.width) ? Number(stream!.width) : 0;
+    const height = Number.isFinite(stream?.height) ? Number(stream!.height) : 0;
 
-    return { duration, fps };
+    return { duration, fps, width, height };
   } catch {
-    return { duration: 0, fps: 0 };
+    return { duration: 0, fps: 0, width: 0, height: 0 };
   }
 }
 
@@ -45,7 +49,7 @@ export async function getMetadata(filePath: string): Promise<VideoMetadata> {
   const { stdout } = await execFileAsync('ffprobe', [
     '-v', 'error',
     '-select_streams', 'v:0',
-    '-show_entries', 'format=duration:stream=r_frame_rate',
+    '-show_entries', 'format=duration:stream=r_frame_rate,width,height',
     '-of', 'json',
     filePath,
   ]);

@@ -118,6 +118,13 @@ body {
   display: none;
 }
 
+.dropzone-hint {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--mute);
+  opacity: 0.75;
+}
+
 .editor-layout {
   display: flex;
   gap: 1.5rem;

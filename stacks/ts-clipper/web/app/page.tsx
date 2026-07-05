@@ -74,29 +74,53 @@ export default function Home() {
       .catch(() => setFastPreviewEnabled(true));
   }, []);
 
-  async function handleFile(file: File) {
+  function applyReadySource(id: string, duration: number, fps: number) {
+    setDuration(typeof duration === 'number' ? duration : 0);
+    setFps(typeof fps === 'number' ? fps : 0);
+    // No default clip selection — the timeline starts empty until the user
+    // explicitly defines a range (Start clip here / dragging a handle).
+    setDraftStart(0);
+    setDraftEnd(0);
+    setSource({ status: 'ready', id });
+  }
+
+  // Dropping/selecting more than one file at once stitches them into a
+  // single video (in the order given) before handing off to the editor, so
+  // everything downstream only ever deals with one source.
+  async function handleFiles(files: File[]) {
+    if (files.length === 0) return;
     setSource({ status: 'uploading' });
     setClips([]);
+    const uploads: { id: string; duration: number; fps: number }[] = [];
     try {
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: file,
-        headers: { 'x-filename': file.name },
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        setSource({ status: 'error', message: json.error ?? 'Upload failed' });
+      for (const file of files) {
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: file,
+          headers: { 'x-filename': file.name },
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error ?? 'Upload failed');
+        uploads.push({ id: json.id, duration: json.duration, fps: json.fps });
+      }
+
+      if (uploads.length === 1) {
+        applyReadySource(uploads[0].id, uploads[0].duration, uploads[0].fps);
         return;
       }
-      const videoDuration = typeof json.duration === 'number' ? json.duration : 0;
-      setDuration(videoDuration);
-      setFps(typeof json.fps === 'number' ? json.fps : 0);
-      // No default clip selection — the timeline starts empty until the user
-      // explicitly defines a range (Start clip here / dragging a handle).
-      setDraftStart(0);
-      setDraftEnd(0);
-      setSource({ status: 'ready', id: json.id });
+
+      const mergeRes = await fetch('/api/upload/merge', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ids: uploads.map((u) => u.id) }),
+      });
+      const mergeJson = await mergeRes.json();
+      if (!mergeRes.ok) throw new Error(mergeJson.error ?? 'Merge failed');
+      applyReadySource(mergeJson.id, mergeJson.duration, mergeJson.fps);
     } catch (err) {
+      await Promise.all(
+        uploads.map((u) => fetch(`/api/upload/${u.id}`, { method: 'DELETE' }).catch(() => {})),
+      );
       setSource({ status: 'error', message: (err as Error).message });
     }
   }
@@ -114,8 +138,8 @@ export default function Home() {
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragActive(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleFile(file);
+    const files = Array.from(e.dataTransfer.files ?? []);
+    if (files.length > 0) handleFiles(files);
   }
 
   // Server-side remux (ffmpeg -c copy to fragmented mp4) plays in a plain
@@ -408,13 +432,15 @@ export default function Home() {
         >
           <input
             type="file"
+            multiple
             accept=".ts,.m2ts,.mp4,.m4v,.mov,.mkv,.webm,.avi,.flv,.wmv,.mpg,.mpeg"
             onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleFile(file);
+              const files = Array.from(e.target.files ?? []);
+              if (files.length > 0) handleFiles(files);
             }}
           />
-          Drop a video here or click to choose a file
+          Drop one or more videos here or click to choose files
+          <span className="dropzone-hint">Selecting more than one stitches them together, in order</span>
         </label>
       )}
 
