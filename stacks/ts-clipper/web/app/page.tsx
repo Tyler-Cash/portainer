@@ -285,12 +285,21 @@ export default function Home() {
     setDraftRemoveAudio(false);
   }
 
-  const hasActiveClips = clips.some((c) => c.status === 'pending' || c.status === 'processing');
+  async function uploadAndFinish() {
+    if (pendingCount > 0) {
+      await processQueue();
+    }
+    await finish();
+  }
+
   const pendingCount = clips.filter((c) => c.status === 'pending' || c.status === 'error').length;
 
   return (
     <main className="page">
-      <h1>ts-clipper</h1>
+      <header className="app-header">
+        <span className={`tally-light${isPlaying ? ' tally-light-live' : ''}`} />
+        <h1>ts-clipper</h1>
+      </header>
 
       {source.status === 'idle' && (
         <label
@@ -341,9 +350,9 @@ export default function Home() {
               onDeleteClip={deleteDraftClip}
             />
 
-            <p>
-              Clip: {formatTime(draftStart)}&ndash;{formatTime(draftEnd)} (
-              {formatTime(draftEnd - draftStart)})
+            <p className="clip-readout">
+              Clip <strong>{formatTime(draftStart)}</strong>&ndash;<strong>{formatTime(draftEnd)}</strong>
+              <span className="clip-readout-duration">{formatTime(draftEnd - draftStart)}</span>
             </p>
 
             <div className="controls">
@@ -427,15 +436,12 @@ export default function Home() {
             )}
 
             <div className="controls">
-              <button
-                type="button"
-                disabled={processingQueue || pendingCount === 0}
-                onClick={processQueue}
-              >
-                {processingQueue ? 'Uploading queue…' : `Upload ${pendingCount} queued clip(s)`}
-              </button>
-              <button type="button" disabled={hasActiveClips} onClick={finish}>
-                Finish &amp; clip another video
+              <button type="button" disabled={processingQueue} onClick={uploadAndFinish} className="primary">
+                {processingQueue
+                  ? 'Uploading queue…'
+                  : pendingCount > 0
+                    ? `Upload ${pendingCount} clip(s) & finish`
+                    : 'Finish & clip another video'}
               </button>
             </div>
           </aside>
