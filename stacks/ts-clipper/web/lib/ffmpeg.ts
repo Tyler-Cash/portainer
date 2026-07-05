@@ -33,10 +33,10 @@ export function buildFfmpegArgs(
   }
 
   // Both non-copy modes decode and re-encode on the iGPU via VAAPI (Quick
-  // Sync) instead of libx264 on CPU — raw .ts DVR footage almost always
-  // fails the stream-copy path (irregular timestamps), so this is the
-  // common case, not a rare fallback, and the fast-preview pass always
-  // re-encodes by design (it has to downscale).
+  // Sync) instead of libx264 on CPU — stream-copy often fails on sources
+  // with irregular timestamps, so this is the common case, not a rare
+  // fallback, and the fast-preview pass always re-encodes by design (it
+  // has to downscale).
   const videoArgs =
     mode === 'fast'
       ? ['-vf', 'scale_vaapi=w=-2:h=480:format=nv12', '-c:v', 'h264_vaapi', '-qp', '32']

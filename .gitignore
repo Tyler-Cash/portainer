@@ -34,3 +34,5 @@ terraform/.terraform.lock.hcl
 stacks/zipline/transcoder/node_modules/
 stacks/ts-clipper/web/node_modules/
 stacks/ts-clipper/web/.next/
+stacks/ts-clipper/web/test-results/
+stacks/ts-clipper/web/playwright-report/

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build and deploy `ts-clipper`, a self-hosted Next.js app at `upload.tylercash.dev` that lets you drag-drop a video (raw `.ts`/`.m2ts` DVR footage or a standard `.mp4`/`.webm`/`.m4v`), scrub to pick in/out points, optionally strip audio, and get back a Zipline share link — with both the raw upload and the trimmed clip deleted from local storage the moment the Zipline upload succeeds.
+**Goal:** Build and deploy `ts-clipper`, a self-hosted Next.js app at `upload.tylercash.dev` that lets you drag-drop a video (raw `.ts`/`.m2ts` or a standard `.mp4`/`.webm`/`.m4v`), scrub to pick in/out points, optionally strip audio, and get back a Zipline share link — with both the raw upload and the trimmed clip deleted from local storage the moment the Zipline upload succeeds.
 
 **Architecture:** One Next.js 16 App Router project (`stacks/ts-clipper/web/`) with Route Handlers doing all the work server-side: streaming the raw upload to a scratch disk, serving it back with Range support for browser preview, running `ffmpeg` to trim it (stream-copy first, software re-encode as fallback), and forwarding the result to Zipline's upload API. No database — state is just files on disk plus request/response round-trips. Deployed as its own Docker Compose stack (`stacks/ts-clipper/docker-compose.yml`) following this repo's existing conventions (see `stacks/zipline/docker-compose.yml` for the label/logging patterns being copied).
 
@@ -773,7 +773,7 @@ export async function uploadToZipline(filePath: string, filename: string): Promi
 }
 ```
 
-Note: the trimmed clip is read fully into memory here (not streamed) before upload. That's a deliberate trade-off — clips are short by definition, so buffering the *output* of a trim is cheap, unlike the raw source upload in Task 6 which must stream because raw DVR footage can be multiple GB.
+Note: the trimmed clip is read fully into memory here (not streamed) before upload. That's a deliberate trade-off — clips are short by definition, so buffering the *output* of a trim is cheap, unlike the raw source upload in Task 6 which must stream because raw source files can be multiple GB.
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
@@ -1578,9 +1578,9 @@ Expected: `ts-clipper` listed with status `Up` (healthy).
 5. Confirm a Zipline URL is returned and that opening it plays the trimmed clip **with** audio.
 6. On the host, confirm `/mnt/lvm_striped/download/ts-clipper` is empty again (both the raw upload and the trimmed output were deleted).
 
-- [ ] **Step 7: End-to-end test — raw `.ts` DVR footage, audio removed**
+- [ ] **Step 7: End-to-end test — raw `.ts` source, audio removed**
 
-1. Drag in a raw `.ts` file (e.g. copied off the HDZero Goggles 2 SD card).
+1. Drag in a raw `.ts` file.
 2. Confirm it plays via the `mpegts.js` preview path (this is the format plain `<video>` can't handle).
 3. Set in/out points, check "Remove audio", click "Clip & Upload".
 4. Confirm the resulting Zipline link plays the trimmed clip with **no** audio track.
