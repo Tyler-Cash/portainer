@@ -7,15 +7,9 @@ interface PlaybarProps {
   currentTime: number;
   isPlaying: boolean;
   muted: boolean;
-  start: number;
-  end: number;
-  thumbnailUrl: (time: number) => string;
   onPlayPause: () => void;
   onToggleMute: () => void;
   onSeek: (time: number) => void;
-  onChangeStart: (time: number) => void;
-  onChangeEnd: (time: number) => void;
-  onDeleteClip: () => void;
 }
 
 function formatTime(seconds: number): string {
@@ -25,28 +19,19 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+// Pure playback scrubber — no clip-range editing here at all, so scrubbing
+// through the video can never accidentally move a clip boundary. See
+// filmstrip.tsx for the separate clip-trim timeline.
 export default function Playbar({
   duration,
   currentTime,
   isPlaying,
   muted,
-  start,
-  end,
-  thumbnailUrl,
   onPlayPause,
   onToggleMute,
   onSeek,
-  onChangeStart,
-  onChangeEnd,
-  onDeleteClip,
 }: PlaybarProps) {
   const trackRef = useRef<HTMLDivElement>(null);
-  const [preview, setPreview] = useState<{ time: number; x: number } | null>(null);
-  // Dragging the scrub bar shows a live ghost playhead + thumbnail without
-  // touching the video — each real seek spawns a new ffmpeg process, so
-  // committing on every pointermove (as the start/end handles' drags do,
-  // harmlessly, since those don't reload anything) would fire dozens of
-  // reloads per second. The actual seek only fires once, on release.
   const [scrubTime, setScrubTime] = useState<number | null>(null);
 
   const timeFromClientX = useCallback(
@@ -61,44 +46,20 @@ export default function Playbar({
     [duration],
   );
 
-  function beginDrag(kind: 'start' | 'end' | 'seek', initialClientX: number) {
-    applyDrag(kind, initialClientX, false);
+  function beginDrag(initialClientX: number) {
+    setScrubTime(timeFromClientX(initialClientX));
 
     function onMove(e: PointerEvent) {
-      applyDrag(kind, e.clientX, false);
+      setScrubTime(timeFromClientX(e.clientX));
     }
     function onUp(e: PointerEvent) {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
-      if (kind === 'seek') {
-        applyDrag(kind, e.clientX, true);
-        setScrubTime(null);
-      }
-      setPreview(null);
+      onSeek(timeFromClientX(e.clientX));
+      setScrubTime(null);
     }
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
-  }
-
-  function applyDrag(kind: 'start' | 'end' | 'seek', clientX: number, commit: boolean) {
-    const time = timeFromClientX(clientX);
-    const track = trackRef.current;
-    const relativeX = track ? clientX - track.getBoundingClientRect().left : clientX;
-    if (kind === 'start') {
-      const clamped = Math.min(time, end - 0.1);
-      onChangeStart(clamped);
-      setPreview({ time: clamped, x: relativeX });
-    } else if (kind === 'end') {
-      const clamped = Math.max(time, start + 0.1);
-      onChangeEnd(clamped);
-      setPreview({ time: clamped, x: relativeX });
-    } else {
-      setScrubTime(time);
-      setPreview({ time, x: relativeX });
-      if (commit) {
-        onSeek(time);
-      }
-    }
   }
 
   const pct = (t: number) => (duration > 0 ? (Math.min(t, duration) / duration) * 100 : 0);
@@ -107,52 +68,9 @@ export default function Playbar({
   return (
     <div className="playbar">
       <div className="timeline">
-        <div
-          className="timeline-track"
-          ref={trackRef}
-          onPointerDown={(e) => beginDrag('seek', e.clientX)}
-        >
-          <div
-            className="timeline-range"
-            style={{ left: `${pct(start)}%`, width: `${pct(end) - pct(start)}%` }}
-          />
+        <div className="timeline-track" ref={trackRef} onPointerDown={(e) => beginDrag(e.clientX)}>
           <div className="timeline-playhead" style={{ left: `${pct(playheadTime)}%` }} />
-          <div
-            className="timeline-handle timeline-handle-start"
-            style={{ left: `${pct(start)}%` }}
-            onPointerDown={(e) => {
-              e.stopPropagation();
-              beginDrag('start', e.clientX);
-            }}
-          />
-          <div
-            className="timeline-handle timeline-handle-end"
-            style={{ left: `${pct(end)}%` }}
-            onPointerDown={(e) => {
-              e.stopPropagation();
-              beginDrag('end', e.clientX);
-            }}
-          />
-          <button
-            type="button"
-            className="timeline-delete"
-            style={{ left: `${pct(end)}%` }}
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={onDeleteClip}
-            title="Discard this clip selection"
-          >
-            &times;
-          </button>
         </div>
-
-        {preview && (
-          <img
-            className="timeline-preview"
-            style={{ left: preview.x }}
-            src={thumbnailUrl(preview.time)}
-            alt=""
-          />
-        )}
       </div>
 
       <div className="playbar-controls">

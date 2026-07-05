@@ -272,16 +272,6 @@ body {
   touch-action: none;
 }
 
-.timeline-range {
-  position: absolute;
-  top: -1.5px;
-  bottom: -1.5px;
-  background: var(--leaf);
-  border: 1.5px solid var(--ink);
-  border-radius: 7px;
-  pointer-events: none;
-}
-
 .timeline-playhead {
   position: absolute;
   top: -5px;
@@ -289,60 +279,6 @@ body {
   width: 2px;
   background: var(--ink);
   pointer-events: none;
-}
-
-.timeline-handle {
-  position: absolute;
-  top: -6px;
-  width: 12px;
-  height: 26px;
-  margin-left: -6px;
-  background: #fff;
-  border: 1.5px solid var(--ink);
-  border-radius: 4px;
-  cursor: ew-resize;
-  touch-action: none;
-  opacity: 0.7;
-  transition: opacity 0.1s, width 0.1s, margin-left 0.1s, background 0.1s;
-}
-
-.timeline:hover .timeline-handle,
-.timeline-handle:hover {
-  opacity: 1;
-  width: 16px;
-  margin-left: -8px;
-  background: var(--leaf-lt);
-}
-
-.timeline-delete {
-  position: absolute;
-  top: -7px;
-  margin-left: 0.5rem;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: 1.5px solid var(--ink);
-  border-radius: 50%;
-  background: var(--danger);
-  color: #fff;
-  font-size: 0.85rem;
-  font-weight: 700;
-  line-height: 1;
-  cursor: pointer;
-  opacity: 0;
-  pointer-events: none;
-  box-shadow: var(--shadow-rest);
-  transition: opacity 0.1s;
-}
-
-.timeline:hover .timeline-delete {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.timeline-delete:active {
-  box-shadow: var(--shadow-press);
-  transform: translate(2px, 2px);
 }
 
 .timeline-preview {
@@ -355,6 +291,119 @@ body {
   border-radius: var(--radius-chip);
   box-shadow: var(--shadow-hero);
   pointer-events: none;
+}
+
+.filmstrip {
+  position: relative;
+  margin-top: 0.75rem;
+}
+
+.filmstrip-track {
+  position: relative;
+  height: 56px;
+  border: 1.5px solid var(--ink);
+  border-radius: var(--radius-chip);
+  overflow: hidden;
+  cursor: pointer;
+  touch-action: none;
+  background: var(--paper3);
+}
+
+.filmstrip-tiles {
+  position: absolute;
+  inset: 0;
+  display: flex;
+}
+
+.filmstrip-tile {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+  border-right: 1px solid rgba(14, 16, 13, 0.15);
+}
+
+.filmstrip-tile:last-child {
+  border-right: none;
+}
+
+.filmstrip-dim {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(245, 241, 232, 0.78);
+  pointer-events: none;
+}
+
+.filmstrip-dim-left {
+  left: 0;
+}
+
+.filmstrip-dim-right {
+  right: 0;
+}
+
+.filmstrip-range {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  box-shadow: inset 0 0 0 2px var(--leaf-dk);
+  pointer-events: none;
+}
+
+.filmstrip-playhead {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--ink);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.6);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.filmstrip-handle {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 14px;
+  margin-left: -7px;
+  background: #fff;
+  border: 1.5px solid var(--ink);
+  border-radius: 4px;
+  cursor: ew-resize;
+  touch-action: none;
+  z-index: 2;
+}
+
+.filmstrip-handle:hover {
+  background: var(--leaf-lt);
+}
+
+.filmstrip-delete {
+  position: absolute;
+  top: -10px;
+  margin-left: 0.5rem;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1.5px solid var(--ink);
+  border-radius: 50%;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: var(--shadow-rest);
+  z-index: 2;
+}
+
+.filmstrip-delete:active {
+  box-shadow: var(--shadow-press);
+  transform: translate(2px, 2px);
 }
 
 .controls {

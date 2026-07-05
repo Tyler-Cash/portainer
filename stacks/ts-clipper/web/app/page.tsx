@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Playbar from './playbar';
+import Filmstrip from './filmstrip';
 
 type SourceState =
   | { status: 'idle' }
@@ -422,11 +423,17 @@ export default function Home() {
               currentTime={currentTime}
               isPlaying={isPlaying}
               muted={muted}
+              onPlayPause={togglePlayPause}
+              onToggleMute={toggleMute}
+              onSeek={(time) => seekTo(snapToFrame(time))}
+            />
+
+            <Filmstrip
+              duration={duration}
+              currentTime={currentTime}
               start={draftStart}
               end={draftEnd}
               thumbnailUrl={thumbnailUrl}
-              onPlayPause={togglePlayPause}
-              onToggleMute={toggleMute}
               onSeek={(time) => seekTo(snapToFrame(time))}
               onChangeStart={(time) => setDraftStart(snapToFrame(time))}
               onChangeEnd={(time) => setDraftEnd(snapToFrame(time))}
