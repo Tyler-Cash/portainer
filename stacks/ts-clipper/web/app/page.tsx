@@ -43,7 +43,24 @@ export default function Home() {
   const [processingQueue, setProcessingQueue] = useState(false);
   const [fastPreviewEnabled, setFastPreviewEnabled] = useState(true);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
+  // Two <video> elements, swapped like a double-buffer: seeking preloads the
+  // new stream into the currently-hidden one and only promotes it to visible
+  // once it actually has a frame ready ('loadeddata'), so the old frame stays
+  // on screen the whole time instead of flashing black while ffmpeg spins up
+  // a fresh remux for the new position.
+  const videoRefs = useRef<[HTMLVideoElement | null, HTMLVideoElement | null]>([null, null]);
+  const activeIndexRef = useRef<0 | 1>(0);
+  const [activeIndex, setActiveIndex] = useState<0 | 1>(0);
+
+  function setVideoRef(index: 0 | 1) {
+    return (el: HTMLVideoElement | null) => {
+      videoRefs.current[index] = el;
+    };
+  }
+
+  function activeVideo(): HTMLVideoElement | null {
+    return videoRefs.current[activeIndexRef.current];
+  }
 
   const sourceId = source.status === 'ready' ? source.id : undefined;
 
@@ -101,35 +118,73 @@ export default function Home() {
   // restarts the remux from a new point rather than using Range requests —
   // see seekTo below.
   useEffect(() => {
-    if (!sourceId || !videoRef.current) return;
-    const video = videoRef.current;
+    if (!sourceId) return;
+    activeIndexRef.current = 0;
+    setActiveIndex(0);
     setStreamOffset(0);
-    video.src = `/api/upload/${sourceId}?start=0`;
-    return () => {
-      video.removeAttribute('src');
+    const video = videoRefs.current[0];
+    if (video) {
+      video.src = `/api/upload/${sourceId}?start=0`;
       video.load();
+    }
+    return () => {
+      videoRefs.current.forEach((v) => {
+        if (v) {
+          v.removeAttribute('src');
+          v.load();
+        }
+      });
     };
   }, [sourceId]);
 
-  function onTimeUpdate() {
-    const video = videoRef.current;
-    if (video) setCurrentTime(streamOffset + video.currentTime);
+  function onTimeUpdate(e: React.SyntheticEvent<HTMLVideoElement>) {
+    if (e.currentTarget !== activeVideo()) return;
+    setCurrentTime(streamOffset + e.currentTarget.currentTime);
+  }
+
+  function handlePlayEvent(e: React.SyntheticEvent<HTMLVideoElement>) {
+    if (e.currentTarget !== activeVideo()) return;
+    setIsPlaying(true);
+  }
+
+  function handlePauseEvent(e: React.SyntheticEvent<HTMLVideoElement>) {
+    if (e.currentTarget !== activeVideo()) return;
+    setIsPlaying(false);
   }
 
   function seekTo(time: number) {
     if (!Number.isFinite(time) || !sourceId) return;
-    const video = videoRef.current;
+    const fromIndex = activeIndexRef.current;
+    const toIndex: 0 | 1 = fromIndex === 0 ? 1 : 0;
+    const fromVideo = videoRefs.current[fromIndex];
+    const toVideo = videoRefs.current[toIndex];
+    if (!toVideo) return;
+
     setStreamOffset(time);
     setCurrentTime(time);
-    if (video) {
-      video.src = `/api/upload/${sourceId}?start=${time}`;
-      video.load();
-      video.play().catch(() => {});
-    }
+
+    let settled = false;
+    const promote = () => {
+      if (settled) return;
+      settled = true;
+      toVideo.removeEventListener('loadeddata', promote);
+      clearTimeout(timeoutId);
+      activeIndexRef.current = toIndex;
+      setActiveIndex(toIndex);
+      toVideo.play().catch(() => {});
+      fromVideo?.pause();
+    };
+    // Safety net: if the new stream never produces a frame (a broken seek
+    // target), don't leave the UI stuck showing the old frame forever.
+    const timeoutId = setTimeout(promote, 8000);
+
+    toVideo.addEventListener('loadeddata', promote, { once: true });
+    toVideo.src = `/api/upload/${sourceId}?start=${time}`;
+    toVideo.load();
   }
 
   function togglePlayPause() {
-    const video = videoRef.current;
+    const video = activeVideo();
     if (!video) return;
     if (video.paused) {
       video.play().catch(() => {});
@@ -139,14 +194,11 @@ export default function Home() {
   }
 
   function toggleMute() {
-    const video = videoRef.current;
-    if (!video) return;
-    video.muted = !video.muted;
-    setMuted(video.muted);
+    setMuted((prev) => !prev);
   }
 
   function effectiveTime(): number {
-    return streamOffset + (videoRef.current?.currentTime ?? 0);
+    return streamOffset + (activeVideo()?.currentTime ?? 0);
   }
 
   function startClipHere() {
@@ -280,6 +332,8 @@ export default function Home() {
     setStreamOffset(0);
     setCurrentTime(0);
     setIsPlaying(false);
+    activeIndexRef.current = 0;
+    setActiveIndex(0);
     setDraftStart(0);
     setDraftEnd(0);
     setDraftRemoveAudio(false);
@@ -330,13 +384,24 @@ export default function Home() {
       {source.status === 'ready' && (
         <div className="editor-layout">
           <div className="editor-main">
-            <video
-              ref={videoRef}
-              onTimeUpdate={onTimeUpdate}
-              onPlay={() => setIsPlaying(true)}
-              onPause={() => setIsPlaying(false)}
-              className="preview"
-            />
+            <div className="preview-stack">
+              <video
+                ref={setVideoRef(0)}
+                muted={muted}
+                onTimeUpdate={onTimeUpdate}
+                onPlay={handlePlayEvent}
+                onPause={handlePauseEvent}
+                className={`preview${activeIndex === 0 ? ' preview-active' : ''}`}
+              />
+              <video
+                ref={setVideoRef(1)}
+                muted={muted}
+                onTimeUpdate={onTimeUpdate}
+                onPlay={handlePlayEvent}
+                onPause={handlePauseEvent}
+                className={`preview${activeIndex === 1 ? ' preview-active' : ''}`}
+              />
+            </div>
 
             <Playbar
               duration={duration}

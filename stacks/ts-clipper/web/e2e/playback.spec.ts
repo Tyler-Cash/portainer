@@ -33,20 +33,20 @@ test('uploaded video plays back, and seeking recovers to a playable frame', asyn
   console.log(`uploaded id=${id}`);
 
   try {
-    const video = page.locator('video');
+    const video = page.locator('video.preview-active');
     await expect(video).toBeVisible({ timeout: 15_000 });
 
     // Wait for the initial remux stream to actually start delivering data.
     await page.waitForFunction(
-      () => (document.querySelector('video') as HTMLVideoElement)?.readyState >= 2,
+      () => (document.querySelector('video.preview-active') as HTMLVideoElement)?.readyState >= 2,
       { timeout: 20_000 },
     );
 
-    await page.evaluate(() => (document.querySelector('video') as HTMLVideoElement).play());
+    await page.evaluate(() => (document.querySelector('video.preview-active') as HTMLVideoElement).play());
     await page.waitForTimeout(3000);
 
     const afterPlay = await page.evaluate(() => {
-      const v = document.querySelector('video') as HTMLVideoElement;
+      const v = document.querySelector('video.preview-active') as HTMLVideoElement;
       return {
         currentTime: v.currentTime,
         paused: v.paused,
@@ -73,7 +73,7 @@ test('uploaded video plays back, and seeking recovers to a playable frame', asyn
     await page.waitForTimeout(5000);
 
     const afterSeek = await page.evaluate(() => {
-      const v = document.querySelector('video') as HTMLVideoElement;
+      const v = document.querySelector('video.preview-active') as HTMLVideoElement;
       return {
         currentTime: v.currentTime,
         paused: v.paused,
