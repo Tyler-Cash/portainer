@@ -14,21 +14,27 @@ RUN npm run build
 FROM base AS runner
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+# node:22-bookworm-slim only enables the "main" apt component by default;
+# intel-media-va-driver-non-free lives in "non-free".
+RUN sed -i 's/Components: main/Components: main contrib non-free non-free-firmware/' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    intel-media-va-driver-non-free \
+    vainfo \
     && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
 
-RUN addgroup --system --gid 1001 nodejs \
-    && adduser --system --uid 1001 nextjs \
-    && mkdir -p /app/scratch \
-    && chown nextjs:nodejs /app/scratch
+RUN mkdir -p /app/scratch
 
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
-USER nextjs
+# Runs as root (not a dedicated non-root user, unlike a typical Next.js
+# image) so it has unconditional access to /dev/dri/renderD128 regardless
+# of the host's render-group GID — same trade-off zipline-transcoder makes
+# for the same reason.
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0

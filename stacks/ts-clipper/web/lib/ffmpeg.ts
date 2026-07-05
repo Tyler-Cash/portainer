@@ -3,6 +3,8 @@ import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 
+export const VAAPI_DEVICE = process.env.VAAPI_DEVICE || '/dev/dri/renderD128';
+
 export interface ClipOptions {
   start: number;
   end: number;
@@ -14,23 +16,37 @@ export function buildFfmpegArgs(
   outputPath: string,
   { start, end, removeAudio }: ClipOptions,
   mode: 'copy' | 'reencode' | 'fast',
+  vaapiDevice: string = VAAPI_DEVICE,
 ): string[] {
+  const audioArgs = removeAudio ? ['-an'] : ['-c:a', mode === 'copy' ? 'copy' : 'aac'];
+
+  if (mode === 'copy') {
+    return [
+      '-y',
+      '-ss', String(start),
+      '-to', String(end),
+      '-i', sourcePath,
+      '-c:v', 'copy',
+      ...audioArgs,
+      outputPath,
+    ];
+  }
+
+  // Both non-copy modes decode and re-encode on the iGPU via VAAPI (Quick
+  // Sync) instead of libx264 on CPU — raw .ts DVR footage almost always
+  // fails the stream-copy path (irregular timestamps), so this is the
+  // common case, not a rare fallback, and the fast-preview pass always
+  // re-encodes by design (it has to downscale).
   const videoArgs =
-    mode === 'copy'
-      ? ['-c:v', 'copy']
-      : mode === 'fast'
-        ? ['-vf', 'scale=-2:480', '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '32']
-        : ['-c:v', 'libx264', '-preset', 'veryfast'];
-  const audioArgs = removeAudio
-    ? ['-an']
-    : mode === 'copy'
-      ? ['-c:a', 'copy']
-      : mode === 'fast'
-        ? ['-c:a', 'aac', '-b:a', '64k']
-        : ['-c:a', 'aac'];
+    mode === 'fast'
+      ? ['-vf', 'scale_vaapi=w=-2:h=480:format=nv12', '-c:v', 'h264_vaapi', '-qp', '32']
+      : ['-c:v', 'h264_vaapi', '-qp', '23'];
 
   return [
     '-y',
+    '-hwaccel', 'vaapi',
+    '-hwaccel_device', vaapiDevice,
+    '-hwaccel_output_format', 'vaapi',
     '-ss', String(start),
     '-to', String(end),
     '-i', sourcePath,

@@ -78,7 +78,7 @@ Using this fast local volume (rather than `/hdd` or `/ssd/services/...`) matters
 
 ## Container
 
-`node:22-bookworm-slim` base, multi-stage build per the standard Next.js standalone Dockerfile pattern, with `apt-get install -y ffmpeg` added in the runner stage. No `/dev/dri` VAAPI passthrough needed — the re-encode fallback path is software (`libx264`) since it's a rare edge case and doesn't justify the extra device-passthrough complexity here.
+`node:22-bookworm-slim` base, multi-stage build per the standard Next.js standalone Dockerfile pattern. **Superseded in v1.1:** re-encoding (both the `reencode` and `fast` modes) now uses VAAPI (Intel Quick Sync) via `/dev/dri/renderD128` passthrough and `h264_vaapi`, the same pattern as `zipline-transcoder`'s Dockerfile/`devices:` block — software `libx264` turned out not to be a rare fallback in practice: raw `.ts` DVR footage almost never satisfies the stream-copy path (irregular timestamps), and the fast-preview pass always re-encodes by design, so CPU load from software encoding was real, not edge-case. The runner stage runs as root (no dedicated non-root user) so it has unconditional access to the render device regardless of the host's render-group GID, again matching `zipline-transcoder`.
 
 Compose service joins `homelab_default`, Traefik host `upload.tylercash.dev` restricted to the LAN via `ClientIP(\`10.0.0.0/8\`)` (matching `stacks/vaultwarden/docker-compose.yml:25`, not the wider `172.19.0.0/24`-inclusive pattern most other stacks use), standard `x-logging` anchor and Traefik labels matching every other stack in this repo (see `stacks/zipline/docker-compose.yml` for the exact label block to copy).
 

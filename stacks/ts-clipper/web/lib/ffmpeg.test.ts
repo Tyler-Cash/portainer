@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { buildFfmpegArgs } from './ffmpeg';
 
 describe('buildFfmpegArgs', () => {
-  it('builds a stream-copy trim that keeps audio', () => {
+  it('builds a stream-copy trim that keeps audio, with no hwaccel flags needed', () => {
     const args = buildFfmpegArgs(
       '/scratch/in.ts',
       '/scratch/out.mp4',
@@ -28,43 +28,52 @@ describe('buildFfmpegArgs', () => {
     ]);
   });
 
-  it('uses a software re-encode with audio in reencode mode', () => {
+  it('uses VAAPI hardware encoding with audio in reencode mode', () => {
     const args = buildFfmpegArgs(
       '/scratch/in.ts',
       '/scratch/out.mp4',
       { start: 0, end: 10, removeAudio: false },
       'reencode',
+      '/dev/dri/renderD128',
     );
     expect(args).toEqual([
-      '-y', '-ss', '0', '-to', '10', '-i', '/scratch/in.ts',
-      '-c:v', 'libx264', '-preset', 'veryfast', '-c:a', 'aac', '/scratch/out.mp4',
+      '-y',
+      '-hwaccel', 'vaapi', '-hwaccel_device', '/dev/dri/renderD128', '-hwaccel_output_format', 'vaapi',
+      '-ss', '0', '-to', '10', '-i', '/scratch/in.ts',
+      '-c:v', 'h264_vaapi', '-qp', '23', '-c:a', 'aac', '/scratch/out.mp4',
     ]);
   });
 
-  it('uses a software re-encode without audio in reencode mode when removeAudio is set', () => {
+  it('drops audio in VAAPI reencode mode when removeAudio is set', () => {
     const args = buildFfmpegArgs(
       '/scratch/in.ts',
       '/scratch/out.mp4',
       { start: 0, end: 10, removeAudio: true },
       'reencode',
+      '/dev/dri/renderD128',
     );
     expect(args).toEqual([
-      '-y', '-ss', '0', '-to', '10', '-i', '/scratch/in.ts',
-      '-c:v', 'libx264', '-preset', 'veryfast', '-an', '/scratch/out.mp4',
+      '-y',
+      '-hwaccel', 'vaapi', '-hwaccel_device', '/dev/dri/renderD128', '-hwaccel_output_format', 'vaapi',
+      '-ss', '0', '-to', '10', '-i', '/scratch/in.ts',
+      '-c:v', 'h264_vaapi', '-qp', '23', '-an', '/scratch/out.mp4',
     ]);
   });
 
-  it('downscales and uses the fastest preset in fast mode, with audio', () => {
+  it('downscales via VAAPI and uses a looser quality target in fast mode', () => {
     const args = buildFfmpegArgs(
       '/scratch/in.ts',
       '/scratch/out.mp4',
       { start: 0, end: 10, removeAudio: false },
       'fast',
+      '/dev/dri/renderD128',
     );
     expect(args).toEqual([
-      '-y', '-ss', '0', '-to', '10', '-i', '/scratch/in.ts',
-      '-vf', 'scale=-2:480', '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '32',
-      '-c:a', 'aac', '-b:a', '64k', '/scratch/out.mp4',
+      '-y',
+      '-hwaccel', 'vaapi', '-hwaccel_device', '/dev/dri/renderD128', '-hwaccel_output_format', 'vaapi',
+      '-ss', '0', '-to', '10', '-i', '/scratch/in.ts',
+      '-vf', 'scale_vaapi=w=-2:h=480:format=nv12', '-c:v', 'h264_vaapi', '-qp', '32',
+      '-c:a', 'aac', '/scratch/out.mp4',
     ]);
   });
 
@@ -74,11 +83,24 @@ describe('buildFfmpegArgs', () => {
       '/scratch/out.mp4',
       { start: 0, end: 10, removeAudio: true },
       'fast',
+      '/dev/dri/renderD128',
     );
     expect(args).toEqual([
-      '-y', '-ss', '0', '-to', '10', '-i', '/scratch/in.ts',
-      '-vf', 'scale=-2:480', '-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '32',
+      '-y',
+      '-hwaccel', 'vaapi', '-hwaccel_device', '/dev/dri/renderD128', '-hwaccel_output_format', 'vaapi',
+      '-ss', '0', '-to', '10', '-i', '/scratch/in.ts',
+      '-vf', 'scale_vaapi=w=-2:h=480:format=nv12', '-c:v', 'h264_vaapi', '-qp', '32',
       '-an', '/scratch/out.mp4',
     ]);
+  });
+
+  it('defaults the VAAPI device to /dev/dri/renderD128 when not specified', () => {
+    const args = buildFfmpegArgs(
+      '/scratch/in.ts',
+      '/scratch/out.mp4',
+      { start: 0, end: 10, removeAudio: false },
+      'reencode',
+    );
+    expect(args).toContain('/dev/dri/renderD128');
   });
 });
