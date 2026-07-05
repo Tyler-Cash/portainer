@@ -255,9 +255,12 @@ body {
 }
 
 .preview {
+  display: block;
   width: 100%;
+  aspect-ratio: 16 / 9;
   max-height: 60vh;
   background: black;
+  object-fit: contain;
 }
 
 .controls {
