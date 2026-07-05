@@ -125,12 +125,22 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sourceId, sourceIsTs]);
 
-  function onLoadedMetadata() {
+  // MSE-backed playback (mpegts.js, used for .ts/.m2ts) commonly reports
+  // duration as Infinity when 'loadedmetadata' first fires, before enough of
+  // the stream is buffered to know the real length — it only becomes finite
+  // once 'durationchange' fires again later. Applying an Infinity duration
+  // to state poisons downstream arithmetic (0 * Infinity = NaN), which is
+  // exactly what can reach video.currentTime and throw.
+  function applyDuration() {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !Number.isFinite(video.duration)) return;
     setDuration(video.duration);
+    setDraftEnd((prev) => (prev === 0 ? Math.min(DEFAULT_CLIP_SECONDS, video.duration) : prev));
+  }
+
+  function onLoadedMetadata() {
     setDraftStart(0);
-    setDraftEnd(Math.min(DEFAULT_CLIP_SECONDS, video.duration));
+    applyDuration();
   }
 
   function onTimeUpdate() {
@@ -139,6 +149,7 @@ export default function Home() {
   }
 
   function seekTo(time: number) {
+    if (!Number.isFinite(time)) return;
     const video = videoRef.current;
     if (video) video.currentTime = time;
     setCurrentTime(time);
@@ -298,6 +309,7 @@ export default function Home() {
             ref={videoRef}
             controls
             onLoadedMetadata={onLoadedMetadata}
+            onDurationChange={applyDuration}
             onTimeUpdate={onTimeUpdate}
             className="preview"
           />

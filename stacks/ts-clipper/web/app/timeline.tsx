@@ -26,8 +26,9 @@ export default function Timeline({
   const timeFromClientX = useCallback(
     (clientX: number): number => {
       const track = trackRef.current;
-      if (!track || duration <= 0) return 0;
+      if (!track || !Number.isFinite(duration) || duration <= 0) return 0;
       const rect = track.getBoundingClientRect();
+      if (rect.width <= 0) return 0;
       const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
       return ratio * duration;
     },

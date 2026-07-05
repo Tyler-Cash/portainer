@@ -7,6 +7,17 @@ import { resolveRange } from '@/lib/range';
 
 export const runtime = 'nodejs';
 
+// A video player doing range-based seeking routinely aborts in-flight
+// requests (it cancels the previous byte range as soon as it starts a new
+// one). That leaves the underlying fs stream's 'error' event with no
+// listener, which Node reports as an uncaught exception even though the
+// client disconnect itself is completely normal — attach a no-op listener
+// so it's just dropped instead of crashing/logging as a real failure.
+function toResponseStream(nodeStream: Readable): ReadableStream {
+  nodeStream.on('error', () => {});
+  return Readable.toWeb(nodeStream) as ReadableStream;
+}
+
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!isValidId(id)) {
@@ -27,7 +38,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   if (!range) {
-    const stream = Readable.toWeb(createReadStream(filePath)) as ReadableStream;
+    const stream = toResponseStream(createReadStream(filePath));
     return new NextResponse(stream, {
       status: 200,
       headers: {
@@ -39,7 +50,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   const { start, end } = range;
-  const stream = Readable.toWeb(createReadStream(filePath, { start, end })) as ReadableStream;
+  const stream = toResponseStream(createReadStream(filePath, { start, end }));
 
   return new NextResponse(stream, {
     status: 206,
