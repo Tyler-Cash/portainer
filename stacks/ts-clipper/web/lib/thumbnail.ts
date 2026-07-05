@@ -53,7 +53,9 @@ export async function ensureThumbnail(
 
 // Seeking to (or past) the exact end of the file leaves ffmpeg with no frame
 // to grab — e.g. the filmstrip's last tile lands exactly on the video's
-// duration. Step back a second and retry before giving up.
+// duration. ffmpeg exits 0 in that case (it just never writes the output
+// file) rather than throwing, so success has to be verified by checking the
+// file actually landed on disk, not just that the process didn't error.
 async function generateOrCached(
   sourcePath: string,
   id: string,
@@ -64,15 +66,20 @@ async function generateOrCached(
   if (await fileExists(output)) {
     return output;
   }
+  let lastError: Error | undefined;
   try {
     await execFileAsync('ffmpeg', buildThumbnailArgs(sourcePath, rounded, output));
-    return output;
-  } catch (err) {
-    if (rounded > 0) {
-      return generateOrCached(sourcePath, id, rounded - 1, scratchDir);
+    if (await fileExists(output)) {
+      return output;
     }
-    throw err;
+    lastError = new Error(`ffmpeg produced no frame at ${rounded}s`);
+  } catch (err) {
+    lastError = err as Error;
   }
+  if (rounded > 0) {
+    return generateOrCached(sourcePath, id, rounded - 1, scratchDir);
+  }
+  throw lastError;
 }
 
 export async function removeThumbnails(id: string, scratchDir: string = SCRATCH_DIR): Promise<void> {

@@ -54,8 +54,10 @@ describe('ensureThumbnail', () => {
   beforeEach(async () => {
     dir = await mkdtemp(path.join(tmpdir(), 'ts-clipper-thumb-'));
     execFileMock.mockReset();
-    execFileMock.mockImplementation((_file: string, _args: string[], callback: (err: Error | null) => void) => {
-      callback(null);
+    // Default: succeed and actually write the output file, like real ffmpeg does.
+    execFileMock.mockImplementation((_file: string, args: string[], callback: (err: Error | null) => void) => {
+      const outputPath = args[args.length - 1];
+      writeFile(outputPath, 'thumb-data').then(() => callback(null));
     });
   });
 
@@ -73,13 +75,14 @@ describe('ensureThumbnail', () => {
     expect(execFileMock).not.toHaveBeenCalled();
   });
 
-  it('steps back a second and retries when ffmpeg fails at the requested second', async () => {
+  it('steps back a second and retries when ffmpeg throws at the requested second', async () => {
     execFileMock.mockImplementation((_file: string, args: string[], callback: (err: Error | null) => void) => {
       const requestedSecond = args[args.indexOf('-ss') + 1];
+      const outputPath = args[args.length - 1];
       if (requestedSecond === '10') {
         callback(new Error('ffmpeg: could not find a usable frame'));
       } else {
-        callback(null);
+        writeFile(outputPath, 'thumb-data').then(() => callback(null));
       }
     });
 
@@ -89,7 +92,25 @@ describe('ensureThumbnail', () => {
     expect(execFileMock).toHaveBeenCalledTimes(2);
   });
 
-  it('throws the last error once retries reach second 0', async () => {
+  it('steps back a second and retries when ffmpeg exits 0 but writes no frame (seek past EOF)', async () => {
+    execFileMock.mockImplementation((_file: string, args: string[], callback: (err: Error | null) => void) => {
+      const requestedSecond = args[args.indexOf('-ss') + 1];
+      const outputPath = args[args.length - 1];
+      if (requestedSecond === '10') {
+        // No error, but no frame available at/after EOF — ffmpeg just never writes the file.
+        callback(null);
+      } else {
+        writeFile(outputPath, 'thumb-data').then(() => callback(null));
+      }
+    });
+
+    const result = await ensureThumbnail('/some/source.ts', 'abc', 10, dir);
+
+    expect(result).toBe(thumbnailPath('abc', 9, dir));
+    expect(execFileMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('throws once retries reach second 0 with no frame ever produced', async () => {
     execFileMock.mockImplementation((_file: string, _args: string[], callback: (err: Error | null) => void) => {
       callback(new Error('ffmpeg: no frame anywhere in this file'));
     });
