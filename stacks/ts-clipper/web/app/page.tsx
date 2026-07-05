@@ -44,6 +44,7 @@ export default function Home() {
   const [clips, setClips] = useState<QueuedClip[]>([]);
   const [processingQueue, setProcessingQueue] = useState(false);
   const [fastPreviewEnabled, setFastPreviewEnabled] = useState(true);
+  const [previewLooping, setPreviewLooping] = useState(false);
 
   // Two <video> elements, swapped like a double-buffer: seeking preloads the
   // new stream into the currently-hidden one and only promotes it to visible
@@ -144,7 +145,11 @@ export default function Home() {
 
   function onTimeUpdate(e: React.SyntheticEvent<HTMLVideoElement>) {
     if (e.currentTarget !== activeVideo()) return;
-    setCurrentTime(streamOffset + e.currentTarget.currentTime);
+    const time = streamOffset + e.currentTarget.currentTime;
+    setCurrentTime(time);
+    if (previewLooping && draftEnd > draftStart && time >= draftEnd - 0.05) {
+      seekTo(draftStart);
+    }
   }
 
   function handlePlayEvent(e: React.SyntheticEvent<HTMLVideoElement>) {
@@ -194,8 +199,20 @@ export default function Home() {
     if (video.paused) {
       video.play().catch(() => {});
     } else {
+      setPreviewLooping(false);
       video.pause();
     }
+  }
+
+  function togglePreviewLoop() {
+    if (previewLooping) {
+      setPreviewLooping(false);
+      activeVideo()?.pause();
+      return;
+    }
+    if (draftEnd <= draftStart) return;
+    setPreviewLooping(true);
+    seekTo(draftStart);
   }
 
   function toggleMute() {
@@ -228,10 +245,12 @@ export default function Home() {
   }
 
   function deleteDraftClip() {
+    setPreviewLooping(false);
     setDraftEnd(draftStart);
   }
 
   function previewClip(clip: QueuedClip) {
+    setPreviewLooping(false);
     setDraftStart(clip.start);
     setDraftEnd(clip.end);
     seekTo(clip.start);
@@ -254,6 +273,10 @@ export default function Home() {
         status: 'pending',
       },
     ]);
+    setPreviewLooping(false);
+    // Remove audio is a per-clip choice, not a sticky preference — reset it
+    // so the next clip defaults back to keeping audio.
+    setDraftRemoveAudio(false);
     const nextStart = draftEnd;
     setDraftStart(nextStart);
     setDraftEnd(Math.min(nextStart + DEFAULT_CLIP_SECONDS, duration));
@@ -352,6 +375,7 @@ export default function Home() {
     setDraftStart(0);
     setDraftEnd(0);
     setDraftRemoveAudio(false);
+    setPreviewLooping(false);
   }
 
   async function handlePrimaryAction() {
@@ -366,6 +390,7 @@ export default function Home() {
   }
 
   const pendingCount = clips.filter((c) => c.status === 'pending' || c.status === 'error').length;
+  const hasClip = draftEnd > draftStart;
 
   return (
     <main className="page">
@@ -402,7 +427,7 @@ export default function Home() {
             <div className="preview-stack">
               <video
                 ref={setVideoRef(0)}
-                muted={muted}
+                muted={muted || draftRemoveAudio}
                 onTimeUpdate={onTimeUpdate}
                 onPlay={handlePlayEvent}
                 onPause={handlePauseEvent}
@@ -410,7 +435,7 @@ export default function Home() {
               />
               <video
                 ref={setVideoRef(1)}
-                muted={muted}
+                muted={muted || draftRemoveAudio}
                 onTimeUpdate={onTimeUpdate}
                 onPlay={handlePlayEvent}
                 onPause={handlePauseEvent}
@@ -425,7 +450,10 @@ export default function Home() {
               muted={muted}
               onPlayPause={togglePlayPause}
               onToggleMute={toggleMute}
-              onSeek={(time) => seekTo(snapToFrame(time))}
+              onSeek={(time) => {
+                setPreviewLooping(false);
+                seekTo(snapToFrame(time));
+              }}
             />
 
             <Filmstrip
@@ -434,16 +462,21 @@ export default function Home() {
               start={draftStart}
               end={draftEnd}
               thumbnailUrl={thumbnailUrl}
-              onSeek={(time) => seekTo(snapToFrame(time))}
+              onSeek={(time) => {
+                setPreviewLooping(false);
+                seekTo(snapToFrame(time));
+              }}
               onChangeStart={(time) => setDraftStart(snapToFrame(time))}
               onChangeEnd={(time) => setDraftEnd(snapToFrame(time))}
               onDeleteClip={deleteDraftClip}
             />
 
-            <p className="clip-readout">
-              Clip <strong>{formatTime(draftStart)}</strong>&ndash;<strong>{formatTime(draftEnd)}</strong>
-              <span className="clip-readout-duration">{formatTime(draftEnd - draftStart)}</span>
-            </p>
+            {hasClip && (
+              <p className="clip-readout">
+                Clip <strong>{formatTime(draftStart)}</strong>&ndash;<strong>{formatTime(draftEnd)}</strong>
+                <span className="clip-readout-duration">{formatTime(draftEnd - draftStart)}</span>
+              </p>
+            )}
 
             <div className="controls">
               <button type="button" onClick={startClipHere}>
@@ -451,6 +484,9 @@ export default function Home() {
               </button>
               <button type="button" onClick={stopClipHere}>
                 Stop clip here
+              </button>
+              <button type="button" disabled={!hasClip} onClick={togglePreviewLoop}>
+                {previewLooping ? 'Stop preview' : 'Preview clip ↻'}
               </button>
               <label>
                 <input
@@ -460,7 +496,7 @@ export default function Home() {
                 />
                 Remove audio
               </label>
-              <button type="button" onClick={addToQueue}>
+              <button type="button" disabled={!hasClip} onClick={addToQueue}>
                 Add clip to queue
               </button>
             </div>
@@ -496,13 +532,17 @@ export default function Home() {
                       {clip.status === 'processing' && <span>Uploading&hellip;</span>}
                       {clip.status === 'fast-ready' && clip.url && (
                         <>
-                          <a href={clip.url}>{clip.url}</a>
+                          <a href={clip.url} target="_blank" rel="noopener noreferrer">
+                            {clip.url}
+                          </a>
                           <span>(quick preview &mdash; upgrading&hellip;)</span>
                         </>
                       )}
                       {clip.status === 'done' && clip.url && (
                         <>
-                          <a href={clip.url}>{clip.url}</a>
+                          <a href={clip.url} target="_blank" rel="noopener noreferrer">
+                            {clip.url}
+                          </a>
                           <button
                             type="button"
                             onClick={() => navigator.clipboard.writeText(clip.url!)}

@@ -95,6 +95,7 @@ export default function Filmstrip({
 
   const pct = (t: number) => (duration > 0 ? (Math.min(t, duration) / duration) * 100 : 0);
   const playheadTime = scrubTime ?? currentTime;
+  const hasClip = end > start;
 
   return (
     <div className="filmstrip">
@@ -109,40 +110,44 @@ export default function Filmstrip({
           ))}
         </div>
 
-        <div className="filmstrip-dim filmstrip-dim-left" style={{ width: `${pct(start)}%` }} />
-        <div className="filmstrip-dim filmstrip-dim-right" style={{ width: `${100 - pct(end)}%` }} />
-        <div
-          className="filmstrip-range"
-          style={{ left: `${pct(start)}%`, width: `${pct(end) - pct(start)}%` }}
-        />
-        <div className="filmstrip-playhead" style={{ left: `${pct(playheadTime)}%` }} />
+        {hasClip && (
+          <>
+            <div className="filmstrip-dim filmstrip-dim-left" style={{ width: `${pct(start)}%` }} />
+            <div className="filmstrip-dim filmstrip-dim-right" style={{ width: `${100 - pct(end)}%` }} />
+            <div
+              className="filmstrip-range"
+              style={{ left: `${pct(start)}%`, width: `${pct(end) - pct(start)}%` }}
+            />
+            <div
+              className="filmstrip-handle"
+              style={{ left: `${pct(start)}%` }}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                beginDrag('start', e.clientX);
+              }}
+            />
+            <div
+              className="filmstrip-handle"
+              style={{ left: `${pct(end)}%` }}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                beginDrag('end', e.clientX);
+              }}
+            />
+            <button
+              type="button"
+              className="filmstrip-delete"
+              style={{ left: `${pct(end)}%` }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={onDeleteClip}
+              title="Discard this clip selection"
+            >
+              &times;
+            </button>
+          </>
+        )}
 
-        <div
-          className="filmstrip-handle"
-          style={{ left: `${pct(start)}%` }}
-          onPointerDown={(e) => {
-            e.stopPropagation();
-            beginDrag('start', e.clientX);
-          }}
-        />
-        <div
-          className="filmstrip-handle"
-          style={{ left: `${pct(end)}%` }}
-          onPointerDown={(e) => {
-            e.stopPropagation();
-            beginDrag('end', e.clientX);
-          }}
-        />
-        <button
-          type="button"
-          className="filmstrip-delete"
-          style={{ left: `${pct(end)}%` }}
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={onDeleteClip}
-          title="Discard this clip selection"
-        >
-          &times;
-        </button>
+        <div className="filmstrip-playhead" style={{ left: `${pct(playheadTime)}%` }} />
       </div>
 
       {preview && (
