@@ -285,9 +285,13 @@ export default function Home() {
     setDraftRemoveAudio(false);
   }
 
-  async function uploadAndFinish() {
+  async function handlePrimaryAction() {
     if (pendingCount > 0) {
+      // Upload only — stay on screen so results (share links) can be
+      // reviewed/copied. Finishing immediately after would wipe them out
+      // before the user ever sees them.
       await processQueue();
+      return;
     }
     await finish();
   }
@@ -436,7 +440,7 @@ export default function Home() {
             )}
 
             <div className="controls">
-              <button type="button" disabled={processingQueue} onClick={uploadAndFinish} className="primary">
+              <button type="button" disabled={processingQueue} onClick={handlePrimaryAction} className="primary">
                 {processingQueue
                   ? 'Uploading queue…'
                   : pendingCount > 0

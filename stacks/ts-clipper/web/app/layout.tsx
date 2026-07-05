@@ -1,17 +1,11 @@
 import type { Metadata } from 'next';
-import { Bebas_Neue, IBM_Plex_Sans } from 'next/font/google';
+import { Space_Grotesk } from 'next/font/google';
 import './globals.css';
 
-const display = Bebas_Neue({
+const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
-  weight: '400',
-  variable: '--font-display',
-});
-
-const body = IBM_Plex_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '600'],
-  variable: '--font-body',
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-sans',
 });
 
 export const metadata: Metadata = {
@@ -21,7 +15,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${display.variable} ${body.variable}`}>
+    <html lang="en" className={spaceGrotesk.variable}>
       <body>{children}</body>
     </html>
   );
