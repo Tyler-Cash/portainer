@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import Timeline from './timeline';
+import Playbar from './playbar';
 
 type SourceState =
   | { status: 'idle' }
   | { status: 'uploading' }
-  | { status: 'ready'; id: string; isTs: boolean }
+  | { status: 'ready'; id: string }
   | { status: 'error'; message: string };
 
 interface QueuedClip {
@@ -21,11 +21,6 @@ interface QueuedClip {
 
 const DEFAULT_CLIP_SECONDS = 20;
 
-function isTsFile(filename: string): boolean {
-  const lower = filename.toLowerCase();
-  return lower.endsWith('.ts') || lower.endsWith('.m2ts');
-}
-
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
   const m = Math.floor(seconds / 60);
@@ -37,7 +32,9 @@ export default function Home() {
   const [source, setSource] = useState<SourceState>({ status: 'idle' });
   const [dragActive, setDragActive] = useState(false);
   const [duration, setDuration] = useState(0);
+  const [streamOffset, setStreamOffset] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [draftStart, setDraftStart] = useState(0);
   const [draftEnd, setDraftEnd] = useState(0);
   const [draftRemoveAudio, setDraftRemoveAudio] = useState(false);
@@ -46,10 +43,8 @@ export default function Home() {
   const [fastPreviewEnabled, setFastPreviewEnabled] = useState(true);
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const playerRef = useRef<{ destroy: () => void } | null>(null);
 
   const sourceId = source.status === 'ready' ? source.id : undefined;
-  const sourceIsTs = source.status === 'ready' ? source.isTs : undefined;
 
   useEffect(() => {
     fetch('/api/config')
@@ -72,7 +67,11 @@ export default function Home() {
         setSource({ status: 'error', message: json.error ?? 'Upload failed' });
         return;
       }
-      setSource({ status: 'ready', id: json.id, isTs: isTsFile(file.name) });
+      const videoDuration = typeof json.duration === 'number' ? json.duration : 0;
+      setDuration(videoDuration);
+      setDraftStart(0);
+      setDraftEnd(Math.min(DEFAULT_CLIP_SECONDS, videoDuration || DEFAULT_CLIP_SECONDS));
+      setSource({ status: 'ready', id: json.id });
     } catch (err) {
       setSource({ status: 'error', message: (err as Error).message });
     }
@@ -95,75 +94,71 @@ export default function Home() {
     if (file) handleFile(file);
   }
 
+  // Server-side remux (ffmpeg -c copy to fragmented mp4) plays in a plain
+  // <video> regardless of source container/codec — no MSE, no client-side
+  // demuxer. The trade-off: a live pipe has no fixed byte length, so seeking
+  // restarts the remux from a new point rather than using Range requests —
+  // see seekTo below.
   useEffect(() => {
     if (!sourceId || !videoRef.current) return;
     const video = videoRef.current;
-    const src = `/api/upload/${sourceId}`;
-
-    if (sourceIsTs) {
-      let cancelled = false;
-      import('mpegts.js').then((mod) => {
-        if (cancelled) return;
-        const mpegts = mod.default;
-        const player = mpegts.createPlayer({ type: 'mse', isLive: false, url: src });
-        player.attachMediaElement(video);
-        player.load();
-        playerRef.current = player;
-      });
-      return () => {
-        cancelled = true;
-        playerRef.current?.destroy();
-        playerRef.current = null;
-      };
-    }
-
-    video.src = src;
+    setStreamOffset(0);
+    video.src = `/api/upload/${sourceId}?start=0`;
     return () => {
       video.removeAttribute('src');
       video.load();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sourceId, sourceIsTs]);
-
-  // MSE-backed playback (mpegts.js, used for .ts/.m2ts) commonly reports
-  // duration as Infinity when 'loadedmetadata' first fires, before enough of
-  // the stream is buffered to know the real length — it only becomes finite
-  // once 'durationchange' fires again later. Applying an Infinity duration
-  // to state poisons downstream arithmetic (0 * Infinity = NaN), which is
-  // exactly what can reach video.currentTime and throw.
-  function applyDuration() {
-    const video = videoRef.current;
-    if (!video || !Number.isFinite(video.duration)) return;
-    setDuration(video.duration);
-    setDraftEnd((prev) => (prev === 0 ? Math.min(DEFAULT_CLIP_SECONDS, video.duration) : prev));
-  }
-
-  function onLoadedMetadata() {
-    setDraftStart(0);
-    applyDuration();
-  }
+  }, [sourceId]);
 
   function onTimeUpdate() {
     const video = videoRef.current;
-    if (video) setCurrentTime(video.currentTime);
+    if (video) setCurrentTime(streamOffset + video.currentTime);
   }
 
   function seekTo(time: number) {
-    if (!Number.isFinite(time)) return;
+    if (!Number.isFinite(time) || !sourceId) return;
     const video = videoRef.current;
-    if (video) video.currentTime = time;
+    setStreamOffset(time);
     setCurrentTime(time);
+    if (video) {
+      video.src = `/api/upload/${sourceId}?start=${time}`;
+      video.load();
+      video.play().catch(() => {});
+    }
+  }
+
+  function togglePlayPause() {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) {
+      video.play().catch(() => {});
+    } else {
+      video.pause();
+    }
+  }
+
+  function effectiveTime(): number {
+    return streamOffset + (videoRef.current?.currentTime ?? 0);
   }
 
   function startClipHere() {
-    const time = videoRef.current?.currentTime ?? 0;
+    const time = effectiveTime();
     setDraftStart(time);
-    setDraftEnd(Math.min(time + DEFAULT_CLIP_SECONDS, duration));
+    setDraftEnd(Math.min(time + DEFAULT_CLIP_SECONDS, duration || time + DEFAULT_CLIP_SECONDS));
   }
 
   function stopClipHere() {
-    const time = videoRef.current?.currentTime ?? duration;
+    const time = effectiveTime() || duration;
     setDraftEnd(Math.max(time, draftStart + 0.5));
+  }
+
+  function deleteDraftClip() {
+    setDraftEnd(draftStart);
+  }
+
+  function thumbnailUrl(time: number): string {
+    if (!sourceId) return '';
+    return `/api/upload/${sourceId}/thumbnail?t=${Math.round(time)}`;
   }
 
   function addToQueue() {
@@ -268,7 +263,9 @@ export default function Home() {
     setSource({ status: 'idle' });
     setClips([]);
     setDuration(0);
+    setStreamOffset(0);
     setCurrentTime(0);
+    setIsPlaying(false);
     setDraftStart(0);
     setDraftEnd(0);
     setDraftRemoveAudio(false);
@@ -290,7 +287,7 @@ export default function Home() {
         >
           <input
             type="file"
-            accept=".ts,.m2ts,.mp4,.webm,.m4v"
+            accept=".ts,.m2ts,.mp4,.m4v,.mov,.mkv,.webm,.avi,.flv,.wmv,.mpg,.mpeg"
             onChange={(e) => {
               const file = e.target.files?.[0];
               if (file) handleFile(file);
@@ -307,21 +304,24 @@ export default function Home() {
         <div className="editor">
           <video
             ref={videoRef}
-            controls
-            onLoadedMetadata={onLoadedMetadata}
-            onDurationChange={applyDuration}
             onTimeUpdate={onTimeUpdate}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
             className="preview"
           />
 
-          <Timeline
+          <Playbar
             duration={duration}
             currentTime={currentTime}
+            isPlaying={isPlaying}
             start={draftStart}
             end={draftEnd}
+            thumbnailUrl={thumbnailUrl}
+            onPlayPause={togglePlayPause}
             onSeek={seekTo}
             onChangeStart={setDraftStart}
             onChangeEnd={setDraftEnd}
+            onDeleteClip={deleteDraftClip}
           />
 
           <p>

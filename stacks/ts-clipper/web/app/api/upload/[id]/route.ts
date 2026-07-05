@@ -1,23 +1,18 @@
-import { createReadStream } from 'node:fs';
-import { stat, unlink } from 'node:fs/promises';
-import { Readable } from 'node:stream';
+import { unlink } from 'node:fs/promises';
 import { NextRequest, NextResponse } from 'next/server';
-import { findSourceFile, isValidId, mimeTypeFor } from '@/lib/paths';
-import { resolveRange } from '@/lib/range';
+import { findSourceFile, isValidId } from '@/lib/paths';
+import { spawnRemux } from '@/lib/remux';
+import { nodeStreamToResponseStream } from '@/lib/streams';
+import { removeThumbnails } from '@/lib/thumbnail';
 
 export const runtime = 'nodejs';
 
-// A video player doing range-based seeking routinely aborts in-flight
-// requests (it cancels the previous byte range as soon as it starts a new
-// one). That leaves the underlying fs stream's 'error' event with no
-// listener, which Node reports as an uncaught exception even though the
-// client disconnect itself is completely normal — attach a no-op listener
-// so it's just dropped instead of crashing/logging as a real failure.
-function toResponseStream(nodeStream: Readable): ReadableStream {
-  nodeStream.on('error', () => {});
-  return Readable.toWeb(nodeStream) as ReadableStream;
-}
-
+// Live-remuxes the source to fragmented MP4 via ffmpeg (stream copy — no
+// re-encode, just repackaging) so any browser can play it natively,
+// regardless of the source container/codec. There's no fixed byte length
+// for a live pipe, so this doesn't support Range requests — seeking is
+// instead done by the client re-requesting with a new ?start= and reloading
+// the video element, which restarts ffmpeg from that point in the source.
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!isValidId(id)) {
@@ -29,36 +24,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  const { size } = await stat(filePath);
-  const contentType = mimeTypeFor(filePath);
-  const range = resolveRange(request.headers.get('range'), size);
+  const startParam = Number(request.nextUrl.searchParams.get('start') ?? '0');
+  const startSeconds = Number.isFinite(startParam) && startParam > 0 ? startParam : 0;
 
-  if (range === 'unsatisfiable') {
-    return new NextResponse(null, { status: 416, headers: { 'content-range': `bytes */${size}` } });
-  }
-
-  if (!range) {
-    const stream = toResponseStream(createReadStream(filePath));
-    return new NextResponse(stream, {
-      status: 200,
-      headers: {
-        'content-type': contentType,
-        'content-length': String(size),
-        'accept-ranges': 'bytes',
-      },
-    });
-  }
-
-  const { start, end } = range;
-  const stream = toResponseStream(createReadStream(filePath, { start, end }));
+  const child = spawnRemux(filePath, startSeconds);
+  const stream = nodeStreamToResponseStream(child.stdout, () => child.kill('SIGKILL'));
 
   return new NextResponse(stream, {
-    status: 206,
+    status: 200,
     headers: {
-      'content-type': contentType,
-      'content-length': String(end - start + 1),
-      'content-range': `bytes ${start}-${end}/${size}`,
-      'accept-ranges': 'bytes',
+      'content-type': 'video/mp4',
+      'cache-control': 'no-store',
     },
   });
 }
@@ -73,6 +49,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   if (filePath) {
     await unlink(filePath);
   }
+  await removeThumbnails(id);
 
   return NextResponse.json({ ok: true });
 }

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { clipPath, findSourceFile, isAcceptedExtension, isValidId, mimeTypeFor } from './paths';
+import { clipPath, findSourceFile, isAcceptedExtension, isValidId } from './paths';
 
 describe('isValidId', () => {
   it('accepts a well-formed uuid', () => {
@@ -17,32 +17,20 @@ describe('isValidId', () => {
 });
 
 describe('isAcceptedExtension', () => {
-  it('accepts supported video extensions, case-insensitively', () => {
+  it('accepts common video container extensions, case-insensitively', () => {
     expect(isAcceptedExtension('clip.ts')).toBe(true);
     expect(isAcceptedExtension('CLIP.MP4')).toBe(true);
     expect(isAcceptedExtension('clip.m2ts')).toBe(true);
     expect(isAcceptedExtension('clip.webm')).toBe(true);
     expect(isAcceptedExtension('clip.m4v')).toBe(true);
+    expect(isAcceptedExtension('clip.mkv')).toBe(true);
+    expect(isAcceptedExtension('clip.mov')).toBe(true);
+    expect(isAcceptedExtension('clip.avi')).toBe(true);
   });
 
-  it('rejects unsupported extensions', () => {
-    expect(isAcceptedExtension('clip.mkv')).toBe(false);
-    expect(isAcceptedExtension('clip.mov')).toBe(false);
+  it('rejects non-video extensions', () => {
     expect(isAcceptedExtension('clip.exe')).toBe(false);
-  });
-});
-
-describe('mimeTypeFor', () => {
-  it('maps known extensions to their mime type', () => {
-    expect(mimeTypeFor('a.ts')).toBe('video/mp2t');
-    expect(mimeTypeFor('a.m2ts')).toBe('video/mp2t');
-    expect(mimeTypeFor('a.mp4')).toBe('video/mp4');
-    expect(mimeTypeFor('a.m4v')).toBe('video/mp4');
-    expect(mimeTypeFor('a.webm')).toBe('video/webm');
-  });
-
-  it('falls back to application/octet-stream for unknown extensions', () => {
-    expect(mimeTypeFor('a.bin')).toBe('application/octet-stream');
+    expect(isAcceptedExtension('clip.txt')).toBe(false);
   });
 });
 
