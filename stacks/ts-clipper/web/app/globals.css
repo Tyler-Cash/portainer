@@ -46,7 +46,8 @@ body {
   gap: 0.75rem;
 }
 
-.playbar-play {
+.playbar-play,
+.playbar-mute {
   width: 2.25rem;
   height: 2.25rem;
   border-radius: 50%;

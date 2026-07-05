@@ -6,10 +6,12 @@ interface PlaybarProps {
   duration: number;
   currentTime: number;
   isPlaying: boolean;
+  muted: boolean;
   start: number;
   end: number;
   thumbnailUrl: (time: number) => string;
   onPlayPause: () => void;
+  onToggleMute: () => void;
   onSeek: (time: number) => void;
   onChangeStart: (time: number) => void;
   onChangeEnd: (time: number) => void;
@@ -27,10 +29,12 @@ export default function Playbar({
   duration,
   currentTime,
   isPlaying,
+  muted,
   start,
   end,
   thumbnailUrl,
   onPlayPause,
+  onToggleMute,
   onSeek,
   onChangeStart,
   onChangeEnd,
@@ -38,6 +42,12 @@ export default function Playbar({
 }: PlaybarProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [preview, setPreview] = useState<{ time: number; x: number } | null>(null);
+  // Dragging the scrub bar shows a live ghost playhead + thumbnail without
+  // touching the video — each real seek spawns a new ffmpeg process, so
+  // committing on every pointermove (as the start/end handles' drags do,
+  // harmlessly, since those don't reload anything) would fire dozens of
+  // reloads per second. The actual seek only fires once, on release.
+  const [scrubTime, setScrubTime] = useState<number | null>(null);
 
   const timeFromClientX = useCallback(
     (clientX: number): number => {
@@ -52,21 +62,25 @@ export default function Playbar({
   );
 
   function beginDrag(kind: 'start' | 'end' | 'seek', initialClientX: number) {
-    applyDrag(kind, initialClientX);
+    applyDrag(kind, initialClientX, false);
 
     function onMove(e: PointerEvent) {
-      applyDrag(kind, e.clientX);
+      applyDrag(kind, e.clientX, false);
     }
-    function onUp() {
+    function onUp(e: PointerEvent) {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      if (kind === 'seek') {
+        applyDrag(kind, e.clientX, true);
+        setScrubTime(null);
+      }
       setPreview(null);
     }
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
   }
 
-  function applyDrag(kind: 'start' | 'end' | 'seek', clientX: number) {
+  function applyDrag(kind: 'start' | 'end' | 'seek', clientX: number, commit: boolean) {
     const time = timeFromClientX(clientX);
     const track = trackRef.current;
     const relativeX = track ? clientX - track.getBoundingClientRect().left : clientX;
@@ -79,23 +93,19 @@ export default function Playbar({
       onChangeEnd(clamped);
       setPreview({ time: clamped, x: relativeX });
     } else {
-      onSeek(time);
+      setScrubTime(time);
+      setPreview({ time, x: relativeX });
+      if (commit) {
+        onSeek(time);
+      }
     }
   }
 
   const pct = (t: number) => (duration > 0 ? (Math.min(t, duration) / duration) * 100 : 0);
+  const playheadTime = scrubTime ?? currentTime;
 
   return (
     <div className="playbar">
-      <div className="playbar-controls">
-        <button type="button" onClick={onPlayPause} className="playbar-play">
-          {isPlaying ? '⏸' : '▶'}
-        </button>
-        <span className="playbar-time">
-          {formatTime(currentTime)} / {formatTime(duration)}
-        </span>
-      </div>
-
       <div className="timeline">
         <div
           className="timeline-track"
@@ -106,7 +116,7 @@ export default function Playbar({
             className="timeline-range"
             style={{ left: `${pct(start)}%`, width: `${pct(end) - pct(start)}%` }}
           />
-          <div className="timeline-playhead" style={{ left: `${pct(currentTime)}%` }} />
+          <div className="timeline-playhead" style={{ left: `${pct(playheadTime)}%` }} />
           <div
             className="timeline-handle timeline-handle-start"
             style={{ left: `${pct(start)}%` }}
@@ -143,6 +153,18 @@ export default function Playbar({
             alt=""
           />
         )}
+      </div>
+
+      <div className="playbar-controls">
+        <button type="button" onClick={onPlayPause} className="playbar-play">
+          {isPlaying ? '⏸' : '▶'}
+        </button>
+        <button type="button" onClick={onToggleMute} className="playbar-mute">
+          {muted ? '🔇' : '🔊'}
+        </button>
+        <span className="playbar-time">
+          {formatTime(playheadTime)} / {formatTime(duration)}
+        </span>
       </div>
     </div>
   );

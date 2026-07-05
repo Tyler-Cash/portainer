@@ -35,6 +35,7 @@ export default function Home() {
   const [streamOffset, setStreamOffset] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [muted, setMuted] = useState(false);
   const [draftStart, setDraftStart] = useState(0);
   const [draftEnd, setDraftEnd] = useState(0);
   const [draftRemoveAudio, setDraftRemoveAudio] = useState(false);
@@ -135,6 +136,13 @@ export default function Home() {
     } else {
       video.pause();
     }
+  }
+
+  function toggleMute() {
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = !video.muted;
+    setMuted(video.muted);
   }
 
   function effectiveTime(): number {
@@ -314,10 +322,12 @@ export default function Home() {
             duration={duration}
             currentTime={currentTime}
             isPlaying={isPlaying}
+            muted={muted}
             start={draftStart}
             end={draftEnd}
             thumbnailUrl={thumbnailUrl}
             onPlayPause={togglePlayPause}
+            onToggleMute={toggleMute}
             onSeek={seekTo}
             onChangeStart={setDraftStart}
             onChangeEnd={setDraftEnd}
