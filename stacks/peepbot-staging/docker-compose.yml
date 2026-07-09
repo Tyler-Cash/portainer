@@ -15,7 +15,7 @@ x-spring-datasource: &spring-datasource
 
 services:
   peepbot-staging-init-db:
-    image: pgvector/pgvector:pg18@sha256:212765b63c1462883de295c4c415edcd22191b8d8d46853e86ad05d4b577a4cb
+    image: pgvector/pgvector:pg18@sha256:12a379b47ad65289572ea0756efc11b7c241a6662833e8af7038cd3b73d647e0
     container_name: peepbot-staging-init-db
     restart: "no"
     networks:
