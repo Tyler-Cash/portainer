@@ -67,6 +67,7 @@ services:
       - IMMICH_URL=https://photos.tylercash.dev
       - OLLAMA_URL=http://ollama:11434
       - CLASSIFIER_BATCH_SIZE=50
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
     volumes:
       # Persistent storage for n8n configs and encryption keys
       - /ssd/services/n8n:/home/node/.n8n
