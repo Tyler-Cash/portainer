@@ -1,0 +1,164 @@
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "50m"
+      max-file: "3"
+      labels: "com.docker.compose.service,com.docker.compose.project"
+
+services:
+  dawarich_redis:
+    <<: *logging
+    image: redis:7.4-alpine@sha256:b1addbe72465a718643cff9e60a58e6df1841e29d6d7d60c9a85d8d72f08d1a7
+    container_name: dawarich_redis
+    command: >
+      redis-server
+      --save 900 1
+      --save 300 10
+      --appendonly no
+    networks:
+      - homelab_default
+    volumes:
+      - /ssd/services/dawarich/shared:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+
+  dawarich_db:
+    <<: *logging
+    image: postgis/postgis:17-3.5-alpine@sha256:4901dbe093da7bee4526c2da5fd9bbbe3921901485bc0eeea18db2414ba745b1
+    shm_size: 1G
+    container_name: dawarich_db
+    volumes:
+      - /ssd/databases/dawarich-pg:/var/lib/postgresql/data
+      - /ssd/services/dawarich/shared:/var/shared
+    networks:
+      - homelab_default
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=dawarich_production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d dawarich_production"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s
+
+  dawarich_app:
+    <<: *logging
+    image: freikin/dawarich:latest@sha256:93185dc47acedc66c9fb4c1dc9d33d3ff0412453b28bfd460574c04f060380b3
+    container_name: dawarich_app
+    volumes:
+      - /ssd/services/dawarich/public:/var/app/public
+      - /ssd/services/dawarich/watched:/var/app/tmp/imports/watched
+      - /ssd/services/dawarich/storage:/var/app/storage
+      - /ssd/databases/dawarich-pg:/dawarich_db_data
+    networks:
+      - homelab_default
+    stdin_open: true
+    tty: true
+    entrypoint: web-entrypoint.sh
+    command: ["bin/rails", "server", "-p", "3000", "-b", "::"]
+    restart: unless-stopped
+    environment:
+      - RAILS_ENV=production
+      - REDIS_URL=redis://dawarich_redis:6379
+      - DATABASE_HOST=dawarich_db
+      - DATABASE_PORT=5432
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=${POSTGRES_PASSWORD}
+      - DATABASE_NAME=dawarich_production
+      - APPLICATION_HOSTS=dawarich.tylercash.dev
+      - TIME_ZONE=Australia/Sydney
+      - APPLICATION_PROTOCOL=https
+      - PROMETHEUS_EXPORTER_ENABLED=false
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE}
+      - RAILS_LOG_TO_STDOUT=true
+      - SELF_HOSTED=true
+      - STORE_GEODATA=true
+      - WEB_CONCURRENCY=1
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO - http://127.0.0.1:3000/api/v1/health | grep -q '\"status\"\\s*:\\s*\"ok\"'"]
+      interval: 10s
+      retries: 30
+      start_period: 30s
+      timeout: 10s
+    depends_on:
+      dawarich_db:
+        condition: service_healthy
+        restart: true
+      dawarich_redis:
+        condition: service_healthy
+        restart: true
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 4G
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.dawarich.service=dawarich
+      - traefik.http.routers.dawarich.rule=Host(`dawarich.tylercash.dev`) && (ClientIP(`10.0.0.0/8`) || ClientIP(`172.19.0.0/24`))
+      - traefik.http.routers.dawarich.entrypoints=websecure
+      - traefik.http.services.dawarich.loadbalancer.server.scheme=http
+      - traefik.http.services.dawarich.loadbalancer.server.port=3000
+      - traefik.http.routers.dawarich.tls.certresolver=leresolver
+      - com.centurylinklabs.watchtower.enable=true
+
+  dawarich_sidekiq:
+    <<: *logging
+    image: freikin/dawarich:latest@sha256:93185dc47acedc66c9fb4c1dc9d33d3ff0412453b28bfd460574c04f060380b3
+    container_name: dawarich_sidekiq
+    volumes:
+      - /ssd/services/dawarich/public:/var/app/public
+      - /ssd/services/dawarich/watched:/var/app/tmp/imports/watched
+      - /ssd/services/dawarich/storage:/var/app/storage
+    networks:
+      - homelab_default
+    stdin_open: true
+    tty: true
+    entrypoint: sidekiq-entrypoint.sh
+    command: ["sidekiq"]
+    restart: unless-stopped
+    environment:
+      - RAILS_ENV=production
+      - REDIS_URL=redis://dawarich_redis:6379
+      - DATABASE_HOST=dawarich_db
+      - DATABASE_PORT=5432
+      - DATABASE_USERNAME=postgres
+      - DATABASE_PASSWORD=${POSTGRES_PASSWORD}
+      - DATABASE_NAME=dawarich_production
+      - APPLICATION_HOSTS=dawarich.tylercash.dev
+      - BACKGROUND_PROCESSING_CONCURRENCY=3
+      - APPLICATION_PROTOCOL=https
+      - PROMETHEUS_EXPORTER_ENABLED=false
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE}
+      - RAILS_LOG_TO_STDOUT=true
+      - SELF_HOSTED=true
+      - STORE_GEODATA=true
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f sidekiq"]
+      interval: 10s
+      retries: 30
+      start_period: 30s
+      timeout: 10s
+    depends_on:
+      dawarich_db:
+        condition: service_healthy
+        restart: true
+      dawarich_redis:
+        condition: service_healthy
+        restart: true
+      dawarich_app:
+        condition: service_healthy
+        restart: true
+
+networks:
+  homelab_default:
+    external: true
