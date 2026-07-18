@@ -30,6 +30,9 @@ terraform/*.tfstate.backup
 terraform/*.tfvars
 terraform/.terraform.lock.hcl
 
+# Git worktrees
+.worktrees/
+
 # Node dependencies
 stacks/zipline/transcoder/node_modules/
 stacks/ts-clipper/web/node_modules/
