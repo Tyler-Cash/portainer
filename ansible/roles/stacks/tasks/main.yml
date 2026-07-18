@@ -25,6 +25,21 @@
     label: "{{ item }}"
   when: item not in stacks_skip
 
+# Fill in any missing ZFS datasets a stack's docker-compose.yml bind-mounts
+# reference under /ssd or /hdd, before compose gets a chance to have Docker
+# create them as plain directories on first `up`. Runs after the sync above
+# so it reads each stack's just-deployed compose file. Never touches a path
+# that already exists.
+- name: Ensure ZFS datasets exist for stack bind mounts
+  ansible.builtin.script:
+    cmd: "ensure-zfs-datasets.sh /opt/stacks/{{ item }}/docker-compose.yml"
+  loop: "{{ stacks | list }}"
+  loop_control:
+    label: "{{ item }}"
+  when: item not in stacks_skip
+  register: zfs_dataset_result
+  changed_when: "'CREATED' in zfs_dataset_result.stdout"
+
 # Compute a content hash over each stack's source tree and stash it in a fact.
 # Stacks that want compose-recreation-on-content-change put __STACK_CONTENT_HASH__
 # somewhere in their docker-compose.yml (an env var or label); the next task
