@@ -62,6 +62,11 @@ services:
 
       # Prometheus metrics at /metrics
       - N8N_METRICS=true
+
+      # Immich auto-classifier workflow
+      - IMMICH_URL=https://photos.tylercash.dev
+      - OLLAMA_URL=http://ollama:11434
+      - CLASSIFIER_BATCH_SIZE=50
     volumes:
       # Persistent storage for n8n configs and encryption keys
       - /ssd/services/n8n:/home/node/.n8n
