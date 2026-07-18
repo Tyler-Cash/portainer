@@ -33,7 +33,7 @@ services:
 
   n8n:
     <<: *logging
-    image: docker.n8n.io/n8nio/n8n:2.29.5@sha256:c01a2f960a065076306618df3af3bfffecc6283015a8fb6be2e66b50f15dd514
+    image: docker.n8n.io/n8nio/n8n:2.29.11@sha256:ad826993267f20365b061126717b60d88c81369c2e5f6828b0a188c432cb850f
     container_name: n8n
     restart: unless-stopped
     networks:
