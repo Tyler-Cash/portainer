@@ -52,7 +52,7 @@ services:
 
   dawarich_app:
     <<: *logging
-    image: freikin/dawarich:latest@sha256:93185dc47acedc66c9fb4c1dc9d33d3ff0412453b28bfd460574c04f060380b3
+    image: freikin/dawarich:latest@sha256:9e13b484727105945680e289678be7b13d5c10508e16b02097456aa48cc10e0d
     container_name: dawarich_app
     volumes:
       - /ssd/services/dawarich/public:/var/app/public
@@ -113,7 +113,7 @@ services:
 
   dawarich_sidekiq:
     <<: *logging
-    image: freikin/dawarich:latest@sha256:93185dc47acedc66c9fb4c1dc9d33d3ff0412453b28bfd460574c04f060380b3
+    image: freikin/dawarich:latest@sha256:9e13b484727105945680e289678be7b13d5c10508e16b02097456aa48cc10e0d
     container_name: dawarich_sidekiq
     volumes:
       - /ssd/services/dawarich/public:/var/app/public
