@@ -125,6 +125,11 @@ tasks:
     cmds:
       - stacks/grafana-lgtm/scripts/smoke-alerts.sh
 
+  spoolman:sync-package:
+    desc: "Pull SpoolmanSync's generated HA config into stacks/home-assistant/packages/"
+    cmds:
+      - stacks/spoolman/scripts/sync-ha-package.sh
+
   setup:
     desc: First-time setup
     deps: [hook]
