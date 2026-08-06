@@ -1,0 +1,90 @@
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "50m"
+      max-file: "3"
+      labels: "com.docker.compose.service,com.docker.compose.project"
+
+services:
+  spoolman:
+    <<: *logging
+    image: ghcr.io/donkie/spoolman:0.9.1@sha256:5c45702741d7f613fb9653c095a10a2087527280ab134eb23a3d954a86ab18e9
+    container_name: spoolman
+    restart: unless-stopped
+    networks:
+      - homelab_default
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    volumes:
+      - /ssd/services/spoolman:/home/app/.local/share/spoolman
+    environment:
+      # Spoolman's entrypoint applies these via gosu, so the bind mount ends up
+      # owned consistently with every other stack.
+      - PUID=568
+      - PGID=568
+      - TZ=Australia/Sydney
+    healthcheck:
+      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.spoolman.service=spoolman
+      - traefik.http.routers.spoolman.rule=Host(`spoolman.tylercash.dev`) && (ClientIP(`10.0.0.0/8`) || ClientIP(`172.19.0.0/24`))
+      - traefik.http.routers.spoolman.entrypoints=websecure
+      - traefik.http.services.spoolman.loadbalancer.server.scheme=http
+      - traefik.http.services.spoolman.loadbalancer.server.port=8000
+      - traefik.http.routers.spoolman.tls.certresolver=leresolver
+      - com.centurylinklabs.watchtower.enable=true
+
+  # Assigns spools to printer slots and deducts usage. Reads printer state from
+  # Home Assistant via the ha-bambulab integration — it does not talk to the
+  # printer directly. The deduction automations live in
+  # stacks/home-assistant/packages/spoolmansync.yaml.
+  spoolmansync:
+    <<: *logging
+    image: ghcr.io/gibz104/spoolmansync:1.6.8@sha256:425611390b48b7ec6dbe6420a0733d22425d56085147984e90559d7add4b96c4
+    container_name: spoolmansync
+    restart: unless-stopped
+    depends_on:
+      - spoolman
+    networks:
+      - homelab_default
+    deploy:
+      resources:
+        limits:
+          memory: 1000M
+    volumes:
+      - /ssd/services/spoolmansync:/data
+    environment:
+      - TZ=Australia/Sydney
+      - HA_MODE=external
+      - HA_URL=http://home-assistant:8123
+      - SPOOLMAN_URL=http://spoolman:8000
+      # OAuth redirect base for the Home Assistant login handshake — must be the
+      # external URL, not the container name.
+      - NEXTAUTH_URL=https://spools.tylercash.dev
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.spoolmansync.service=spoolmansync
+      - traefik.http.routers.spoolmansync.rule=Host(`spools.tylercash.dev`) && (ClientIP(`10.0.0.0/8`) || ClientIP(`172.19.0.0/24`))
+      - traefik.http.routers.spoolmansync.entrypoints=websecure
+      - traefik.http.services.spoolmansync.loadbalancer.server.scheme=http
+      - traefik.http.services.spoolmansync.loadbalancer.server.port=3000
+      - traefik.http.routers.spoolmansync.tls.certresolver=leresolver
+      - com.centurylinklabs.watchtower.enable=true
+
+networks:
+  homelab_default:
+    external: true
