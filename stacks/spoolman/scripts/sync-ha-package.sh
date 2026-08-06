@@ -15,10 +15,17 @@
 set -euo pipefail
 
 SPOOLMANSYNC_URL="${SPOOLMANSYNC_URL:-https://spools.tylercash.dev}"
-# The URL Home Assistant posts usage back to. HA and SpoolmanSync share the
+# Base URL Home Assistant posts usage back to. HA and SpoolmanSync share the
 # homelab_default network, so the container name avoids a round trip through
 # Traefik and its ClientIP guard.
-WEBHOOK_URL="${WEBHOOK_URL:-http://spoolmansync:3000}"
+#
+# Pass a BASE url here, not the endpoint: the /api/webhook suffix is appended
+# below, mirroring what the Automations page does (automations/page.tsx:226)
+# before it calls the same API. The API itself uses whatever URL it is handed
+# verbatim, so omitting the suffix generates rest_commands that POST to the app
+# root — they succeed, deduct nothing, and report no error.
+WEBHOOK_BASE_URL="${WEBHOOK_BASE_URL:-${WEBHOOK_URL:-http://spoolmansync:3000}}"
+WEBHOOK_URL="${WEBHOOK_BASE_URL%/}/api/webhook"
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 out="$repo_root/stacks/home-assistant/packages/spoolmansync.yaml"
