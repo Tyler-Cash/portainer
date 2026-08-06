@@ -227,7 +227,7 @@ load cell — which is out of scope.
 | HA reachability to printer | HA must reach the P1S across `br_iot`. | Already true for existing IoT devices on that network. |
 | Duplicate `packages:` key | See above. | Add the directive manually; verify `rest_command.spoolmansync_*` exists in Developer Tools after restart. |
 | Silent tracking failure | An unassigned slot or a broken automation deducts nothing, and inventory drifts without an error. | Confirm the weight drop on the step 8 test print. |
-| Bind mount ownership | Spoolman runs as its own `app` user by default (UID 1000). | Resolved by setting `PUID`/`PGID` to 568; its entrypoint applies them via gosu. Check logs on first start regardless. |
+| Bind mount ownership | **Hit during deploy.** `ensure-zfs-datasets.sh` creates `/ssd/services/spoolman` as root, and Spoolman's entrypoint drops to UID 568 via gosu *before* the app tries to chown it, so the app exits with `Data directory is not writable`. Nothing in the Ansible role sets ownership for any stack. | One-off `sudo chown -R 568:568 /ssd/services/spoolman` on the host, then restart. Applies to any new stack whose container runs unprivileged. |
 
 ## Out of Scope
 

@@ -65,8 +65,10 @@ services:
     volumes:
       - /ssd/services/spoolman:/home/app/.local/share/spoolman
     environment:
-      # Spoolman's entrypoint honours these via gosu (upstream entrypoint.sh:3-4),
-      # so the bind mount ends up owned consistently with every other stack.
+      # Spoolman's entrypoint applies these via gosu. It drops root BEFORE the
+      # app checks the data dir, so it cannot chown the mount itself — a fresh
+      # dataset needs `sudo chown -R 568:568 /ssd/services/spoolman` on the host
+      # once, or the app exits with "Data directory is not writable".
       - PUID=568
       - PGID=568
       - TZ=Australia/Sydney
@@ -355,7 +357,29 @@ If `gh` is not installed (it was not, on this machine), open the PR in the web U
 
 `.github/workflows/deploy.yml` triggers on push to `master`. Merging runs the Ansible playbook, which creates the ZFS datasets, syncs the stacks, and brings up the containers.
 
-- [ ] **Step 3: Verify the deploy**
+- [ ] **Step 3: Chown the new dataset on the host (REQUIRED, not optional)**
+
+`ensure-zfs-datasets.sh` creates `/ssd/services/spoolman` as root, and nothing in the
+Ansible role sets ownership for any stack. Spoolman's entrypoint drops to UID 568 via gosu
+*before* the app checks the data directory, so it cannot fix this itself and exits:
+
+```
+spoolman.env  ERROR  Data directory is not writable. Please run "sudo chown -R 568:568 /path/to/spoolman/datadir" on the host OS.
+uvicorn.error ERROR  Application startup failed. Exiting.
+```
+
+The container then has no Traefik route at all, so `spoolman.tylercash.dev` serves
+`TRAEFIK DEFAULT CERT` and a plain `404 page not found` — which looks like a routing bug
+but is not. On the host:
+
+```bash
+sudo chown -R 568:568 /ssd/services/spoolman
+docker restart spoolman
+```
+
+`spoolmansync` is unaffected — it runs as root and creates its own SQLite DB.
+
+- [ ] **Step 4: Verify the deploy**
 
 Watch the Actions run to completion. Then from a machine on the LAN:
 
@@ -364,11 +388,12 @@ curl -sf https://spoolman.tylercash.dev/api/v1/health && echo " spoolman up"
 curl -sfo /dev/null -w "%{http_code}\n" https://spools.tylercash.dev
 ```
 
-Expected: a JSON health body followed by `spoolman up`, then `200`.
+Expected: `{"status":"healthy"}` followed by `spoolman up`, then `200`.
 
-Spoolman's entrypoint honours `PUID`/`PGID` and drops privileges with gosu, so ownership should sort itself out. If it still logs permission errors on `/home/app/.local/share/spoolman`, `chown -R 568:568` the dataset on the host.
+A `404 page not found` with `TRAEFIK DEFAULT CERT` means the container is not running —
+go back to Step 3 and check the container logs.
 
-- [ ] **Step 4: Confirm the Homepage widget renders**
+- [ ] **Step 5: Confirm the Homepage widget renders**
 
 Load `https://home.tylercash.dev` and check the 3D Printing group appears. The widget will show an empty state until spools exist — that is expected, not a failure.
 

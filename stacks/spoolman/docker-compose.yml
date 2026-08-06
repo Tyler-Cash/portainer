@@ -21,8 +21,10 @@ services:
     volumes:
       - /ssd/services/spoolman:/home/app/.local/share/spoolman
     environment:
-      # Spoolman's entrypoint applies these via gosu, so the bind mount ends up
-      # owned consistently with every other stack.
+      # Spoolman's entrypoint applies these via gosu. It drops root BEFORE the
+      # app checks the data dir, so it cannot chown the mount itself — a fresh
+      # dataset needs `sudo chown -R 568:568 /ssd/services/spoolman` on the host
+      # once, or the app exits with "Data directory is not writable".
       - PUID=568
       - PGID=568
       - TZ=Australia/Sydney
