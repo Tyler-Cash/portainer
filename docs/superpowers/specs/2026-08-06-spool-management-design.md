@@ -76,7 +76,7 @@ label, and Traefik with the `ClientIP` guard used by internal services.
 
 | Service | Image | Host | Port | Bind mount |
 |---|---|---|---|---|
-| `spoolman` | `ghcr.io/donkie/spoolman:0.9.1` | `spoolman.tylercash.dev` | 8000 | `/ssd/services/spoolman:/home/app/.local/share/spoolman` |
+| `spoolman` | `ghcr.io/donkie/spoolman:0.26.0` | `spoolman.tylercash.dev` | 8000 | `/ssd/services/spoolman:/home/app/.local/share/spoolman` |
 | `spoolmansync` | `ghcr.io/gibz104/spoolmansync:1.6.8` | `spools.tylercash.dev` | 3000 | `/ssd/services/spoolmansync:/data` |
 
 Spoolman defaults to SQLite in that directory; no database service is needed. Both
