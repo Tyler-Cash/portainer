@@ -14,9 +14,9 @@
 
 ## Important Sequencing Constraint
 
-The HA package YAML **cannot be written up front**. SpoolmanSync generates it from the real entity IDs that `ha-bambulab` creates, which do not exist until the printer is added in the HA UI. So the order is: deploy the stack (Tasks 1-4) → manual HA setup (Task 5) → generate and commit the package (Task 6) → verify (Task 7).
+The HA package YAML **cannot be written up front**. SpoolmanSync generates it from the real entity IDs that `ha-bambulab` creates, which do not exist until the printer is added in the HA UI. So the order is: deploy the stack (Tasks 1-3, DNS in Task 4, deploy in Task 5) → manual HA setup (Task 6) → generate and commit the package (Task 7) → verify (Task 8).
 
-Tasks 5 and 7 require physical access to the printer and the HA web UI. They cannot be done by an agent.
+Tasks 4, 6 and 8 require access to the printer and the HA web UI. They cannot be done by an agent.
 
 ## File Structure
 
@@ -24,7 +24,7 @@ Tasks 5 and 7 require physical access to the printer and the HA web UI. They can
 |---|---|
 | `stacks/spoolman/docker-compose.yml` (create) | Both containers, Traefik ingress, bind mounts |
 | `stacks/home-assistant/packages/.gitkeep` (create) | Makes the packages dir exist before its contents do |
-| `stacks/home-assistant/packages/spoolmansync.yaml` (create, Task 6) | Generated rest_commands + deduction automations |
+| `stacks/home-assistant/packages/spoolmansync.yaml` (create, Task 7) | Generated rest_commands + deduction automations |
 | `stacks/home-assistant/docker-compose.yml` (modify) | Mount `./packages`, add content hash |
 | `stacks/homepage/config/services.yaml` (modify) | New `3D Printing` group |
 
@@ -165,7 +165,7 @@ git commit -m "feat(spoolman): add spoolman + spoolmansync stack"
 - Create: `stacks/home-assistant/packages/.gitkeep`
 - Modify: `stacks/home-assistant/docker-compose.yml`
 
-The directory must exist and be mounted before Task 6 writes the real package into it. Git does not track empty directories, hence `.gitkeep`. HA's `!include_dir_named` only reads `*.yaml`, so a `.gitkeep` file is ignored.
+The directory must exist and be mounted before Task 7 writes the real package into it. Git does not track empty directories, hence `.gitkeep`. HA's `!include_dir_named` only reads `*.yaml`, so a `.gitkeep` file is ignored.
 
 - [ ] **Step 1: Create the placeholder**
 
@@ -305,7 +305,38 @@ git commit -m "feat(homepage): add 3D Printing group for spoolman"
 
 ---
 
-### Task 4: Deploy
+### Task 4: Create DNS records (MANUAL — Cloudflare dashboard)
+
+**Files:** none.
+
+There is no wildcard record for the zone, and nothing in this repo creates DNS. Traefik's
+`CF_DNS_API_TOKEN` is used only for the ACME DNS-01 challenge; there is no external-dns or
+cloudflare-companion container. Without these records the hostnames return NXDOMAIN and
+the stack is unreachable no matter how healthy the containers are.
+
+- [ ] **Step 1: Add two A records in Cloudflare**
+
+| Name | Type | Value | Proxy |
+|---|---|---|---|
+| `spoolman` | A | `10.0.90.10` | DNS only (grey cloud) |
+| `spools` | A | `10.0.90.10` | DNS only (grey cloud) |
+
+Proxy must stay off — the target is a private address, and proxying would make Traefik see
+Cloudflare edge IPs instead of the LAN client, failing the `ClientIP` guard.
+
+- [ ] **Step 2: Verify resolution**
+
+Run:
+```bash
+for h in spoolman.tylercash.dev spools.tylercash.dev; do printf "%-28s " "$h"; getent hosts "$h" || echo NXDOMAIN; done
+```
+
+Expected: both resolve to `10.0.90.10`. Existing services resolve there too — compare
+against `getent hosts mealie.tylercash.dev`.
+
+---
+
+### Task 5: Deploy
 
 **Files:** none — this is a merge and a deploy.
 
@@ -341,7 +372,7 @@ Load `https://home.tylercash.dev` and check the 3D Printing group appears. The w
 
 ---
 
-### Task 5: Home Assistant setup (MANUAL — requires the HA UI and the printer)
+### Task 6: Home Assistant setup (MANUAL — requires the HA UI and the printer)
 
 **Files:** none in git. This task deliberately touches HA-owned state.
 
@@ -394,7 +425,7 @@ Expected: the `.gitkeep` file from Task 2.
 
 ---
 
-### Task 6: Generate and commit the HA package
+### Task 7: Generate and commit the HA package
 
 **Files:**
 - Create: `stacks/home-assistant/packages/spoolmansync.yaml`
@@ -407,7 +438,7 @@ If OAuth fails: SpoolmanSync hardcodes `client_id: 'http://spoolmansync'` (`app/
 
 - [ ] **Step 2: Confirm the printer and its external spool slot are discovered**
 
-The SpoolmanSync home page should list the printer with an **External Spool** slot. If the slot is missing, go back to Task 5 Step 4.
+The SpoolmanSync home page should list the printer with an **External Spool** slot. If the slot is missing, go back to Task 6 Step 4.
 
 - [ ] **Step 3: Generate the automations**
 
@@ -423,7 +454,7 @@ Paste into `stacks/home-assistant/packages/spoolmansync.yaml`, prefixed with:
 # Deployed by Ansible via the ./packages bind mount in this stack's compose file.
 ```
 
-The page also shows a `configuration.yaml` block. That block is the `packages:` directive, which Task 5 Step 5 already added by hand. Do not paste it here.
+The page also shows a `configuration.yaml` block. That block is the `packages:` directive, which Task 6 Step 5 already added by hand. Do not paste it here.
 
 - [ ] **Step 5: Verify it parses and defines what it should**
 
@@ -462,7 +493,7 @@ Expected: at least one action. Their absence is the exact silent failure mode th
 
 ---
 
-### Task 7: End-to-end verification (MANUAL — requires a print)
+### Task 8: End-to-end verification (MANUAL — requires a print)
 
 **Files:** none.
 
@@ -484,7 +515,7 @@ After the print completes, reload the spool in Spoolman.
 
 Expected: remaining weight has dropped by roughly the slicer estimate. Exact agreement is not expected — the value is derived from the slicer, not measured (see the spec's accuracy limitation).
 
-If nothing was deducted, check in this order: the slot was assigned (Task 6 Step 2), the rest commands exist (Task 6 Step 7), and the automation traces in HA under Settings → Automations → the SpoolmanSync automation → Traces.
+If nothing was deducted, check in this order: the slot was assigned (Task 7 Step 2), the rest commands exist (Task 7 Step 7), and the automation traces in HA under Settings → Automations → the SpoolmanSync automation → Traces.
 
 - [ ] **Step 5: Print QR labels (optional)**
 

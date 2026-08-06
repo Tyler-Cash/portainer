@@ -105,6 +105,24 @@ Traefik rule pattern, per `stacks/mealie/docker-compose.yml:36`:
 Host(`spoolman.tylercash.dev`) && (ClientIP(`10.0.0.0/8`) || ClientIP(`172.19.0.0/24`))
 ```
 
+## DNS
+
+There is **no wildcard record** for `*.tylercash.dev` — each service hostname is an
+explicit A record in Cloudflare pointing at `10.0.90.10`, and nothing in this repo creates
+them (Traefik uses `CF_DNS_API_TOKEN` only for the ACME DNS-01 challenge; there is no
+external-dns or cloudflare-companion container). Verified: `mealie.tylercash.dev` resolves
+to `10.0.90.10`, while an arbitrary name under the zone returns NXDOMAIN.
+
+Two A records must be created by hand in Cloudflare before the stack is reachable:
+
+| Name | Type | Value | Proxy |
+|---|---|---|---|
+| `spoolman` | A | `10.0.90.10` | DNS only (grey cloud) |
+| `spools` | A | `10.0.90.10` | DNS only (grey cloud) |
+
+Proxying must stay off: the target is a private address, and Traefik's `ClientIP` guard
+would see Cloudflare's edge IPs rather than the LAN client.
+
 ## Secrets
 
 **None.** Spoolman on SQLite has no credentials. SpoolmanSync authenticates to Home
