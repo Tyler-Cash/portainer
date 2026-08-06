@@ -140,3 +140,16 @@
         href: https://adminer.tylercash.dev
         description: Database admin
         icon: mdi-database
+
+- 3D Printing:
+    - Spoolman:
+        href: https://spoolman.tylercash.dev
+        description: Filament inventory
+        icon: spoolman.png
+        widget:
+          type: spoolman
+          url: http://spoolman:8000
+    - SpoolmanSync:
+        href: https://spools.tylercash.dev
+        description: Spool assignment and usage sync
+        icon: mdi-printer-3d-nozzle
