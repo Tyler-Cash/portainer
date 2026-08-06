@@ -70,7 +70,9 @@ services:
       # external URL, not the container name.
       - NEXTAUTH_URL=https://spools.tylercash.dev
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:3000/ || exit 1"]
+      # 127.0.0.1, not localhost: Next.js binds 0.0.0.0 (IPv4 only) while busybox
+      # wget resolves localhost to ::1 first and gets connection refused.
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/ || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
