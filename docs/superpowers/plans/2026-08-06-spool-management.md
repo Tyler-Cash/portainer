@@ -465,9 +465,26 @@ Expected: the `.gitkeep` file from Task 2.
 **Files:**
 - Create: `stacks/home-assistant/packages/spoolmansync.yaml`
 
-- [ ] **Step 1: Point SpoolmanSync at Spoolman and connect it to HA**
+- [ ] **Step 1: Point SpoolmanSync at Spoolman** — DONE
 
-Open `https://spools.tylercash.dev` → Settings. Set the Spoolman URL to `http://spoolman:8000`. Complete the Home Assistant OAuth connection.
+`SPOOLMAN_URL` is only consulted by the addon-mode auto-configure path, so in
+`HA_MODE=external` the connection must be set explicitly. Done via the API:
+
+```bash
+curl -X POST https://spools.tylercash.dev/api/settings \
+  -H 'Content-Type: application/json' \
+  -d '{"type":"spoolman","url":"http://spoolman:8000"}'
+```
+
+Verified: `GET /api/settings` returns `"spoolman":{"url":"http://spoolman:8000","connected":true}`,
+and `GET https://spoolman.tylercash.dev/api/v1/field/spool` now lists the `active_tray` and
+`barcode` extra fields that tray assignment and QR scanning depend on.
+
+- [ ] **Step 1b: Connect SpoolmanSync to Home Assistant**
+
+Open `https://spools.tylercash.dev` → Settings → connect Home Assistant. This is an OAuth
+browser flow against HA and cannot be scripted: the API's `reconnect_ha` path is embedded
+mode only. `GET /api/settings` shows `"homeassistant":null` until this is done.
 
 If OAuth fails: SpoolmanSync hardcodes `client_id: 'http://spoolmansync'` (`app/src/lib/api/homeassistant.ts:208`) and HA's IndieAuth flow may reject a client_id it cannot resolve. This is the top risk in the spec. Read the SpoolmanSync container logs and the HA logs before changing anything.
 

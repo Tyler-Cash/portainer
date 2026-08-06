@@ -94,8 +94,21 @@ SpoolmanSync environment:
 |---|---|---|
 | `HA_MODE` | `external` | Use the existing HA, not a bundled one |
 | `HA_URL` | `http://home-assistant:8123` | Container name on `homelab_default` |
-| `SPOOLMAN_URL` | `http://spoolman:8000` | Internal, not via Traefik |
+| `SPOOLMAN_URL` | `http://spoolman:8000` | Internal, not via Traefik. **Only auto-applies in addon mode** — in `HA_MODE=external` the connection must be set explicitly (see below) |
 | `NEXTAUTH_URL` | `https://spools.tylercash.dev` | OAuth redirect base — must be the external URL |
+
+The Spoolman connection is stored in SpoolmanSync's own DB, not read from the env var at
+runtime — `SPOOLMAN_URL` is only consulted by the addon-mode auto-configure path. Set it
+once, either in Settings or via the API:
+
+```bash
+curl -X POST https://spools.tylercash.dev/api/settings \
+  -H 'Content-Type: application/json' \
+  -d '{"type":"spoolman","url":"http://spoolman:8000"}'
+```
+
+This also creates the `active_tray` and `barcode` extra fields in Spoolman, which tray
+assignment and QR scanning depend on.
 
 Deviations from upstream's `docker-compose.prebuilt.yml`:
 
