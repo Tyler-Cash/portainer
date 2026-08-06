@@ -12,6 +12,24 @@
 
 ---
 
+## Status as of 2026-08-06
+
+| Task | State |
+|---|---|
+| 1. spoolman stack | ✅ deployed, `spoolman` healthy (v0.26.0, sqlite), valid LE cert |
+| 2. HA packages mount | ✅ mounted, `STACK_CONTENT_HASH` wired |
+| 3. Homepage group | ✅ `3D Printing` live with Spoolman + SpoolmanSync |
+| 4. DNS records | ✅ both resolve to `10.0.90.10` |
+| 5. Deploy | ✅ merged to master; `spoolman-init` resolved the ownership failure |
+| 6. Home Assistant setup | ⬜ **blocked** — needs the P1S LAN access code (physical screen) |
+| 7. Generate + commit package | 🟡 Step 1 done (Spoolman connected, extra fields created); rest blocked on Task 6 and the HA OAuth browser flow |
+| 8. Test print | ⬜ blocked — physical |
+
+Three bugs were found and fixed during the deploy: the healthcheck used `localhost`
+against an IPv4-only bind, DNS records were missing entirely from the original design, and
+the data directory ownership failure now handled by `spoolman-init`. A fourth correction:
+`SPOOLMAN_URL` only auto-configures in addon mode.
+
 ## Important Sequencing Constraint
 
 The HA package YAML **cannot be written up front**. SpoolmanSync generates it from the real entity IDs that `ha-bambulab` creates, which do not exist until the printer is added in the HA UI. So the order is: deploy the stack (Tasks 1-3, DNS in Task 4, deploy in Task 5) → manual HA setup (Task 6) → generate and commit the package (Task 7) → verify (Task 8).
