@@ -7,8 +7,26 @@ x-logging: &logging
       labels: "com.docker.compose.service,com.docker.compose.project"
 
 services:
+  # ensure-zfs-datasets.sh creates /ssd/services/spoolman as root, and nothing in
+  # the Ansible role sets ownership for any stack. Spoolman's entrypoint drops to
+  # PUID via gosu *before* the app checks the data dir, so it cannot fix this
+  # itself — it just exits with "Data directory is not writable". This runs as
+  # root first and hands over a writable directory. Idempotent, exits immediately,
+  # and survives the dataset ever being recreated.
+  spoolman-init:
+    <<: *logging
+    image: alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
+    container_name: spoolman-init
+    command: chown -R 568:568 /data
+    restart: "no"
+    volumes:
+      - /ssd/services/spoolman:/data
+
   spoolman:
     <<: *logging
+    depends_on:
+      spoolman-init:
+        condition: service_completed_successfully
     image: ghcr.io/donkie/spoolman:0.26.0@sha256:f17489666719c1a6e12bf0616e9865e3ee8609ef0ac2608d67c1528ceeb609e8
     container_name: spoolman
     restart: unless-stopped

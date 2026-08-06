@@ -357,7 +357,7 @@ If `gh` is not installed (it was not, on this machine), open the PR in the web U
 
 `.github/workflows/deploy.yml` triggers on push to `master`. Merging runs the Ansible playbook, which creates the ZFS datasets, syncs the stacks, and brings up the containers.
 
-- [ ] **Step 3: Chown the new dataset on the host (REQUIRED, not optional)**
+- [ ] **Step 3: Confirm the init container did its job**
 
 `ensure-zfs-datasets.sh` creates `/ssd/services/spoolman` as root, and nothing in the
 Ansible role sets ownership for any stack. Spoolman's entrypoint drops to UID 568 via gosu
@@ -370,14 +370,22 @@ uvicorn.error ERROR  Application startup failed. Exiting.
 
 The container then has no Traefik route at all, so `spoolman.tylercash.dev` serves
 `TRAEFIK DEFAULT CERT` and a plain `404 page not found` — which looks like a routing bug
-but is not. On the host:
+but is not.
+
+The `spoolman-init` service handles this: it runs as root before `spoolman` starts, chowns
+the mount, and exits. `spoolman` gates on it with
+`condition: service_completed_successfully`. Verify it exited cleanly:
 
 ```bash
-sudo chown -R 568:568 /ssd/services/spoolman
-docker restart spoolman
+docker ps -a --filter name=spoolman-init --format '{{.Status}}'
 ```
 
-`spoolmansync` is unaffected — it runs as root and creates its own SQLite DB.
+Expected: `Exited (0) ...`. If it exited non-zero, read `docker logs spoolman-init`.
+
+The equivalent manual fix, if the init container is ever removed:
+`sudo chown -R 568:568 /ssd/services/spoolman && docker restart spoolman`.
+
+`spoolmansync` needs none of this — it runs as root and creates its own SQLite DB.
 
 - [ ] **Step 4: Verify the deploy**
 

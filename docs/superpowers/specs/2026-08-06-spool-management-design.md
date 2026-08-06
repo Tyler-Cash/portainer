@@ -69,15 +69,20 @@ stacks/homepage/config/services.yaml      # new "3D Printing" group
 
 ## stacks/spoolman/docker-compose.yml
 
-Two services on the external `homelab_default` network, following the conventions in
+Two long-running services on the external `homelab_default` network plus a one-shot init
+container, following the conventions in
 `stacks/mealie/docker-compose.yml`: `x-logging` anchor, tag **and** digest pin,
 `deploy.resources.limits.memory`, healthcheck, `restart: unless-stopped`, watchtower
 label, and Traefik with the `ClientIP` guard used by internal services.
 
 | Service | Image | Host | Port | Bind mount |
 |---|---|---|---|---|
+| `spoolman-init` | `alpine:3.22` | — | — | `/ssd/services/spoolman:/data` |
 | `spoolman` | `ghcr.io/donkie/spoolman:0.26.0` | `spoolman.tylercash.dev` | 8000 | `/ssd/services/spoolman:/home/app/.local/share/spoolman` |
 | `spoolmansync` | `ghcr.io/gibz104/spoolmansync:1.6.8` | `spools.tylercash.dev` | 3000 | `/ssd/services/spoolmansync:/data` |
+
+`spoolman-init` runs `chown -R 568:568 /data` as root and exits; see the bind mount
+ownership row under Known Risks for why it is needed.
 
 Spoolman defaults to SQLite in that directory; no database service is needed. Both
 services get `TZ=Australia/Sydney`, and Spoolman additionally gets `PUID=568`/`PGID=568`
@@ -227,7 +232,7 @@ load cell — which is out of scope.
 | HA reachability to printer | HA must reach the P1S across `br_iot`. | Already true for existing IoT devices on that network. |
 | Duplicate `packages:` key | See above. | Add the directive manually; verify `rest_command.spoolmansync_*` exists in Developer Tools after restart. |
 | Silent tracking failure | An unassigned slot or a broken automation deducts nothing, and inventory drifts without an error. | Confirm the weight drop on the step 8 test print. |
-| Bind mount ownership | **Hit during deploy.** `ensure-zfs-datasets.sh` creates `/ssd/services/spoolman` as root, and Spoolman's entrypoint drops to UID 568 via gosu *before* the app tries to chown it, so the app exits with `Data directory is not writable`. Nothing in the Ansible role sets ownership for any stack. | One-off `sudo chown -R 568:568 /ssd/services/spoolman` on the host, then restart. Applies to any new stack whose container runs unprivileged. |
+| Bind mount ownership | **Hit during deploy.** `ensure-zfs-datasets.sh` creates `/ssd/services/spoolman` as root, and Spoolman's entrypoint drops to UID 568 via gosu *before* the app tries to chown it, so the app exits with `Data directory is not writable`. Nothing in the Ansible role sets ownership for any stack. | Resolved in-repo by the `spoolman-init` service: an alpine container that runs as root, chowns the mount, and exits, with `spoolman` gated on `condition: service_completed_successfully`. Declarative and survives dataset recreation, unlike a one-off host `chown`. |
 
 ## Out of Scope
 
