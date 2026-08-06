@@ -80,7 +80,8 @@ label, and Traefik with the `ClientIP` guard used by internal services.
 | `spoolmansync` | `ghcr.io/gibz104/spoolmansync:1.6.8` | `spools.tylercash.dev` | 3000 | `/ssd/services/spoolmansync:/data` |
 
 Spoolman defaults to SQLite in that directory; no database service is needed. Both
-services get `TZ=Australia/Sydney`.
+services get `TZ=Australia/Sydney`, and Spoolman additionally gets `PUID=568`/`PGID=568`
+— its entrypoint honours those and drops privileges with gosu, matching every other stack.
 
 SpoolmanSync environment:
 
@@ -208,7 +209,7 @@ load cell — which is out of scope.
 | HA reachability to printer | HA must reach the P1S across `br_iot`. | Already true for existing IoT devices on that network. |
 | Duplicate `packages:` key | See above. | Add the directive manually; verify `rest_command.spoolmansync_*` exists in Developer Tools after restart. |
 | Silent tracking failure | An unassigned slot or a broken automation deducts nothing, and inventory drifts without an error. | Confirm the weight drop on the step 8 test print. |
-| Bind mount ownership | Other stacks set `PUID/PGID=568`; Spoolman's support for those is unconfirmed and it may run as its own `app` user. | Check container logs for permission errors on first start and `chown` the dataset if needed. |
+| Bind mount ownership | Spoolman runs as its own `app` user by default (UID 1000). | Resolved by setting `PUID`/`PGID` to 568; its entrypoint applies them via gosu. Check logs on first start regardless. |
 
 ## Out of Scope
 
