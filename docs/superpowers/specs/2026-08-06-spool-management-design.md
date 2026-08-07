@@ -326,6 +326,14 @@ is still no wildcard.
 
 The `spools` record is now unused and can be deleted.
 
+## Versioning gotcha
+
+Bambuddy's tags are **4-component** (`1.2.5.2`), not semver. Filtering or sorting tags with
+a `\d+\.\d+\.\d+` pattern silently drops every `1.2.x.y` release and picks `0.2.2` — a
+five-month-old build — as "latest". This bit the initial pin here. The same class of error
+put Spoolman on `0.9.1` (lexical sort ranks it above `0.26.0`). Always resolve "latest" by
+image creation date, not by string ordering.
+
 ## Retired
 
 - The `spoolmansync` service.
