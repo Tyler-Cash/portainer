@@ -1,7 +1,8 @@
 # Spool Management Design
 
 **Date:** 2026-08-06
-**Status:** Approved
+**Status:** Superseded in part — see "Revision: Bambuddy" below
+**Revised:** 2026-08-07
 
 ## Overview
 
@@ -262,3 +263,81 @@ load cell — which is out of scope.
 - Hardware weight measurement (FilaMan / load cells).
 - Multi-printer support.
 - Grafana dashboards for filament usage.
+
+
+---
+
+# Revision: Bambuddy (2026-08-07)
+
+## What changed
+
+SpoolmanSync is retired. **Bambuddy** takes over spool assignment and usage reporting,
+and adds a print queue.
+
+Two drivers. First, the original design made Home Assistant load-bearing for filament
+tracking — a chain of printer → `ha-bambulab` → SpoolmanSync → Spoolman, where a break
+anywhere stops deduction silently. Bambuddy talks MQTT (TLS) and FTPS straight to the
+printer, removing HA from the path. Second, reprinting required opening the slicer every
+time; Bambuddy queues pre-sliced jobs.
+
+## Revised architecture
+
+```
+P1S (LAN mode + Developer Mode, br_iot)
+  └─> Bambuddy   (MQTT + FTPS direct; queue, spool assignment, usage reporting)
+        └─> Spoolman (inventory: vendors, filaments, spools, remaining weight)
+```
+
+Spoolman itself is unchanged, as is all existing spool data.
+
+## Why Bambuddy works here despite no AMS
+
+Its Spoolman documentation is written around AMS slots and RFID matching, which does not
+apply to an external-spool-only P1S. Verified before committing to the switch: Bambuddy
+supports non-AMS printers and external spool assignment, and derives usage from **3MF
+slicer estimates** as the primary source with AMS remain-% delta only as a fallback. The
+accuracy basis is therefore the same as the SpoolmanSync setup — an estimate, not a
+measurement.
+
+## Developer Mode is now mandatory
+
+Bambu firmware >= 01.08.03 verifies the source of MQTT control commands and rejects
+anything not signed by current Studio/Handy (HMS `0500-0500-0001-0007`). Developer Mode
+disables that verification. Reading state degrades without it; **starting a print is
+impossible**, so the queue does not work at all.
+
+This was already required to resolve the MQTT verification errors seen on this printer.
+
+## Deployment deviations from upstream
+
+| Upstream default | Here | Why |
+|---|---|---|
+| `network_mode: host` | bridge on `homelab_default` | Host mode exists for SSDP discovery (needs L2 multicast). The printer has a fixed DHCP reservation, so it is added by IP. Bridge keeps Traefik routing by container name, consistent with every other stack. |
+| Virtual printer enabled | omitted | Needs `cap_add: NET_BIND_SERVICE`, privileged ports 322/990, and a ~30-port passive-FTP range, plus a CA the slicer must trust. Files are uploaded through the web UI instead. Additive later. |
+| Named volumes | bind mounts under `/ssd/services/bambuddy/` | Matches every other stack and puts the data in the ZFS dataset the backup job discovers. |
+
+No init container is needed: Bambuddy's entrypoint chowns `/app/data` and `/app/logs` as
+root *before* dropping to `PUID` via gosu — the ordering Spoolman gets wrong.
+
+## DNS
+
+`bambuddy` A → `10.0.90.10`, proxy off. Same manual Cloudflare step as the others; there
+is still no wildcard.
+
+The `spools` record is now unused and can be deleted.
+
+## Retired
+
+- The `spoolmansync` service.
+- `stacks/home-assistant/packages/spoolmansync.yaml`.
+- `stacks/spoolman/scripts/sync-ha-package.sh` and `task spoolman:sync-package`.
+- The `/ssd/services/spoolmansync` dataset still exists on the host with the old SQLite
+  DB. Harmless; destroy it once the migration is confirmed good.
+
+`ha-bambulab` stays installed for HA dashboards and automations. Worth watching: two MQTT
+clients (HA and Bambuddy) now connect to the printer, and Bambu firmware has been reported
+to limit concurrent connections. If printer entities start flapping, that is the first
+thing to suspect.
+
+The `./packages` mount and `STACK_CONTENT_HASH` on Home Assistant are kept — empty, but
+useful for any future git-managed HA config, and free.
