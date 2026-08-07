@@ -61,6 +61,16 @@ The printer has **no AMS**, only the external spool holder, so there is no RFID 
 
 `stacks/home-assistant/packages/` is still bind-mounted read-only at `/config/packages` with `STACK_CONTENT_HASH` wired up, and `configuration.yaml` (on the host, not in git) carries the matching `packages: !include_dir_named packages` directive. It is currently empty, kept for any future git-managed HA config.
 
+### Virtual printer
+
+Bambuddy emulates a Bambu printer so Bambu Studio can send prints straight into its queue. This is the one place the stack publishes host ports; the web UI still goes through Traefik on 8000.
+
+Published: `3000`, `3002` (bind/detect), `8883` (MQTT), `990` (FTP control), `2024-2026` (A1/P1S proprietary), `50000-50009` (passive FTP). Ports `6000` and `322` are **proxy-mode only** — and 322 is for X1/H2/P2 cameras — so neither is published. Passive-FTP ports are sliced 10 per VP by id (VP 1 → `50000-50009`); widen the range when adding VPs. Every published port spawns a docker-proxy process per address family, which is why the full `50000-50100` range is avoided.
+
+`cap_add: NET_BIND_SERVICE` is required because the VP binds FTP directly on 990. `VIRTUAL_PRINTER_PASV_ADDRESS=10.0.90.10` is required on bridge mode — passive FTP hands the client a callback address, and without it the VP advertises its unreachable container IP.
+
+**Two manual slicer-side steps:** SSDP discovery does not work on bridge mode, so add the VP in Bambu Studio **by host IP**, and **import Bambuddy's self-signed CA** — Studio validates printer TLS against a bundled BBL CA rather than the system trust store, and its Add Printer dialog is IP-only, so a publicly-trusted cert cannot substitute.
+
 ### AI failure detection
 
 `obico-ml` runs Obico's failure-detection ML API. Bambuddy drives it natively — only the inference service is needed, not the full Obico server (Django, Postgres, Redis, Celery). It has no Traefik hostname; only Bambuddy talks to it over `homelab_default`.

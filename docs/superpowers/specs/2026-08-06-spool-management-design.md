@@ -405,3 +405,59 @@ This introduces the stack's **first** secret: `ML_API_TOKEN` in
 `obico-ml` has no Traefik labels and no hostname — only Bambuddy talks to it. That means no
 Cloudflare DNS record and no Homepage entry, so the `CLAUDE.md` Homepage rule does not
 apply.
+
+
+---
+
+# Addendum: Virtual printer (2026-08-08)
+
+Enabled after initially being skipped. Bambuddy emulates a Bambu printer so Bambu Studio
+can send prints straight into its queue, instead of uploading files through the web UI.
+
+## Ports published
+
+This is the only place the stack publishes host ports. The web UI still goes through
+Traefik on 8000 and is **not** published.
+
+| Port(s) | Purpose |
+|---|---|
+| `3000`, `3002` | VP bind/detect |
+| `8883` | VP MQTT |
+| `990` | VP FTP control — direct bind, requires `cap_add: NET_BIND_SERVICE` |
+| `2024-2026` | VP proprietary ports (A1/P1S) |
+| `50000-50009` | Passive-FTP data, VP 1's slice |
+
+**Omitted deliberately:** `6000` (file-transfer tunnel) and `322` (RTSP camera) are
+proxy-mode only, and `322` covers X1/H2/P2 cameras rather than a P1S.
+
+Passive-FTP ports are sliced 10 per VP by id — VP 1 gets `50000-50009`, VP 2 gets
+`50010-50019`. Only one VP is configured, so only one slice is published. Widen to
+`50000-500N9` when adding more. Upstream notes that every published port spawns a
+docker-proxy process per address family; the full `50000-50100` range would spawn ~2000
+processes and pin several GB of host RAM that does not show in `docker stats`. The 17
+ports published here cost ~34 processes.
+
+Verified against every port published elsewhere in this repo (80, 443, 1900, 3478, 6789,
+8080, 8443, 8843, 8880, 10001) — no collisions. Host-level daemons outside compose were
+not checked; `ss -tlnp` on the host would confirm.
+
+## Bridge-mode requirement
+
+`VIRTUAL_PRINTER_PASV_ADDRESS=10.0.90.10` is mandatory. Passive FTP hands the client a
+callback address, and without this the VP advertises its internal container IP, which the
+slicer cannot reach.
+
+## Manual slicer-side steps
+
+1. **Add the VP by host IP** (`10.0.90.10`). SSDP discovery needs L2 multicast and does not
+   work on bridge mode.
+2. **Import Bambuddy's self-signed CA into the slicer.** Bambu Studio and OrcaSlicer
+   validate printer TLS against a bundled BBL CA rather than the system trust store, and
+   their Add Printer dialog is IP-only, so a publicly-trusted certificate cannot substitute
+   on either dimension.
+
+## Mode
+
+Queue mode is the one that matches the original goal — hit Send in Studio and have the job
+land in Bambuddy's queue rather than printing immediately. Archive, Review and Proxy modes
+are also available; Proxy is the only one needing the omitted ports.

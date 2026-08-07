@@ -73,13 +73,16 @@ services:
   #    discovery, which needs L2 multicast; the printer has a fixed DHCP
   #    reservation so it gets added by IP instead. Bridge keeps it on
   #    homelab_default where Traefik can route to it by container name.
-  #  - No virtual printer. That feature needs cap_add NET_BIND_SERVICE,
-  #    privileged ports 322/990 and a ~30-port passive-FTP range, plus a CA
-  #    the slicer must trust. Files get uploaded through the web UI instead.
-  #    Adding it later is additive.
+  #    Consequence: the virtual printer is not auto-discovered by the slicer
+  #    either — add it in Bambu Studio by host IP (10.0.90.10).
+  #  - Virtual printer enabled, but only the ports a P1S Queue-mode VP needs
+  #    (see the ports block). Proxy-mode-only ports are omitted.
   #  - Bind mounts under /ssd/services/ rather than named volumes.
   bambuddy:
     <<: *logging
+    # Virtual printer binds FTP on 990, below 1024.
+    cap_add:
+      - NET_BIND_SERVICE
     # Versions are 4-component (1.2.5.2), not semver — sorting tags as semver
     # silently picks 0.2.x as "newest".
     image: ghcr.io/maziggy/bambuddy:1.2.5.2@sha256:954d93d7aaf98436cd8a31f67246d12453aa401830c34b8b645effc009caa897
@@ -96,6 +99,27 @@ services:
     volumes:
       - /ssd/services/bambuddy/data:/app/data
       - /ssd/services/bambuddy/logs:/app/logs
+    # Virtual printer ports. The web UI is NOT published here — Traefik still
+    # serves that on 8000 over homelab_default. These are only the ports Bambu
+    # Studio talks to when it treats Bambuddy as a printer.
+    #
+    # Deliberately omitted: 6000 (file-transfer tunnel) and 322 (RTSP camera)
+    # are proxy-mode only, and 322 covers X1/H2/P2 cameras rather than a P1S.
+    #
+    # None of these collide with anything else published in this repo (80, 443,
+    # 1900, 3478, 6789, 8080, 8443, 8843, 8880, 10001).
+    ports:
+      - "3000:3000"               # VP bind/detect
+      - "3002:3002"               # VP bind/detect
+      - "8883:8883"               # VP MQTT
+      - "990:990"                 # VP FTP control (direct bind, hence NET_BIND_SERVICE)
+      - "2024-2026:2024-2026"     # VP proprietary ports (A1/P1S)
+      # Passive-FTP data is sliced 10 ports per VP by id: VP 1 -> 50000-50009,
+      # VP 2 -> 50010-50019, and so on. One VP is configured, so one slice is
+      # published — widen to 50000-500N9 when adding more. Every published port
+      # spawns a docker-proxy process per address family, which is why this is
+      # not the full 50000-50100 range.
+      - "50000-50009:50000-50009"
     environment:
       # Bambuddy's entrypoint chowns /app/data and /app/logs as root before
       # dropping to PUID via gosu, so this needs no init container (unlike
@@ -104,6 +128,10 @@ services:
       - PGID=568
       - TZ=Australia/Sydney
       - PORT=8000
+      # Required on bridge mode: FTP passive mode hands the client a callback
+      # address, and without this it would advertise the container's internal
+      # IP, which the slicer cannot reach.
+      - VIRTUAL_PRINTER_PASV_ADDRESS=10.0.90.10
     # Upstream notes SQLite WAL checkpointing plus MQTT teardown on shutdown;
     # Docker's default 10s SIGKILL is tight when that runs slowly.
     stop_grace_period: 30s
