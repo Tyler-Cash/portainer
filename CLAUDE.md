@@ -63,13 +63,17 @@ The printer has **no AMS**, only the external spool holder, so there is no RFID 
 
 ### Virtual printer
 
-Bambuddy emulates a Bambu printer so Bambu Studio can send prints straight into its queue. This is the one place the stack publishes host ports; the web UI still goes through Traefik on 8000.
+Bambuddy emulates a Bambu printer so Bambu Studio / OrcaSlicer can send prints straight into its queue.
 
-Published: `3000`, `3002` (bind/detect), `8883` (MQTT), `990` (FTP control), `2024-2026` (A1/P1S proprietary), `50000-50009` (passive FTP). Ports `6000` and `322` are **proxy-mode only** — and 322 is for X1/H2/P2 cameras — so neither is published. Passive-FTP ports are sliced 10 per VP by id (VP 1 → `50000-50009`); widen the range when adding VPs. Every published port spawns a docker-proxy process per address family, which is why the full `50000-50100` range is avoided.
+**Bambuddy sits on two networks.** `printer_lan` is a **macvlan** giving it its own MAC and the LAN IP **`10.0.90.254`**, so the virtual printer is a real L2 device: it binds and advertises its own address, SSDP discovery works, and **no host ports are published at all**. `homelab_default` keeps Traefik, Spoolman and `obico-ml` reachable by container name.
 
-`cap_add: NET_BIND_SERVICE` is required because the VP binds FTP directly on 990. `VIRTUAL_PRINTER_PASV_ADDRESS=10.0.90.10` is required on bridge mode — passive FTP hands the client a callback address, and without it the VP advertises its unreachable container IP.
+`10.0.90.254` must stay reserved/excluded in UniFi's DHCP scope. The compose pins Docker's IPAM pool to `10.0.90.254/32` so it can never allocate anything else on the LAN.
 
-**Two manual slicer-side steps:** SSDP discovery does not work on bridge mode, so add the VP in Bambu Studio **by host IP**, and **import Bambuddy's self-signed CA** — Studio validates printer TLS against a bundled BBL CA rather than the system trust store, and its Add Printer dialog is IP-only, so a publicly-trusted cert cannot substitute.
+**Macvlan caveat:** the Docker *host* cannot reach a macvlan container — kernel behaviour, not a misconfiguration. Container-to-container traffic is unaffected, which is why Bambuddy stays on `homelab_default` as well and why Traefik (itself a container) still routes to it normally.
+
+`cap_add: NET_BIND_SERVICE` is still required because the VP binds FTP directly on port 990.
+
+**One manual slicer-side step:** **import Bambuddy's self-signed CA.** Bambu Studio and OrcaSlicer validate printer TLS against a bundled BBL CA rather than the system trust store, and their Add Printer dialog is IP-only, so a publicly-trusted certificate cannot substitute. On Windows/OrcaSlicer, append it to `C:\Program Files\OrcaSlicer\resources\cert\printer.cer` (as Administrator) and fully restart — note OrcaSlicer upgrades overwrite that file.
 
 ### AI failure detection
 

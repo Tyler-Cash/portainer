@@ -90,8 +90,20 @@ services:
     restart: unless-stopped
     depends_on:
       - spoolman
+    # Two networks on purpose:
+    #  - printer_lan (macvlan) gives Bambuddy its own MAC and a real LAN IP, so
+    #    the virtual printer is a first-class L2 device. It binds and advertises
+    #    10.0.90.254 itself, SSDP discovery reaches the slicer, and no host ports
+    #    are published at all — the VP owns 990/8883/3000/3002/2024-2026/50000+
+    #    on its own address rather than sharing the host's.
+    #  - homelab_default keeps Traefik, spoolman and obico-ml reachable by
+    #    container name. The usual macvlan caveat is that the Docker *host*
+    #    cannot reach a macvlan container; Traefik is itself a container on the
+    #    bridge, so this does not apply to it.
     networks:
-      - homelab_default
+      homelab_default:
+      printer_lan:
+        ipv4_address: 10.0.90.254
     deploy:
       resources:
         limits:
@@ -99,27 +111,6 @@ services:
     volumes:
       - /ssd/services/bambuddy/data:/app/data
       - /ssd/services/bambuddy/logs:/app/logs
-    # Virtual printer ports. The web UI is NOT published here — Traefik still
-    # serves that on 8000 over homelab_default. These are only the ports Bambu
-    # Studio talks to when it treats Bambuddy as a printer.
-    #
-    # Deliberately omitted: 6000 (file-transfer tunnel) and 322 (RTSP camera)
-    # are proxy-mode only, and 322 covers X1/H2/P2 cameras rather than a P1S.
-    #
-    # None of these collide with anything else published in this repo (80, 443,
-    # 1900, 3478, 6789, 8080, 8443, 8843, 8880, 10001).
-    ports:
-      - "3000:3000"               # VP bind/detect
-      - "3002:3002"               # VP bind/detect
-      - "8883:8883"               # VP MQTT
-      - "990:990"                 # VP FTP control (direct bind, hence NET_BIND_SERVICE)
-      - "2024-2026:2024-2026"     # VP proprietary ports (A1/P1S)
-      # Passive-FTP data is sliced 10 ports per VP by id: VP 1 -> 50000-50009,
-      # VP 2 -> 50010-50019, and so on. One VP is configured, so one slice is
-      # published — widen to 50000-500N9 when adding more. Every published port
-      # spawns a docker-proxy process per address family, which is why this is
-      # not the full 50000-50100 range.
-      - "50000-50009:50000-50009"
     environment:
       # Bambuddy's entrypoint chowns /app/data and /app/logs as root before
       # dropping to PUID via gosu, so this needs no init container (unlike
@@ -128,10 +119,10 @@ services:
       - PGID=568
       - TZ=Australia/Sydney
       - PORT=8000
-      # Required on bridge mode: FTP passive mode hands the client a callback
-      # address, and without this it would advertise the container's internal
-      # IP, which the slicer cannot reach.
-      - VIRTUAL_PRINTER_PASV_ADDRESS=10.0.90.10
+      # No VIRTUAL_PRINTER_PASV_ADDRESS: that existed to work around bridge-mode
+      # NAT, where passive FTP would advertise an unreachable container IP. On
+      # macvlan the VP binds a real routable address, so it advertises correctly
+      # on its own.
     # Upstream notes SQLite WAL checkpointing plus MQTT teardown on shutdown;
     # Docker's default 10s SIGKILL is tight when that runs slowly.
     stop_grace_period: 30s
@@ -198,3 +189,24 @@ services:
 networks:
   homelab_default:
     external: true
+
+  # Gives Bambuddy its own MAC and LAN IP so the virtual printer behaves like a
+  # real device: SSDP discovery works, it binds its own ports rather than
+  # sharing the host's, and no advertise-IP or passive-FTP overrides are needed.
+  #
+  # ip_range pins Docker's allocation pool to the single address assigned above,
+  # so it can never hand out an IP that UniFi's DHCP scope also owns. 10.0.90.254
+  # must stay reserved/excluded there.
+  #
+  # Caveat worth remembering: the Docker host itself cannot reach a macvlan
+  # container (kernel behaviour, not a misconfiguration). Container-to-container
+  # traffic is unaffected, which is why Bambuddy stays on homelab_default too.
+  printer_lan:
+    driver: macvlan
+    driver_opts:
+      parent: enp3s0
+    ipam:
+      config:
+        - subnet: 10.0.90.0/24
+          gateway: 10.0.90.1
+          ip_range: 10.0.90.254/32

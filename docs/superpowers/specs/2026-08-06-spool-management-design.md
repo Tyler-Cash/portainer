@@ -461,3 +461,55 @@ slicer cannot reach.
 Queue mode is the one that matches the original goal — hit Send in Studio and have the job
 land in Bambuddy's queue rather than printing immediately. Archive, Review and Proxy modes
 are also available; Proxy is the only one needing the omitted ports.
+
+
+---
+
+# Addendum: macvlan for the virtual printer (2026-08-08)
+
+## Why
+
+Bridge mode made the virtual printer fight its environment. Bambuddy's interface
+auto-detection reported `172.19.0.0/16` (the Docker bridge) rather than the LAN, which
+meant it would advertise an address the slicer cannot reach — and because the advertise
+address also feeds TLS certificate generation
+(`_resolve_cert_and_advertise`), a cert minted for the bridge IP would fail validation
+even with the CA correctly imported. Bridge mode also required a hand-maintained list of
+~17 published host ports and a `VIRTUAL_PRINTER_PASV_ADDRESS` override to stop passive FTP
+advertising an unreachable container IP.
+
+All of that is NAT working around the fact that a device-emulating service wants to be a
+real device.
+
+## What changed
+
+Bambuddy now sits on two networks:
+
+| Network | Purpose |
+|---|---|
+| `printer_lan` (macvlan, parent `enp3s0`) | Own MAC + `10.0.90.254`. VP binds and advertises its own address; SSDP discovery works. |
+| `homelab_default` (bridge) | Traefik, Spoolman and `obico-ml` by container name. |
+
+Removed as now-dead weight: the entire `ports:` block and `VIRTUAL_PRINTER_PASV_ADDRESS`.
+`cap_add: NET_BIND_SERVICE` stays — the VP still binds FTP on 990.
+
+## Constraints
+
+- **`10.0.90.254` must be reserved/excluded in UniFi's DHCP scope.** The compose pins
+  Docker's IPAM pool to `10.0.90.254/32` (`ip_range`) so Docker cannot allocate any other
+  LAN address, but nothing stops DHCP handing that address out unless it is excluded.
+- **The Docker host cannot reach a macvlan container.** This is kernel behaviour. It does
+  not affect container-to-container traffic, so Traefik — itself a container on the bridge
+  — still routes to Bambuddy normally. It does mean `curl` from an SSH session on the host
+  will not reach `10.0.90.254`.
+- Gateway assumed `10.0.90.1` on `10.0.90.0/24`. A wrong gateway breaks the container's
+  default route.
+- This is the only non-bridge network in the repo.
+
+## Still manual
+
+Importing Bambuddy's self-signed CA into the slicer. Bambu Studio / OrcaSlicer validate
+printer TLS against a bundled BBL CA rather than the system trust store, and their Add
+Printer dialog is IP-only, so no publicly-trusted certificate can substitute. On Windows:
+append to `C:\Program Files\OrcaSlicer\resources\cert\printer.cer` as Administrator,
+then fully restart. Slicer upgrades overwrite that file.
