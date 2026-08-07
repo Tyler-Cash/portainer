@@ -64,7 +64,10 @@ services:
     stdin_open: true
     tty: true
     entrypoint: web-entrypoint.sh
-    command: ["bin/rails", "server", "-p", "3000", "-b", "::"]
+    # -b 0.0.0.0, not "::": the container has no non-loopback IPv6 interface, so
+    # Puma logged "IPv6 bind requested but no non-loopback IPv6 interface was
+    # detected" on every boot. Traefik reaches it over IPv4 on homelab_default.
+    command: ["bin/rails", "server", "-p", "3000", "-b", "0.0.0.0"]
     restart: unless-stopped
     environment:
       - RAILS_ENV=production
