@@ -134,6 +134,11 @@ services:
       start_period: 90s
     labels:
       - traefik.enable=true
+      # Required now that this container is on two networks. Without it Traefik
+      # may pick the macvlan IP, which it cannot reach — that traffic routes via
+      # the host, and the host cannot reach macvlan containers — giving a 502.
+      # Same reason home-assistant sets it (it is on homelab_default + iot).
+      - traefik.docker.network=homelab_default
       - traefik.http.routers.bambuddy.service=bambuddy
       - traefik.http.routers.bambuddy.rule=Host(`bambuddy.tylercash.dev`) && (ClientIP(`10.0.0.0/8`) || ClientIP(`172.19.0.0/24`))
       - traefik.http.routers.bambuddy.entrypoints=websecure
