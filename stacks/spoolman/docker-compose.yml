@@ -69,14 +69,12 @@ services:
   # anything not signed by current Studio/Handy (HMS 0500-0500-0001-0007).
   #
   # Deviations from upstream's docker-compose.yml, all deliberate:
-  #  - Bridge mode, not network_mode: host. Host mode exists for SSDP
-  #    discovery, which needs L2 multicast; the printer has a fixed DHCP
-  #    reservation so it gets added by IP instead. Bridge keeps it on
-  #    homelab_default where Traefik can route to it by container name.
-  #    Consequence: the virtual printer is not auto-discovered by the slicer
-  #    either — add it in Bambu Studio by host IP (10.0.90.10).
-  #  - Virtual printer enabled, but only the ports a P1S Queue-mode VP needs
-  #    (see the ports block). Proxy-mode-only ports are omitted.
+  #  - macvlan + bridge instead of network_mode: host. Upstream uses host mode
+  #    so SSDP discovery gets L2 multicast; macvlan gives that without the
+  #    container taking over the host's ports or breaking Traefik routing.
+  #    See the networks block below.
+  #  - Virtual printer enabled. No ports are published: on macvlan the VP owns
+  #    its own address, so it binds 990/8883/3000/3002/2024-2026/50000+ there.
   #  - Bind mounts under /ssd/services/ rather than named volumes.
   bambuddy:
     <<: *logging
