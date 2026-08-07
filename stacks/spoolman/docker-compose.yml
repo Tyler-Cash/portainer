@@ -80,7 +80,7 @@ services:
   #  - Bind mounts under /ssd/services/ rather than named volumes.
   bambuddy:
     <<: *logging
-    image: ghcr.io/maziggy/bambuddy:0.2.2@sha256:db9f30f048bae4f592fda4104578aff781a35f6c6f6e30ee033827f3152e57f6
+    image: ghcr.io/maziggy/bambuddy:0.2.4@sha256:c3f7f758f0b6ac2a074e7277074b2d0150dfe81b190a44b551ab092a5d17ca6c
     container_name: bambuddy
     restart: unless-stopped
     depends_on:
