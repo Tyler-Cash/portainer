@@ -87,7 +87,22 @@ services:
       - STORE_GEODATA=true
       - WEB_CONCURRENCY=1
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO - http://127.0.0.1:3000/api/v1/health | grep -q '\"status\"\\s*:\\s*\"ok\"'"]
+      # X-Forwarded-Proto is required, not cosmetic. APPLICATION_PROTOCOL=https
+      # makes Rails force SSL, so a plain request gets a 301 to https://. wget
+      # follows redirects by default, so it then opens a TLS connection to
+      # 127.0.0.1:3000 — which is plain HTTP — and Puma logs
+      # "Are you trying to open an SSL connection to a non-SSL Puma?" once per
+      # interval while the check fails. Traefik sets this header, which is why
+      # the app works through it but the loopback probe did not.
+      #
+      # On failure, re-run verbosely so Portainer's "Last output" shows the
+      # actual response instead of nothing: -q and grep -q discard everything.
+      test:
+        - CMD-SHELL
+        - >-
+          wget -qO- --header='X-Forwarded-Proto: https' http://127.0.0.1:3000/api/v1/health
+          | grep -q '"status"[[:space:]]*:[[:space:]]*"ok"'
+          || { wget -S -O- --header='X-Forwarded-Proto: https' http://127.0.0.1:3000/api/v1/health 2>&1 | head -20; exit 1; }
       interval: 10s
       retries: 30
       start_period: 30s
