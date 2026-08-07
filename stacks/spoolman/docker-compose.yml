@@ -125,6 +125,48 @@ services:
       - traefik.http.routers.bambuddy.tls.certresolver=leresolver
       - com.centurylinklabs.watchtower.enable=true
 
+  # Obico's failure-detection ML API. Bambuddy has first-class support for it
+  # (watches the camera feed, smooths scores with a 30-frame warmup + EWM +
+  # rolling means, then fires notify / pause / pause-and-off once per print), so
+  # only this inference service is needed — not the full Obico server with its
+  # Django app, Postgres, Redis and Celery workers.
+  #
+  # Built from source rather than pinned to a published image: the only ml_api
+  # tag on Docker Hub is from 2019, and the base-* tags are build bases, not the
+  # app. The git context is pinned to a commit so builds are reproducible and
+  # Ansible's content-hash gate only rebuilds when that commit changes.
+  # Renovate cannot track this — bump the SHA by hand.
+  #
+  # Not exposed via Traefik: only Bambuddy talks to it, over homelab_default.
+  # No hostname means no DNS record and no Homepage entry.
+  obico-ml:
+    <<: *logging
+    build:
+      context: https://github.com/TheSpaghettiDetective/obico-server.git#49c0bc7001a3fd8d56297fc3032ba287bfe1d50b:ml_api
+    container_name: obico-ml
+    restart: unless-stopped
+    networks:
+      - homelab_default
+    deploy:
+      resources:
+        limits:
+          memory: 2000M
+    environment:
+      - DEBUG=False
+      - FLASK_APP=server.py
+      # Gates /p/ (ml_api/auth.py). /hc/ stays open, which is what the
+      # healthcheck below uses.
+      - ML_API_TOKEN=${ML_API_TOKEN}
+    tty: true
+    command: bash -c "gunicorn --bind 0.0.0.0:3333 --workers 1 wsgi"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:3333/hc/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      # First start loads the model weights baked in at build time.
+      start_period: 120s
+
 networks:
   homelab_default:
     external: true

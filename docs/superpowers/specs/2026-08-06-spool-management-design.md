@@ -349,3 +349,59 @@ thing to suspect.
 
 The `./packages` mount and `STACK_CONTENT_HASH` on Home Assistant are kept — empty, but
 useful for any future git-managed HA config, and free.
+
+
+---
+
+# Addendum: AI failure detection (2026-08-07)
+
+## Scope
+
+Obico's **ML API only** — not the Obico server. Bambuddy has first-class support for it
+(README:192): it watches each running print's camera feed, smooths scores over time
+(30-frame warmup + EWM + rolling means), and fires one configurable action per print —
+notify, pause, or pause-and-power-off. Bambuddy is the orchestrator, so the Django app,
+Postgres, Redis and Celery workers that make up the rest of Obico are unnecessary.
+
+## Built from source, deliberately
+
+There is no current published image. `thespaghettidetective/ml_api:latest` on Docker Hub
+dates from 2019, and the `base-*` tags are build bases referenced by the app's Dockerfile,
+not the app. So `obico-ml` uses a `build:` context — consistent with `ts-clipper` and
+`zipline-transcoder`, and supported by `ansible/roles/stacks/tasks/main.yml`, which runs
+`docker compose build` gated on the stack content hash.
+
+The git context is pinned to a commit rather than a branch, so builds are reproducible and
+the content-hash gate only rebuilds when the pin changes:
+
+```
+context: https://github.com/TheSpaghettiDetective/obico-server.git#<sha>:ml_api
+```
+
+**Renovate cannot track this.** Everything else in the repo is a digest-pinned upstream
+image; this is the one exception, and the SHA must be bumped by hand. The build context
+itself is tiny (~148K) — the model weights (darknet, ONNX, RKNN) download during the build.
+
+## Wiring
+
+Obico's ML API is **GET-only** (`/p/?img=<url>`) and **fetches the frame itself** rather
+than receiving it. Bambuddy caches a frame at
+`{external_url}/api/v1/obico/cached-frame/{nonce}` and passes that URL, so `obico-ml` must
+be able to reach Bambuddy's configured `external_url`.
+
+Keep `external_url` as `https://bambuddy.tylercash.dev`: the `ClientIP(172.19.0.0/24)`
+clause already present in every Traefik rule covers container-network sources. It must not
+be set to an internal URL, because it also builds the login links in notifications.
+
+`/p/` is gated behind `ML_API_TOKEN`; `/hc/` is open and is what the healthcheck targets.
+
+## Secrets
+
+This introduces the stack's **first** secret: `ML_API_TOKEN` in
+`stacks/spoolman/.env.secret`, SOPS-encrypted. Edit with `task edit STACK=spoolman`.
+
+## Not exposed
+
+`obico-ml` has no Traefik labels and no hostname — only Bambuddy talks to it. That means no
+Cloudflare DNS record and no Homepage entry, so the `CLAUDE.md` Homepage rule does not
+apply.

@@ -60,3 +60,13 @@ The dashboards use an OTel-flavoured selector: `{service_namespace="peep-bot", s
 The printer has **no AMS**, only the external spool holder, so there is no RFID reader and no auto-detection of what is loaded. The mounted spool is assigned by hand in Bambuddy on every swap. Deducted weight comes from the 3MF slicer estimate rather than a measurement, so error accumulates — re-weigh spools occasionally and correct the value in Spoolman.
 
 `stacks/home-assistant/packages/` is still bind-mounted read-only at `/config/packages` with `STACK_CONTENT_HASH` wired up, and `configuration.yaml` (on the host, not in git) carries the matching `packages: !include_dir_named packages` directive. It is currently empty, kept for any future git-managed HA config.
+
+### AI failure detection
+
+`obico-ml` runs Obico's failure-detection ML API. Bambuddy drives it natively — only the inference service is needed, not the full Obico server (Django, Postgres, Redis, Celery). It has no Traefik hostname; only Bambuddy talks to it over `homelab_default`.
+
+**It is built from source, not pinned to a published image** — the only `ml_api` tag on Docker Hub is from 2019 and the `base-*` tags are build bases. The git context is pinned to a commit SHA so builds are reproducible and Ansible's content-hash gate only rebuilds when that SHA changes. **Renovate cannot track this — bump the SHA by hand.**
+
+`ML_API_TOKEN` lives in `stacks/spoolman/.env.secret` (SOPS). It gates Obico's `/p/` endpoint; `/hc/` stays open and is what the healthcheck uses.
+
+Obico's ML API is GET-only (`/p/?img=<url>`) and **fetches the frame itself**, so Bambuddy's `external_url` setting must be reachable from the `obico-ml` container. Keep it as `https://bambuddy.tylercash.dev` — the `ClientIP(172.19.0.0/24)` clause in the Traefik rule covers container-network sources. Do not set it to an internal URL: it also builds the login links in notifications.

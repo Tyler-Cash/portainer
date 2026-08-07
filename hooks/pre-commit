@@ -4,8 +4,15 @@
 FAILED=0
 
 for f in $(git diff --cached --name-only | grep '\.env\.secret$'); do
-  # Check the staged version, not the working copy
-  if git show ":$f" | head -c 20 | grep -qv "ENC\[AES"; then
+  # Check the staged version, not the working copy.
+  #
+  # Look for the marker anywhere in the file, not in the first 20 bytes. sops
+  # writes JSON by default, so byte 0 is "{" and the marker lands on line 2 —
+  # the old `head -c 20 | grep -qv` spanned two lines and the "{" line failed
+  # the inverted match, rejecting correctly-encrypted files. Every existing
+  # .env.secret in this repo is that JSON shape and would have tripped it on
+  # re-stage.
+  if ! git show ":$f" | grep -q "ENC\[AES"; then
     echo "❌ UNENCRYPTED secret staged: $f"
     FAILED=1
   fi
@@ -13,7 +20,7 @@ done
 
 if [ "$FAILED" -eq 1 ]; then
   echo ""
-  echo "Run 'make encrypt' then re-stage the files."
+  echo "Run 'task encrypt' then re-stage the files."
   exit 1
 fi
 
