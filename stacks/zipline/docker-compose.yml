@@ -13,7 +13,7 @@ services:
     # builds). Pinned to the digest the floating "v4" tag resolved to on
     # 2026-07-04 (built from commit 1c8adf4) — the tag label is just for
     # readability, the digest is what actually gets pulled.
-    image: ghcr.io/diced/zipline:v4@sha256:a577e1bbb6aca3699c6df27b4d0185079ab19aa98c61e780dd626da79ecf384c
+    image: ghcr.io/diced/zipline:v4@sha256:ac041bcb7b452ecddc4d2c0f898ebaf2be689a8fd1af9b9a705db2304d16d961
     container_name: zipline
     restart: unless-stopped
     networks:
