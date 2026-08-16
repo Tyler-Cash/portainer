@@ -83,7 +83,7 @@ services:
       - NET_BIND_SERVICE
     # Versions are 4-component (1.2.5.2), not semver — sorting tags as semver
     # silently picks 0.2.x as "newest".
-    image: ghcr.io/maziggy/bambuddy:1.2.5.2@sha256:954d93d7aaf98436cd8a31f67246d12453aa401830c34b8b645effc009caa897
+    image: ghcr.io/maziggy/bambuddy:1.2.5.3@sha256:c670164aaa3b0c5af715ca00e9745cdf3a4d7d337fc11d96fc85180371952698
     container_name: bambuddy
     restart: unless-stopped
     depends_on:
