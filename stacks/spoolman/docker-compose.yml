@@ -307,14 +307,21 @@ services:
       - DATABASE_PASSWORD=${MANYFOLD_DB_PASSWORD}
       - DATABASE_NAME=manyfold
     healthcheck:
-      # Ruby is always present in this image (curl/wget are not guaranteed).
-      # get_response raises on connection-refused (→ unhealthy) and returns on any
-      # HTTP status; treat < 500 as healthy so the login redirect still passes.
-      test: ["CMD-SHELL", "ruby -rnet/http -e \"exit(Net::HTTP.get_response(URI('http://127.0.0.1:3214/')).code.to_i < 500 ? 0 : 1)\" || exit 1"]
+      # Ruby is always present in this s6-overlay image (curl/wget are not
+      # guaranteed). Treat any HTTP < 500 as healthy so the login redirect
+      # passes; rescue + 2>/dev/null so a probe that races first-boot migrations
+      # exits 1 quietly instead of dumping a Net::HTTP backtrace into Portainer's
+      # "Last output".
+      test:
+        - CMD-SHELL
+        - >-
+          ruby -rnet/http -e 'begin; exit(Net::HTTP.get_response(URI("http://127.0.0.1:3214/")).code.to_i < 500 ? 0 : 1); rescue; exit 1; end' 2>/dev/null
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 60s
+      retries: 5
+      # First boot runs Rails migrations ("Preparing database...") before Puma
+      # binds 3214; that can take a couple of minutes on a cold database.
+      start_period: 240s
     labels:
       - traefik.enable=true
       - traefik.http.routers.manyfold.service=manyfold
