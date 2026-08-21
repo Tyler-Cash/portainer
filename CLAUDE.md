@@ -51,7 +51,7 @@ The dashboards use an OTel-flavoured selector: `{service_namespace="peep-bot", s
 
 ## 3D Printing (Bambu P1S)
 
-`stacks/spoolman/` runs two services: **Spoolman** (`spoolman.tylercash.dev`) as the filament inventory database, and **Bambuddy** (`bambuddy.tylercash.dev`) as the print queue and printer control plane. Bambuddy reports per-filament usage into Spoolman. Design: `docs/superpowers/specs/2026-08-06-spool-management-design.md`.
+`stacks/spoolman/` runs three user-facing services: **Spoolman** (`spoolman.tylercash.dev`) as the filament inventory database, **Bambuddy** (`bambuddy.tylercash.dev`) as the print queue and printer control plane, and **Manyfold** (`manyfold.tylercash.dev`) as the 3D-model library of record. Bambuddy reports per-filament usage into Spoolman. Design: `docs/superpowers/specs/2026-08-06-spool-management-design.md`.
 
 **Bambuddy talks MQTT (TLS) and FTPS directly to the printer. Home Assistant is not in the path.** An earlier iteration used SpoolmanSync driving Spoolman through HA automations; that was replaced to decouple printing from HA and to gain a print queue. `ha-bambulab` is still installed for HA dashboards and automations, but nothing depends on it for filament tracking.
 
@@ -60,6 +60,18 @@ The dashboards use an OTel-flavoured selector: `{service_namespace="peep-bot", s
 The printer has **no AMS**, only the external spool holder, so there is no RFID reader and no auto-detection of what is loaded. The mounted spool is assigned by hand in Bambuddy on every swap. Deducted weight comes from the 3MF slicer estimate rather than a measurement, so error accumulates — re-weigh spools occasionally and correct the value in Spoolman.
 
 `stacks/home-assistant/packages/` is still bind-mounted read-only at `/config/packages` with `STACK_CONTENT_HASH` wired up, and `configuration.yaml` (on the host, not in git) carries the matching `packages: !include_dir_named packages` directive. It is currently empty, kept for any future git-managed HA config.
+
+### Manyfold (3D model library)
+
+**Manyfold** (`manyfold.tylercash.dev`) is the self-hosted library of record for 3D models. Three services in the same compose file: the `manyfold` app (which also runs its own background workers — no separate worker service), `manyfold-db` (Postgres), and `manyfold-redis`. Pinned on **ghcr**, not Docker Hub: Docker Hub's `manyfold3d/manyfold` only publishes `sha-`/`edge`/`nightly` tags, so a semver-tag + digest pin (what Renovate tracks) is only possible on ghcr — same as Spoolman. The app listens on **3214**. Env is discrete `DATABASE_*` vars, not a `DATABASE_URL`. Manyfold has its **own** library dir `/ssd/services/manyfold/models` (register it as `/models` in the "new library" form) — Bambuddy's archive is deliberately not bind-mounted in; the sync add-on uploads over the API instead.
+
+**Option-A provenance workflow.** "Source" is captured two ways:
+1. **Manyfold's built-in URL import** — paste a Thingiverse / MyMiniFactory / Cults3D / Thangs model URL and it creates the model with the source link, metadata and images. **Printables is NOT supported by URL import** — for a Printables model, import the file manually and add the source link by hand.
+2. **The `bambuddy-to-manyfold` sync add-on** (`hibikipr/bambuddy_to_manyfold`, Phase 2 below) pushes Bambuddy's print archive + file-manager library into Manyfold, recreating the folder hierarchy as nested collections and enriching MakerWorld-sourced 3MFs with source link, tags and cover.
+
+**Two-phase bring-up** (it can't be one-shot — the sync needs an OAuth app that only exists once Manyfold is running):
+- **Phase 1** (live): app + db + redis. After deploy, create the admin account and a library pointing at `/models`. `SECRET_KEY_BASE` and `MANYFOLD_DB_PASSWORD` are in `stacks/spoolman/.env.secret` (SOPS).
+- **Phase 2** (commented block in the compose): the sync container. It needs a Manyfold **OAuth application** (grant `client_credentials`) carrying the **`upload`** scope — a personal access token can NOT carry it; the script probes on startup and exits with instructions if it's missing. `--cleanup-empty` additionally needs the **`delete`** scope. It keeps a local state file to skip already-synced items (`--force` retries failures) and uploads via Manyfold's resumable Tus API. One-shot at heart, but shipped here as its long-lived web GUI (port 8089) at `manyfold-sync.tylercash.dev`. To enable: create the OAuth app + a Bambuddy API key, add `MANYFOLD_OAUTH_CLIENT_ID` / `MANYFOLD_OAUTH_CLIENT_SECRET` / `BAMBUDDY_API_KEY` via `task edit STACK=spoolman`, uncomment the block, then add the DNS record + Homepage entry.
 
 ### Virtual printer
 
