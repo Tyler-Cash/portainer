@@ -153,3 +153,7 @@
         href: https://bambuddy.tylercash.dev
         description: Print queue and printer control
         icon: mdi-printer-3d-nozzle
+    - Manyfold:
+        href: https://manyfold.tylercash.dev
+        description: 3D model library of record
+        icon: manyfold.png

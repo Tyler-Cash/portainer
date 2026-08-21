@@ -189,6 +189,222 @@ services:
       # First start loads the model weights baked in at build time.
       start_period: 120s
 
+  # Manyfold — self-hosted "library of record" for 3D models
+  # (manyfold.tylercash.dev). This is the Option-A workflow: provenance is
+  # captured two ways —
+  #  1. Manyfold's built-in URL import: paste a Thingiverse / MyMiniFactory /
+  #     Cults3D / Thangs model URL and it creates the model with the source
+  #     link, metadata, images. (Printables is NOT supported by URL import.)
+  #  2. The bambuddy-to-manyfold sync add-on (commented block below, Phase 2)
+  #     pushes Bambuddy's print archive + file-manager library in, recreating
+  #     folders as nested collections and enriching MakerWorld 3MFs with
+  #     source/tags/cover.
+  #
+  # Deployed as its own three services (app + Postgres + Redis). The single app
+  # container also runs the background workers — there is no separate worker
+  # service (unlike dawarich's sidekiq).
+  #
+  # Pinned on ghcr rather than Docker Hub: Docker Hub's manyfold3d/manyfold only
+  # publishes sha-/edge/nightly tags, so a semver tag + digest pin (what Renovate
+  # tracks) is only possible on ghcr — same registry as spoolman above.
+
+  # ensure-zfs-datasets.sh creates /ssd/services/manyfold as root and nothing in
+  # the Ansible role sets ownership. Give the app a writable model-library dir
+  # before it starts. Idempotent, exits immediately, survives dataset recreation
+  # — same pattern as spoolman-init. (manyfold-db needs no equivalent: the
+  # official Postgres entrypoint chowns PGDATA itself while still root.)
+  manyfold-init:
+    <<: *logging
+    image: alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
+    container_name: manyfold-init
+    command: chown -R 568:568 /models
+    restart: "no"
+    volumes:
+      - /ssd/services/manyfold/models:/models
+
+  manyfold-db:
+    <<: *logging
+    image: postgres:16-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+    container_name: manyfold-db
+    restart: unless-stopped
+    networks:
+      - homelab_default
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    environment:
+      - POSTGRES_USER=manyfold
+      - POSTGRES_PASSWORD=${MANYFOLD_DB_PASSWORD}
+      - POSTGRES_DB=manyfold
+    volumes:
+      - /ssd/databases/manyfold-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U manyfold -d manyfold"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+  manyfold-redis:
+    <<: *logging
+    image: redis:7.4-alpine@sha256:9702d01c1f10c3ea9f48211b4362e44f154ff02d063e6f7268eba804059f53bf
+    container_name: manyfold-redis
+    restart: unless-stopped
+    networks:
+      - homelab_default
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+
+  manyfold:
+    <<: *logging
+    image: ghcr.io/manyfold3d/manyfold:0.147.2@sha256:54b7f4e95f8a858d63c7b532ed18b41f2ba5baa36e39371c6f240fdad943379a
+    container_name: manyfold
+    restart: unless-stopped
+    networks:
+      - homelab_default
+    depends_on:
+      manyfold-init:
+        condition: service_completed_successfully
+      manyfold-db:
+        condition: service_healthy
+      manyfold-redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 1500M
+    volumes:
+      # Manyfold's own library — the sync add-on uploads over the API rather than
+      # sharing a filesystem, so this is deliberately NOT Bambuddy's archive.
+      # Register it in Manyfold's "new library" form as /models after first boot.
+      - /ssd/services/manyfold/models:/models
+    environment:
+      - PUID=568
+      - PGID=568
+      - TZ=Australia/Sydney
+      # Long random string; Rails uses it to sign sessions/cookies. Generate with
+      # the image's `generate-secret` entrypoint or `openssl rand -hex 64`.
+      - SECRET_KEY_BASE=${SECRET_KEY_BASE}
+      - REDIS_URL=redis://manyfold-redis:6379/1
+      # Discrete DATABASE_* vars — this image does not take a DATABASE_URL.
+      - DATABASE_ADAPTER=postgresql
+      - DATABASE_HOST=manyfold-db
+      - DATABASE_PORT=5432
+      - DATABASE_USER=manyfold
+      - DATABASE_PASSWORD=${MANYFOLD_DB_PASSWORD}
+      - DATABASE_NAME=manyfold
+    healthcheck:
+      # Ruby is always present in this image (curl/wget are not guaranteed).
+      # get_response raises on connection-refused (→ unhealthy) and returns on any
+      # HTTP status; treat < 500 as healthy so the login redirect still passes.
+      test: ["CMD-SHELL", "ruby -rnet/http -e \"exit(Net::HTTP.get_response(URI('http://127.0.0.1:3214/')).code.to_i < 500 ? 0 : 1)\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.manyfold.service=manyfold
+      - traefik.http.routers.manyfold.rule=Host(`manyfold.tylercash.dev`) && (ClientIP(`10.0.0.0/8`) || ClientIP(`172.19.0.0/24`))
+      - traefik.http.routers.manyfold.entrypoints=websecure
+      - traefik.http.services.manyfold.loadbalancer.server.scheme=http
+      - traefik.http.services.manyfold.loadbalancer.server.port=3214
+      - traefik.http.routers.manyfold.tls.certresolver=leresolver
+      - com.centurylinklabs.watchtower.enable=true
+
+  # === Phase 2: bambuddy-to-manyfold sync (community add-on) =================
+  # Disabled until Manyfold is up and its OAuth app exists — that is why this is
+  # a two-phase bring-up. To enable:
+  #   1. In Manyfold, create the admin account and a library pointing at /models.
+  #   2. Create an OAuth application (grant: client_credentials) with the
+  #      **upload** scope (mandatory) and **delete** scope (only if you use
+  #      --cleanup-empty). A personal access token can NOT carry the upload
+  #      scope — the script probes on startup and exits with instructions if it
+  #      is missing.
+  #   3. In Bambuddy, create an API key for BAMBUDDY_API_KEY.
+  #   4. `task edit STACK=spoolman` and add MANYFOLD_OAUTH_CLIENT_ID,
+  #      MANYFOLD_OAUTH_CLIENT_SECRET and BAMBUDDY_API_KEY.
+  #   5. Uncomment this service, then add the DNS record + Homepage entry for
+  #      manyfold-sync.tylercash.dev.
+  #
+  # The tool is one-shot at heart (keeps a local state file to skip already-synced
+  # items; --force retries failed uploads) but ships a long-lived web GUI on 8089
+  # for triggering syncs on demand — the variant that fits this stack's
+  # restart:unless-stopped services. It uploads via Manyfold's resumable Tus API.
+  #
+  # manyfold-sync-init:
+  #   <<: *logging
+  #   image: alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce
+  #   container_name: manyfold-sync-init
+  #   command: chown -R 568:568 /data
+  #   restart: "no"
+  #   volumes:
+  #     - /ssd/services/bambuddy-to-manyfold/data:/data
+  #
+  # bambuddy-to-manyfold:
+  #   <<: *logging
+  #   image: ghcr.io/hibikipr/bambuddy_to_manyfold:1.3.3@sha256:7718290446dd0420aa92aaf827d461a86b5ad586090968c902830cf35b2b6b3d
+  #   container_name: bambuddy-to-manyfold
+  #   restart: unless-stopped
+  #   networks:
+  #     - homelab_default
+  #   depends_on:
+  #     manyfold-sync-init:
+  #       condition: service_completed_successfully
+  #     manyfold:
+  #       condition: service_healthy
+  #     bambuddy:
+  #       condition: service_healthy
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 512M
+  #   volumes:
+  #     - /ssd/services/bambuddy-to-manyfold/data:/data
+  #   environment:
+  #     - PUID=568
+  #     - PGID=568
+  #     - TZ=Australia/Sydney
+  #     # Reachable container-to-container over homelab_default.
+  #     - BAMBUDDY_URL=http://bambuddy:8000
+  #     - BAMBUDDY_API_KEY=${BAMBUDDY_API_KEY}
+  #     - MANYFOLD_URL=http://manyfold:3214
+  #     - MANYFOLD_CLIENT_ID=${MANYFOLD_OAUTH_CLIENT_ID}
+  #     - MANYFOLD_CLIENT_SECRET=${MANYFOLD_OAUTH_CLIENT_SECRET}
+  #     # 'upload' is mandatory; 'delete' only needed for --cleanup-empty.
+  #     - MANYFOLD_SCOPES=public read write upload delete
+  #     - MANYFOLD_LIBRARY_ID=1
+  #     - SYNC_STATE_FILE=/data/bambuddy_sync_state.json
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:8089/ || exit 1"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 30s
+  #   labels:
+  #     - traefik.enable=true
+  #     - traefik.http.routers.manyfold-sync.service=manyfold-sync
+  #     - traefik.http.routers.manyfold-sync.rule=Host(`manyfold-sync.tylercash.dev`) && (ClientIP(`10.0.0.0/8`) || ClientIP(`172.19.0.0/24`))
+  #     - traefik.http.routers.manyfold-sync.entrypoints=websecure
+  #     - traefik.http.services.manyfold-sync.loadbalancer.server.scheme=http
+  #     - traefik.http.services.manyfold-sync.loadbalancer.server.port=8089
+  #     - traefik.http.routers.manyfold-sync.tls.certresolver=leresolver
+  #     - com.centurylinklabs.watchtower.enable=true
+  # ==========================================================================
+
 networks:
   homelab_default:
     external: true
