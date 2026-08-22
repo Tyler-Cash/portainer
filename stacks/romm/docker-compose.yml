@@ -57,7 +57,7 @@ services:
 
   romm-db:
     <<: *logging
-    image: mariadb:11.8@sha256:24e76fcec8c003a0362d0dd53f4806e7e79458d7fdeaf47437760e19496f5a9c
+    image: mariadb:12.3@sha256:a02fe89cb597d4375812b2eac90cf9d0775d4686daa7f7cc750ebbcad7525bbc
     container_name: romm-db
     restart: unless-stopped
     environment:
