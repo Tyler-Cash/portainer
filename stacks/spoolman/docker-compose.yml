@@ -237,6 +237,14 @@ services:
       - POSTGRES_USER=manyfold
       - POSTGRES_PASSWORD=${MANYFOLD_DB_PASSWORD}
       - POSTGRES_DB=manyfold
+      # PGDATA is a *subdirectory* of the mount, not the mount root. The
+      # /ssd/databases/manyfold-pg dataset exposes .zfs/snapshot
+      # (snapdir=visible), and the Postgres entrypoint runs `chown -R`/`find`
+      # over PGDATA on startup — pointed at the dataset root it recurses into the
+      # read-only snapshot tree and storms "Read-only file system" /
+      # "Symbolic link loop" until init never settles. A subdir keeps initdb and
+      # the chown off the dataset root's .zfs entirely.
+      - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
       - /ssd/databases/manyfold-pg:/var/lib/postgresql/data
     healthcheck:
