@@ -121,7 +121,7 @@ services:
 
   peepbot-backend:
     <<: *backend-defaults
-    image: ghcr.io/tyler-cash/peep-bot-backend:3.65.26@sha256:a137246f6962f7ee4969290bcf295139d5dda4872fb6253047edce4f674f407a
+    image: ghcr.io/tyler-cash/peep-bot-backend:3.65.27@sha256:ec368a181b043e4dc394d7483b4fd8e7b266d90325a2a1ee632a9f3f03c890c8
     container_name: peepbot-backend
     deploy:
       resources:
