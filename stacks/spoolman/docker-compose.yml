@@ -278,7 +278,7 @@ services:
 
   manyfold:
     <<: *logging
-    image: ghcr.io/manyfold3d/manyfold:0.147.2@sha256:54b7f4e95f8a858d63c7b532ed18b41f2ba5baa36e39371c6f240fdad943379a
+    image: ghcr.io/manyfold3d/manyfold:0.148.0@sha256:7b4fdd373759b4ae0802487277801626bda6df8b2fba2ddb1d4aeb56bbf24af6
     container_name: manyfold
     restart: unless-stopped
     networks:
