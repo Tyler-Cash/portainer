@@ -30,7 +30,7 @@ services:
 
   dawarich_db:
     <<: *logging
-    image: postgis/postgis:17-3.5-alpine@sha256:35d90a44f150ef26c1c734e86e3f888753ca7fd6e1321d85e73f66a7dbffb531
+    image: postgis/postgis:17-3.5-alpine@sha256:1e85984a7261b01b38a8e7d4166abcdb35370e6b7667a6d6fd9caa057f64eab6
     shm_size: 1G
     container_name: dawarich_db
     volumes:
