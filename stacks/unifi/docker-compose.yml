@@ -10,7 +10,7 @@ x-logging: &logging
 services:
   unifi-db:
     <<: *logging
-    image: mongo:7.0@sha256:b096b4cb9269f3ebcf363be63f1c50920f786879d03a1890347a3bf33f1f0df0
+    image: mongo:8.3@sha256:2609aaf7a1abbff404101af896e05f243d22be742471ed857b50b9ce0270fdbd
     container_name: unifi-db
     restart: unless-stopped
     networks:
