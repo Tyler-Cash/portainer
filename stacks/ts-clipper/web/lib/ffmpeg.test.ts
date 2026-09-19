@@ -68,6 +68,41 @@ describe('buildFfmpegArgs', () => {
     ]);
   });
 
+  it('software-decodes and uploads to the GPU in sw reencode mode', () => {
+    const args = buildFfmpegArgs(
+      '/scratch/in.avi',
+      '/scratch/out.mp4',
+      { start: 0, end: 10, removeAudio: false },
+      'reencode',
+      '/dev/dri/renderD128',
+      'sw',
+    );
+    expect(args).toEqual([
+      '-y',
+      '-vaapi_device', '/dev/dri/renderD128',
+      '-ss', '0', '-to', '10', '-i', '/scratch/in.avi',
+      '-vf', 'format=nv12,hwupload', '-c:v', 'h264_vaapi', '-qp', '23', '-c:a', 'aac', '/scratch/out.mp4',
+    ]);
+  });
+
+  it('software-decodes then scales on the GPU in sw fast mode', () => {
+    const args = buildFfmpegArgs(
+      '/scratch/in.avi',
+      '/scratch/out.mp4',
+      { start: 0, end: 10, removeAudio: true },
+      'fast',
+      '/dev/dri/renderD128',
+      'sw',
+    );
+    expect(args).toEqual([
+      '-y',
+      '-vaapi_device', '/dev/dri/renderD128',
+      '-ss', '0', '-to', '10', '-i', '/scratch/in.avi',
+      '-vf', 'format=nv12,hwupload,scale_vaapi=w=-2:h=480', '-c:v', 'h264_vaapi', '-qp', '32',
+      '-an', '/scratch/out.mp4',
+    ]);
+  });
+
   it('defaults the VAAPI device to /dev/dri/renderD128 when not specified', () => {
     const args = buildFfmpegArgs(
       '/scratch/in.ts',
