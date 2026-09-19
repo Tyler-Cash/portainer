@@ -56,6 +56,17 @@ export async function getMetadata(filePath: string): Promise<VideoMetadata> {
   return parseMetadataOutput(stdout);
 }
 
+export async function getVideoCodec(filePath: string): Promise<string> {
+  const { stdout } = await execFileAsync('ffprobe', [
+    '-v', 'error',
+    '-select_streams', 'v:0',
+    '-show_entries', 'stream=codec_name',
+    '-of', 'csv=p=0',
+    filePath,
+  ]);
+  return stdout.trim().toLowerCase();
+}
+
 export async function hasAudioStream(filePath: string): Promise<boolean> {
   const { stdout } = await execFileAsync('ffprobe', [
     '-v', 'error',

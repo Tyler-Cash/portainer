@@ -142,8 +142,8 @@ export default function Home() {
     if (files.length > 0) handleFiles(files);
   }
 
-  // Server-side remux (ffmpeg -c copy to fragmented mp4) plays in a plain
-  // <video> regardless of source container/codec — no MSE, no client-side
+  // Server-side remux (ffmpeg VAAPI re-encode to fragmented mp4) plays in a
+  // plain <video> regardless of source container/codec — no MSE, no client-side
   // demuxer. The trade-off: a live pipe has no fixed byte length, so seeking
   // restarts the remux from a new point rather than using Range requests —
   // see seekTo below.
