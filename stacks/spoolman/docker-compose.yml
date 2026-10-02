@@ -258,7 +258,7 @@ services:
 
   manyfold-redis:
     <<: *logging
-    image: redis:7.4-alpine@sha256:ca0acbb137c1dc3339c8b147a58fd6f42775d4599327b50e7b116c23de501af2
+    image: redis:8.10-alpine@sha256:2d3814be5e9b06a30a0be54770b7e12052e7e79ec85271aefd34875c1f393b23
     container_name: manyfold-redis
     restart: unless-stopped
     networks:
