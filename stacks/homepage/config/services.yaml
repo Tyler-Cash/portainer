@@ -141,7 +141,7 @@
         description: Database admin
         icon: mdi-database
     - WG Easy:
-        href: https://wg.tylercash.dev
+        href: https://wg-ui.tylercash.dev
         description: WireGuard VPN
         icon: wireguard.png
 
