@@ -140,6 +140,10 @@
         href: https://adminer.tylercash.dev
         description: Database admin
         icon: mdi-database
+    - WG Easy:
+        href: https://wg.tylercash.dev
+        description: WireGuard VPN
+        icon: wireguard.png
 
 - 3D Printing:
     - Spoolman:

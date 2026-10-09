@@ -1,0 +1,54 @@
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "50m"
+      max-file: "3"
+      labels: "com.docker.compose.service,com.docker.compose.project"
+
+services:
+  wg-easy:
+    <<: *logging
+    image: ghcr.io/wg-easy/wg-easy:15.4.0@sha256:0e7bc9d34e86ddcaa92bc700d4d7dc9b33291dbc07ac8d13382f7c2095f949ec
+    container_name: wg-easy
+    restart: unless-stopped
+    networks:
+      - homelab_default
+    volumes:
+      - /ssd/services/wg-easy:/etc/wireguard
+      - /lib/modules:/lib/modules:ro
+    environment:
+      - TZ=Australia/Sydney
+      # Web UI is only reachable through Traefik; wg-easy v15 serves plain HTTP
+      # by default, so the secure-cookie requirement must be relaxed.
+      - INSECURE=true
+    ports:
+      # WireGuard tunnel. Forward this UDP port on the router to the Docker host.
+      - 51820:51820/udp
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    sysctls:
+      - net.ipv4.ip_forward=1
+      - net.ipv4.conf.all.src_valid_mark=1
+      - net.ipv6.conf.all.disable_ipv6=0
+      - net.ipv6.conf.all.forwarding=1
+      - net.ipv6.conf.default.forwarding=1
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:51821/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.wg-easy.entrypoints=websecure
+      - traefik.http.routers.wg-easy.rule=Host(`wg.tylercash.dev`) && ClientIP(`10.0.0.0/8`)
+      - traefik.http.routers.wg-easy.service=wg-easy
+      - traefik.http.routers.wg-easy.tls.certresolver=leresolver
+      - traefik.http.services.wg-easy.loadbalancer.server.port=51821
+      - com.centurylinklabs.watchtower.enable=true
+
+networks:
+  homelab_default:
+    external: true
