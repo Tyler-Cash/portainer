@@ -197,7 +197,7 @@ services:
       traefik.http.services.peepbot-frontend.loadbalancer.server.port: *frontend-port
 
   adminer:
-    image: adminer:5.5.1@sha256:196b3407affbab8adc294ba20f235b1fbe445e3870966c6f577f61560cf26e0d
+    image: adminer:5.5.1@sha256:064f7031cad79127266910ffab071e10bde6a525e95c4027a7a4e7388e051f0b
     restart: always
     networks:
       - homelab_default
