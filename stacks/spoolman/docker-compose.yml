@@ -15,7 +15,7 @@ services:
   # and survives the dataset ever being recreated.
   spoolman-init:
     <<: *logging
-    image: alpine:3.22@sha256:822614ea121e1d40a33655081af10ef85f0aa2ab9e61f649ceaf0c651822433c
+    image: alpine:3.22@sha256:d406446bc05b82480756ce8f1287964d28768c23955fa9480d2a74a2eae7a654
     container_name: spoolman-init
     command: chown -R 568:568 /data
     restart: "no"
@@ -215,7 +215,7 @@ services:
   # official Postgres entrypoint chowns PGDATA itself while still root.)
   manyfold-init:
     <<: *logging
-    image: alpine:3.22@sha256:822614ea121e1d40a33655081af10ef85f0aa2ab9e61f649ceaf0c651822433c
+    image: alpine:3.22@sha256:d406446bc05b82480756ce8f1287964d28768c23955fa9480d2a74a2eae7a654
     container_name: manyfold-init
     command: chown -R 568:568 /models
     restart: "no"
