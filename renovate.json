@@ -38,7 +38,7 @@
     {
       "description": "Auto-update peepbot staging images immediately",
       "matchDatasources": ["docker"],
-      "matchPackageNames": ["ghcr.io/tyler-cash/peep-bot-backend", "ghcr.io/tyler-cash/peep-bot-frontend"],
+      "matchPackageNames": ["ghcr.io/tyler-cash/peep-bot-backend"],
       "matchFileNames": ["stacks/peepbot-staging/**"],
       "schedule": ["at any time"],
       "automerge": true,

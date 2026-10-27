@@ -2,7 +2,6 @@ x-traefik:
   entrypoint: &entrypoint websecure
   certresolver: &certresolver leresolver
   backend-port: &backend-port 8080
-  frontend-port: &frontend-port 80
 
 x-postgres:
   password: &postgresPassword ${POSTGRES_PASSWORD}
@@ -45,26 +44,6 @@ x-backend-defaults: &backend-defaults
       max-file: "3"
       labels: "com.docker.compose.service,com.docker.compose.project"
   labels: &backend-labels
-    traefik.enable: true
-    com.centurylinklabs.watchtower.enable: true
-
-x-frontend-defaults: &frontend-defaults
-  restart: always
-  networks:
-    - homelab_default
-  logging:
-    driver: json-file
-    options:
-      max-size: "50m"
-      max-file: "3"
-      labels: "com.docker.compose.service,com.docker.compose.project"
-  healthcheck:
-    test: ["CMD-SHELL", "curl -sf http://localhost:80/ || exit 1"]
-    interval: 30s
-    timeout: 10s
-    retries: 3
-    start_period: 30s
-  labels: &frontend-labels
     traefik.enable: true
     com.centurylinklabs.watchtower.enable: true
 
@@ -183,18 +162,6 @@ services:
       traefik.http.routers.peepbot-backend.service: peepbot-backend
       traefik.http.routers.peepbot-backend.tls.certresolver: *certresolver
       traefik.http.services.peepbot-backend.loadbalancer.server.port: *backend-port
-
-  peepbot-frontend:
-    <<: *frontend-defaults
-    image: ghcr.io/tyler-cash/peep-bot-frontend:3.10.5@sha256:667159f3b510d1c00f4497628b231a206cd0d5d3271ff0ae4fdfba010998e5ba
-    container_name: peepbot-frontend
-    labels:
-      <<: *frontend-labels
-      traefik.http.routers.peepbot-frontend.entrypoints: *entrypoint
-      traefik.http.routers.peepbot-frontend.rule: Host(`event.tylercash.dev`)
-      traefik.http.routers.peepbot-frontend.service: peepbot-frontend
-      traefik.http.routers.peepbot-frontend.tls.certresolver: *certresolver
-      traefik.http.services.peepbot-frontend.loadbalancer.server.port: *frontend-port
 
   adminer:
     image: adminer:5.5.1@sha256:87f9aeeef91638f5bc150bb6490a4fd85d071f458f38dcc8171a640e1751d29b
