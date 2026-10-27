@@ -1,4 +1,4 @@
-FROM myoung34/github-runner:latest
+FROM myoung34/github-runner:2.338.2
 
 # Install tools needed by deploy-stack.sh and tests
 RUN apt-get update && apt-get install -y --no-install-recommends \
