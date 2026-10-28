@@ -47,6 +47,43 @@ services:
       - traefik.http.services.home-assistant.loadbalancer.server.port=8123
       - traefik.http.routers.home-assistant.tls.certresolver=leresolver
       - com.centurylinklabs.watchtower.enable=true
+    # matter-server runs on the host network, so HA reaches it via the docker0
+    # gateway: configure the Matter integration with ws://host.docker.internal:5580/ws
+    extra_hosts:
+      - host.docker.internal:host-gateway
+
+  # The matter-server image runs as uid 1000 and won't chown its own data dir;
+  # fresh ZFS datasets are root-owned. Same pattern as spoolman-init.
+  matter-server-init:
+    <<: *logging
+    image: alpine:3.22@sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8
+    container_name: matter-server-init
+    command: chown -R 1000:1000 /data
+    restart: "no"
+    volumes:
+      - /ssd/services/matter-server:/data
+
+  # OHF Matter(.js) Server — the Matter controller HA's Matter integration talks to.
+  # Host networking is required: Matter relies on IPv6 link-local/mDNS on the LAN.
+  matter-server:
+    <<: *logging
+    depends_on:
+      matter-server-init:
+        condition: service_completed_successfully
+    container_name: matter-server
+    image: ghcr.io/matter-js/matterjs-server:1.5.5@sha256:ee149c7c67eff0e90f131e8f0d628f7b099591ec58473c8cda1209e8ae4df66e
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - /ssd/services/matter-server:/data
+    environment:
+      - TZ=Australia/Sydney
+      - PRIMARY_INTERFACE=enp3s0
+      # The WebSocket API is unauthenticated and controls every device on the
+      # fabric, so keep it off the LAN: loopback (healthcheck, listed first) plus
+      # docker0, which is what host.docker.internal resolves to from HA.
+      - LISTEN_ADDRESS=127.0.0.1,docker0
+      - ENABLE_TIME_SYNC=true
 
   mdns-repeater:
     <<: *logging
