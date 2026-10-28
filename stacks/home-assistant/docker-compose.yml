@@ -47,10 +47,12 @@ services:
       - traefik.http.services.home-assistant.loadbalancer.server.port=8123
       - traefik.http.routers.home-assistant.tls.certresolver=leresolver
       - com.centurylinklabs.watchtower.enable=true
-    # matter-server runs on the host network, so HA reaches it via the docker0
-    # gateway: configure the Matter integration with ws://host.docker.internal:5580/ws
+    # matter-server runs on the host network, so HA reaches it via docker0's
+    # address: configure the Matter integration with ws://host.docker.internal:5580/ws
+    # Pinned to the literal (not host-gateway) so it always matches matter-server's
+    # LISTEN_ADDRESS below.
     extra_hosts:
-      - host.docker.internal:host-gateway
+      - host.docker.internal:172.17.0.1
 
   # The matter-server image runs as uid 1000 and won't chown its own data dir;
   # fresh ZFS datasets are root-owned. Same pattern as spoolman-init.
@@ -81,8 +83,9 @@ services:
       - PRIMARY_INTERFACE=enp3s0
       # The WebSocket API is unauthenticated and controls every device on the
       # fabric, so keep it off the LAN: loopback (healthcheck, listed first) plus
-      # docker0, which is what host.docker.internal resolves to from HA.
-      - LISTEN_ADDRESS=127.0.0.1,docker0
+      # docker0's address, which is what host.docker.internal resolves to from HA.
+      # Must be an IP: matter-server 1.5.5 DNS-resolves interface names and dies.
+      - LISTEN_ADDRESS=127.0.0.1,172.17.0.1
       - ENABLE_TIME_SYNC=true
 
   mdns-repeater:
