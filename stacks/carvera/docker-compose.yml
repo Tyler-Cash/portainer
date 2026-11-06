@@ -17,10 +17,8 @@ services:
   #
   # Neither VNC nor noVNC has ANY authentication (-SecurityTypes None,
   # --no-url-password), and whoever reaches the page can jog the spindle. So:
-  #  - Raw VNC (5900) is never reachable from outside the container: no ports
-  #    are published, and ./supervisord.conf adds -localhost to Xtigervnc so it
-  #    refuses even container-to-container connections on homelab_default.
-  #    Only easy-novnc, over loopback in this container, can talk to it.
+  #  - No ports are published. Raw VNC (5900) is not reachable from the LAN;
+  #    only other containers on homelab_default can reach it.
   #  - The browser UI (8080) is only reachable through Traefik, limited to the
   #    LAN and WireGuard peers, same as the other private services.
   #
@@ -44,12 +42,8 @@ services:
           memory: 1G
     volumes:
       - /ssd/services/carvera:/config
-      - ./supervisord.conf:/etc/supervisord.conf:ro
     environment:
       - TZ=Australia/Sydney
-      # Editing ./supervisord.conf changes this hash, which recreates the
-      # container so supervisord picks up the new config.
-      - STACK_CONTENT_HASH=__STACK_CONTENT_HASH__
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/ || exit 1"]
       interval: 30s
