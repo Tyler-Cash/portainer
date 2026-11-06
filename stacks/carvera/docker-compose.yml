@@ -1,0 +1,71 @@
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "50m"
+      max-file: "3"
+      labels: "com.docker.compose.service,com.docker.compose.project"
+
+services:
+  # Carvera Community Controller (https://github.com/Carvera-Community/Carvera_Controller)
+  # for the Makera Carvera CNC at 10.0.90.34. Upstream's Docker image runs the
+  # desktop (Kivy) app under TigerVNC and exposes it through easy-novnc on 8080.
+  #
+  # Pinned to a release candidate on purpose: the machine is a Carvera Z1 Pro and
+  # only the v2.3.0 RC line supports it. Renovate will move this to v2.3.0 stable
+  # when it ships; don't roll back to v2.2.x.
+  #
+  # Neither VNC nor noVNC has ANY authentication (-SecurityTypes None,
+  # --no-url-password), and whoever reaches the page can jog the spindle. So:
+  #  - Raw VNC (5900) is never reachable from outside the container: no ports
+  #    are published, and ./supervisord.conf adds -localhost to Xtigervnc so it
+  #    refuses even container-to-container connections on homelab_default.
+  #    Only easy-novnc, over loopback in this container, can talk to it.
+  #  - The browser UI (8080) is only reachable through Traefik, limited to the
+  #    LAN and WireGuard peers, same as the other private services.
+  #
+  # Connecting to the machine: the controller's auto-discovery listens for the
+  # Carvera's UDP broadcast on 3333, which does not cross the Docker bridge. Use
+  # the manual WiFi address field in the Connect dialog: 10.0.90.34 (TCP 2222,
+  # reached outbound through the bridge NAT like any other LAN host).
+  #
+  # The image's CMD chowns /config itself before dropping to its own user via
+  # gosu, so no *-init service is needed for the dataset.
+  carvera-controller:
+    <<: *logging
+    image: ghcr.io/carvera-community/carvera-controller-x64:v2.3.0-RC1@sha256:b2e03c3c4d8377400c82180580eeea9e1709ddb4726d677679eef3784a0e2b70
+    container_name: carvera-controller
+    restart: unless-stopped
+    networks:
+      - homelab_default
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+    volumes:
+      - /ssd/services/carvera:/config
+      - ./supervisord.conf:/etc/supervisord.conf:ro
+    environment:
+      - TZ=Australia/Sydney
+      # Editing ./supervisord.conf changes this hash, which recreates the
+      # container so supervisord picks up the new config.
+      - STACK_CONTENT_HASH=__STACK_CONTENT_HASH__
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.carvera.service=carvera
+      - traefik.http.routers.carvera.rule=Host(`carvera.tylercash.dev`) && (ClientIP(`10.0.0.0/8`) || ClientIP(`172.19.0.0/24`))
+      - traefik.http.routers.carvera.entrypoints=websecure
+      - traefik.http.services.carvera.loadbalancer.server.scheme=http
+      - traefik.http.services.carvera.loadbalancer.server.port=8080
+      - traefik.http.routers.carvera.tls.certresolver=leresolver
+      - com.centurylinklabs.watchtower.enable=true
+
+networks:
+  homelab_default:
+    external: true

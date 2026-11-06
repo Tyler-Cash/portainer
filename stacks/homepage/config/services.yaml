@@ -161,3 +161,7 @@
         href: https://manyfold.tylercash.dev
         description: 3D model library of record
         icon: manyfold.png
+    - Carvera:
+        href: https://carvera.tylercash.dev
+        description: CNC controller (LAN only)
+        icon: mdi-saw-blade

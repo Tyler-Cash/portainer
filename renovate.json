@@ -44,6 +44,12 @@
       "automerge": true,
       "automergeType": "pr",
       "platformAutomerge": true
+    },
+    {
+      "description": "Carvera controller also publishes date-stamped v2026.x.y builds alongside semver releases; stay on the semver line",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["ghcr.io/carvera-community/carvera-controller-x64"],
+      "allowedVersions": "<2000.0.0"
     }
   ]
 }
