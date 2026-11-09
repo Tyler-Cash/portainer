@@ -90,6 +90,10 @@
         href: https://splice.tylercash.dev
         description: Clip videos and share via Zipline
         icon: mdi-content-cut
+    - Syncthing:
+        href: https://syncthing.tylercash.dev
+        description: Continuous file sync across devices
+        icon: syncthing.svg
 
 - Home:
     - Home Assistant:

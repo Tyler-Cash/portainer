@@ -1,0 +1,70 @@
+x-logging: &logging
+  logging:
+    driver: json-file
+    options:
+      max-size: "50m"
+      max-file: "3"
+      labels: "com.docker.compose.service,com.docker.compose.project"
+
+services:
+  # The linuxserver image chowns /config itself, but not the data dir.
+  # ensure-zfs-datasets.sh creates /hdd/syncthing as root, so hand it to the
+  # app user before Syncthing (which drops to PUID) tries to write to it.
+  syncthing-init:
+    <<: *logging
+    image: alpine:3.24@sha256:3f4d6b32e26703c6082839234f43769d5046b3ac7c910033911d1e71d8cd630a
+    container_name: syncthing-init
+    command: chown 568:568 /data
+    restart: "no"
+    volumes:
+      - /hdd/syncthing:/data
+
+  syncthing:
+    <<: *logging
+    depends_on:
+      syncthing-init:
+        condition: service_completed_successfully
+    image: lscr.io/linuxserver/syncthing:v2.1.7-ls235@sha256:5c1276a655498fb9774e22e42ceeb5279eb2d7c46e3c209ce8285a7b0bae4925
+    container_name: syncthing
+    hostname: syncthing
+    restart: unless-stopped
+    networks:
+      - homelab_default
+    volumes:
+      - /ssd/services/syncthing:/config
+      - /hdd/syncthing:/data
+    environment:
+      - PUID=568
+      - PGID=568
+      - UMASK=0002
+      - TZ=Australia/Sydney
+    ports:
+      # Sync protocol (TCP + QUIC). Reachable from the LAN and from wg-easy
+      # VPN clients at 10.0.90.10. NOT forwarded on the router, so the device
+      # is not directly reachable from the internet.
+      # On remote devices, set this device's address to
+      # tcp://syncthing.tylercash.dev:22000 (resolves to 10.0.90.10) instead
+      # of relying on discovery, which can't see past Docker's bridge.
+      - 22000:22000/tcp
+      - 22000:22000/udp
+      # Local discovery broadcasts.
+      - 21027:21027/udp
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8384/rest/noauth/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.syncthing.service=syncthing
+      - traefik.http.routers.syncthing.rule=Host(`syncthing.tylercash.dev`) && (ClientIP(`10.0.0.0/8`) || ClientIP(`172.19.0.0/24`))
+      - traefik.http.routers.syncthing.entrypoints=websecure
+      - traefik.http.routers.syncthing.tls.certresolver=leresolver
+      - traefik.http.services.syncthing.loadbalancer.server.scheme=http
+      - traefik.http.services.syncthing.loadbalancer.server.port=8384
+      - com.centurylinklabs.watchtower.enable=true
+
+networks:
+  homelab_default:
+    external: true
