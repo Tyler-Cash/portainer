@@ -9,7 +9,7 @@ x-logging: &logging
 services:
   dawarich_redis:
     <<: *logging
-    image: redis:7.4-alpine@sha256:ec1c2d3603c3d7d65b153bedda0248b641aa3bd7684503406b27b9e870ac0796
+    image: redis:7.4-alpine@sha256:e4ee3e03ce8f75471f40937a7c6b2b0e500390b6812fcdf5cb32c01295ded446
     container_name: dawarich_redis
     command: >
       redis-server
