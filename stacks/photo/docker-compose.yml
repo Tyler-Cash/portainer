@@ -9,7 +9,7 @@ x-logging: &logging
 services:
   immich-server:
     <<: *logging
-    image: ghcr.io/immich-app/immich-server:v2.7.5@sha256:c15bff75068effb03f4355997d03dc7e0fc58720c2b54ad6f7f10d1bc57efaa5
+    image: ghcr.io/immich-app/immich-server:v3.4.1@sha256:7c489add298fc2f92cda4c777de6462aa206877e04087b815f62c7664af0b53b
     container_name: immich-server
     restart: unless-stopped
     networks:
@@ -47,7 +47,7 @@ services:
 
   immich-machine-learning:
     <<: *logging
-    image: ghcr.io/immich-app/immich-machine-learning:v2.7.5@sha256:a2501141440f10516d329fdfba2c68082e19eb9ba6016c061ac80d23beadf7f3
+    image: ghcr.io/immich-app/immich-machine-learning:v3.4.1@sha256:8adebf414256f6e4f837bfbb66fa94f14f4da7260e3a1d65cbba49e4e35d8764
     container_name: immich-machine-learning
     restart: unless-stopped
     networks:
