@@ -9,7 +9,7 @@ x-logging: &logging
 services:
   portainer:
     <<: *logging
-    image: portainer/portainer-ce:lts@sha256:3609c307943bca8e5c492f69ddd6965df177208b50678a4cff28391c8dd4e96e
+    image: portainer/portainer-ce:lts@sha256:18616fff2998f8ca0e8ebe7f028658ae1682859cf43f212f81a849c1093ad639
     container_name: portainer
     command: -H unix:///var/run/docker.sock
     restart: always
